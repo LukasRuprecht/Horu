@@ -4,19 +4,27 @@
 const state = {
   lines: new Map(), // id -> line object from Python
   selected: null, // the .word element whose popover is open
-  prefs: {}, // display preferences, loaded from and saved through Python
+  prefs: {}, // preferences, loaded from and saved through Python
+  ai: { enabled: false, label: null, error: null },
+  tutor: { session: null, answer: null, text: "", busy: false }, // the tutor panel's conversation
+  nextSession: 1,
 };
 
 const $ = (selector) => document.querySelector(selector);
 const linesEl = $("#lines");
 const popover = $("#popover");
 const settings = $("#settings");
+const tutor = $("#tutor");
 
 const SENSES_SHOWN = 5;
 const KIND_LABEL = { screen: "Screen text" };
 const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjectival" };
 // Used until Python's saved preferences arrive, and by "Reset to defaults".
 const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };
+const AI_SETUP_HINT =
+  "AI explanations need a provider. Add one in the [ai] section of config.toml (Claude, OpenAI, " +
+  "Gemini, or a free local model with Ollama), then restart Horu. The README has the details. " +
+  "Dictionary lookups keep working without it.";
 
 function api() {
   return window.pywebview && window.pywebview.api;
@@ -29,6 +37,14 @@ function el(tag, className, text) {
   return node;
 }
 
+function button(className, text, onClick, title) {
+  const node = el("button", className, text);
+  node.type = "button";
+  if (title) node.title = title;
+  node.addEventListener("click", onClick);
+  return node;
+}
+
 // [[text, reading|null], ...] -> nodes with <ruby> over the kanji.
 function furiganaNodes(segments) {
   return segments.map(([text, reading]) => {
@@ -37,6 +53,44 @@ function furiganaNodes(segments) {
     ruby.append(text, el("rt", null, reading));
     return ruby;
   });
+}
+
+// A small, safe Markdown subset for AI replies: paragraphs, "- " and "1. " lists,
+// **bold**, *italic*, and `code`. Everything is escaped first; only these tags are added.
+function renderMarkdown(text) {
+  const escape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s) =>
+    escape(s)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<em>$2</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+  const html = [];
+  let list = null; // "ul" | "ol" | null
+  const closeList = () => {
+    if (list) html.push(`</${list}>`);
+    list = null;
+  };
+  for (const raw of text.split("\n")) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (bullet || numbered) {
+      const kind = bullet ? "ul" : "ol";
+      if (list !== kind) {
+        closeList();
+        html.push(`<${kind}>`);
+        list = kind;
+      }
+      html.push(`<li>${inline((bullet || numbered)[1])}</li>`);
+    } else if (!line.trim()) {
+      closeList();
+    } else {
+      closeList();
+      html.push(`<p>${inline(line.replace(/^#+\s*/, ""))}</p>`);
+    }
+  }
+  closeList();
+  return html.join("");
 }
 
 // --- Captures and lines ----------------------------------------------------------------
@@ -78,17 +132,17 @@ function renderLine(line) {
   const meta = el("div", "line-meta");
   if (line.speaker) meta.append(el("span", "speaker", line.speaker));
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
-  meta.append(el("span", "spacer"));
-  const edit = el("button", "edit-btn", "Edit");
-  edit.type = "button";
-  edit.title = "Fix OCR mistakes in this line";
-  edit.addEventListener("click", () => startEdit(line, row));
-  meta.append(edit);
+  meta.append(
+    el("span", "spacer"),
+    button("line-btn", "Explain", () => explainLine(line), "Break this line down with AI"),
+    button("line-btn", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
+  );
 
   const text = el("div", "text");
   text.lang = "ja";
   renderWords(line, text);
   row.append(meta, text);
+  if (line.kind === "dialogue" && state.ai.enabled) row.append(translationRow(line));
   return row;
 }
 
@@ -116,7 +170,7 @@ function startEdit(line, row) {
   actions.append(cancel, save);
   editor.append(area, actions);
   text.hidden = true;
-  row.append(editor);
+  text.after(editor);
   area.focus();
 
   const finish = () => {
@@ -127,9 +181,12 @@ function startEdit(line, row) {
   save.addEventListener("click", async () => {
     const value = area.value.trim();
     if (value && value !== line.text && api()) {
-      line.words = await api().reanalyze(value);
+      line.words = await api().update_line(line.id, value);
       line.text = value;
       renderWords(line, text);
+      // The old translation no longer matches the text.
+      const old = row.querySelector(".translation");
+      if (old) old.replaceWith(translationRow(line, { auto: false }));
     }
     finish();
   });
@@ -143,11 +200,132 @@ function isNearBottom() {
   return linesEl.scrollHeight - linesEl.scrollTop - linesEl.clientHeight < 120;
 }
 
+// --- Translations ----------------------------------------------------------------------
+
+function translationRow(line, { auto = state.prefs.autoTranslate } = {}) {
+  const row = el("div", "translation");
+  row.dataset.line = line.id;
+  if (auto) {
+    // Python starts these itself as soon as the capture arrives.
+    setTranslationState(row, "loading");
+  } else {
+    row.append(button("translate-btn", "Translate", () => requestTranslation(line.id, row)));
+  }
+  return row;
+}
+
+function requestTranslation(lineId, row) {
+  row.dataset.reveal = "true"; // asked for explicitly, so don't blur it
+  setTranslationState(row, "loading");
+  api().translate(lineId);
+}
+
+function setTranslationState(row, status, message) {
+  row.dataset.state = status;
+  if (status === "loading") {
+    row.replaceChildren(el("span", "translation-note", "Translating..."));
+  } else if (status === "error") {
+    row.replaceChildren(el("span", "translation-note error", message));
+    row.append(button("translate-btn", "Retry", () => requestTranslation(Number(row.dataset.line), row)));
+  }
+}
+
+function translationText(row) {
+  let text = row.querySelector(".translation-text");
+  if (!text) {
+    text = el("span", "translation-text");
+    text.title = "Click to show or hide";
+    text.addEventListener("click", () => {
+      row.dataset.reveal = String(row.dataset.reveal !== "true");
+    });
+    row.replaceChildren(text);
+  }
+  return text;
+}
+
+function translationRowFor(lineId) {
+  return linesEl.querySelector(`.translation[data-line="${lineId}"]`);
+}
+
+// --- Tutor panel -----------------------------------------------------------------------
+
+function openTutor(title) {
+  closePopover();
+  toggleSettings(false);
+  tutor.hidden = false;
+  $("#tutor-title").replaceChildren(...title);
+  $("#tutor-log").replaceChildren();
+  state.tutor = { session: null, answer: null, text: "", busy: false };
+  if (!state.ai.enabled) {
+    $("#tutor-log").append(el("p", "tutor-note", state.ai.error || AI_SETUP_HINT));
+    setTutorBusy(true);
+    return false;
+  }
+  startAnswer();
+  return true;
+}
+
+function closeTutor() {
+  tutor.hidden = true;
+  state.tutor.session = null; // ignore anything still streaming
+}
+
+function startAnswer() {
+  state.tutor.text = "";
+  state.tutor.answer = el("div", "tutor-answer");
+  state.tutor.answer.append(el("p", "tutor-note", "Thinking..."));
+  $("#tutor-log").append(state.tutor.answer);
+  setTutorBusy(true);
+}
+
+function setTutorBusy(busy) {
+  state.tutor.busy = busy;
+  $("#tutor-input").disabled = busy || !state.ai.enabled;
+  $("#tutor-send").disabled = busy || !state.ai.enabled;
+  if (!busy && state.ai.enabled) $("#tutor-input").focus();
+}
+
+function scrollTutor() {
+  const log = $("#tutor-log");
+  log.scrollTop = log.scrollHeight;
+}
+
+function linePreview(line) {
+  return el("span", "tutor-line", line.speaker ? `${line.speaker}「${line.text}」` : `「${line.text}」`);
+}
+
+function explainWord(line, index) {
+  const word = line.words[index];
+  if (!openTutor([el("strong", "tutor-word", word.surface), " in ", linePreview(line)])) return;
+  state.tutor.session = state.nextSession++;
+  api().explain_word(line.id, index, state.tutor.session);
+}
+
+function explainLine(line) {
+  if (!openTutor(["Breaking down ", linePreview(line)])) return;
+  state.tutor.session = state.nextSession++;
+  api().explain_line(line.id, state.tutor.session);
+}
+
+$("#tutor-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = $("#tutor-input");
+  const question = input.value.trim();
+  if (!question || state.tutor.busy || state.tutor.session === null) return;
+  input.value = "";
+  $("#tutor-log").append(el("div", "tutor-question", question));
+  startAnswer();
+  scrollTutor();
+  api().ask(state.tutor.session, question);
+});
+$("#tutor-close").addEventListener("click", closeTutor);
+
 // --- Word popover ----------------------------------------------------------------------
 
 function openPopover(wordEl) {
   const line = state.lines.get(Number(wordEl.dataset.line));
-  const word = line && line.words[Number(wordEl.dataset.index)];
+  const index = Number(wordEl.dataset.index);
+  const word = line && line.words[index];
   if (!word) return;
 
   if (state.selected) state.selected.classList.remove("selected");
@@ -157,7 +335,9 @@ function openPopover(wordEl) {
   popover.replaceChildren(...popoverHeader(word));
   const body = el("div", "pop-body");
   body.append(el("p", "pop-note", "Looking up..."));
-  popover.append(body);
+  const actions = el("div", "pop-actions");
+  actions.append(button("pop-action", "Explain in context", () => explainWord(line, index)));
+  popover.append(body, actions);
   popover.hidden = false;
   positionPopover(wordEl);
 
@@ -174,11 +354,7 @@ function popoverHeader(word) {
   const surface = el("div", "pop-word");
   surface.lang = "ja";
   surface.append(...furiganaNodes(word.furigana));
-  const close = el("button", "pop-close", "×");
-  close.type = "button";
-  close.title = "Close";
-  close.addEventListener("click", closePopover);
-  head.append(surface, close);
+  head.append(surface, button("pop-close", "×", closePopover, "Close"));
   const nodes = [head];
 
   if (word.dictionary_form && word.dictionary_form !== word.surface) {
@@ -291,8 +467,42 @@ for (const key of Object.keys(TOGGLES)) {
   });
 }
 
+// Settings-panel checkboxes and text fields: [element, preference, default].
+const FIELDS = [
+  ["#auto-translate", "autoTranslate", false],
+  ["#blur-translations", "blurTranslations", true],
+  ["#learner-level", "learnerLevel", ""],
+];
+
+function applyFields() {
+  for (const [selector, key, fallback] of FIELDS) {
+    const input = $(selector);
+    const value = state.prefs[key] ?? fallback;
+    if (input.type === "checkbox") input.checked = value;
+    else if (document.activeElement !== input) input.value = value;
+  }
+  document.body.classList.toggle("blur-translations", state.prefs.blurTranslations ?? true);
+}
+
+for (const [selector, key] of FIELDS) {
+  const input = $(selector);
+  input.addEventListener("change", () => {
+    setPref(key, input.type === "checkbox" ? input.checked : input.value.trim());
+    applyFields();
+  });
+}
+
+function applyAI() {
+  const status = $("#ai-status");
+  if (state.ai.enabled) status.textContent = `Using ${state.ai.label}.`;
+  else status.textContent = state.ai.error || "Off. Add a provider in config.toml (see the README).";
+  status.classList.toggle("error", Boolean(state.ai.error));
+  $("#ai-options").hidden = !state.ai.enabled;
+}
+
 function applyAllPrefs() {
   applyDisplay();
+  applyFields();
   for (const key of Object.keys(TOGGLES)) applyToggle(key);
 }
 
@@ -320,6 +530,7 @@ $("#open-settings").addEventListener("click", () => toggleSettings(settings.hidd
 
 $("#clear").addEventListener("click", () => {
   closePopover();
+  closeTutor();
   state.lines.clear();
   linesEl.querySelectorAll(".capture").forEach((node) => node.remove());
   $("#empty").hidden = false;
@@ -348,14 +559,16 @@ linesEl.addEventListener("scroll", () => {
 });
 window.addEventListener("resize", closePopover);
 
-async function loadPrefs() {
+async function loadFromPython() {
   state.prefs = await api().get_prefs();
   applyAllPrefs();
+  horu.setAI(await api().ai_info());
 }
 
 applyAllPrefs();
-if (api()) loadPrefs();
-else window.addEventListener("pywebviewready", loadPrefs, { once: true });
+applyAI();
+if (api()) loadFromPython();
+else window.addEventListener("pywebviewready", loadFromPython, { once: true });
 
 // --- Called from Python ----------------------------------------------------------------
 
@@ -364,6 +577,11 @@ window.horu = {
     $("#status").className = `status ${status}`;
     $("#status-text").textContent = message;
     $("#status").title = message;
+  },
+
+  setAI(info) {
+    state.ai = info;
+    applyAI();
   },
 
   addCapture(capture) {
@@ -377,5 +595,41 @@ window.horu = {
     if (stick) card.scrollIntoView({ block: "end" });
     // Let the highlight fade out.
     setTimeout(() => card.classList.remove("new"), 2500);
+  },
+
+  aiChunk(msg) {
+    if (msg.target === "translation") {
+      const row = translationRowFor(msg.lineId);
+      if (!row) return;
+      if (row.dataset.state !== "streaming") {
+        row.dataset.state = "streaming";
+        translationText(row).textContent = "";
+      }
+      translationText(row).textContent += msg.text;
+    } else if (msg.target === "tutor" && msg.session === state.tutor.session && state.tutor.answer) {
+      const stick = $("#tutor-log").scrollHeight - $("#tutor-log").scrollTop - $("#tutor-log").clientHeight < 40;
+      state.tutor.text += msg.text;
+      state.tutor.answer.innerHTML = renderMarkdown(state.tutor.text);
+      if (stick) scrollTutor();
+    }
+  },
+
+  aiDone(msg) {
+    if (msg.target === "translation") {
+      const row = translationRowFor(msg.lineId);
+      if (row) row.dataset.state = "done";
+    } else if (msg.target === "tutor" && msg.session === state.tutor.session) {
+      setTutorBusy(false);
+    }
+  },
+
+  aiError(msg) {
+    if (msg.target === "translation") {
+      const row = translationRowFor(msg.lineId);
+      if (row) setTranslationState(row, "error", msg.message);
+    } else if (msg.target === "tutor" && msg.session === state.tutor.session && state.tutor.answer) {
+      state.tutor.answer.replaceChildren(el("p", "tutor-note error", msg.message));
+      setTutorBusy(false);
+    }
   },
 };

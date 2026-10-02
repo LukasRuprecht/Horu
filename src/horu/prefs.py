@@ -17,6 +17,9 @@ DEFAULTS: dict = {
     "furigana": True,
     "screenText": True,
     "onTop": False,
+    "autoTranslate": False,  # one AI request per new dialogue line
+    "blurTranslations": True,
+    "learnerLevel": "Beginner (studying with Genki I)",
 }
 
 

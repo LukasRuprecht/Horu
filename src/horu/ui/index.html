@@ -50,6 +50,17 @@
     <div class="settings-actions">
       <button id="reset-display" type="button">Reset to defaults</button>
     </div>
+
+    <h2>AI</h2>
+    <p id="ai-status" class="ai-status"></p>
+    <div id="ai-options">
+      <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>
+      <label class="check"><input id="blur-translations" type="checkbox"> Blur translations until clicked</label>
+      <label class="setting-text">
+        <span>Your level (explanations are pitched to this)</span>
+        <input id="learner-level" type="text" placeholder="e.g. Beginner (studying with Genki I)">
+      </label>
+    </div>
   </section>
 
   <main id="lines">
@@ -59,6 +70,18 @@
       <p class="credit">Dictionary: JMdict by the EDRDG, CC BY-SA 4.0</p>
     </div>
   </main>
+
+  <section id="tutor" class="tutor" aria-label="Tutor" hidden>
+    <header class="tutor-head">
+      <div id="tutor-title" class="tutor-title" lang="ja"></div>
+      <button id="tutor-close" class="pop-close" type="button" title="Close">×</button>
+    </header>
+    <div id="tutor-log" class="tutor-log" lang="ja"></div>
+    <form id="tutor-form" class="tutor-form">
+      <input id="tutor-input" type="text" placeholder="Ask a follow-up, e.g. why は and not が here?" autocomplete="off">
+      <button id="tutor-send" type="submit">Ask</button>
+    </form>
+  </section>
 
   <div id="popover" class="popover" role="dialog" hidden></div>
 

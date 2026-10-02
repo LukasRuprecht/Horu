@@ -10,6 +10,7 @@ from pathlib import Path
 DEFAULT_PATH = Path("config.toml")
 EXAMPLE_PATH = Path("config.example.toml")
 CAPTURE_MODES = ("window", "monitor", "region")
+AI_PROVIDERS = ("none", "anthropic", "openai_compat")
 
 
 class ConfigError(Exception):
@@ -32,12 +33,21 @@ class CaptureSettings:
 
 
 @dataclass(frozen=True)
+class AISettings:
+    provider: str = "none"
+    model: str = ""
+    base_url: str = ""
+    api_key_env: str = ""
+
+
+@dataclass(frozen=True)
 class Config:
     capture: CaptureSettings
     capture_hotkey: str
     ocr_engine: str
     save_captures: bool
     captures_dir: Path
+    ai: AISettings = AISettings()
 
 
 def load(path: Path = DEFAULT_PATH) -> Config:
@@ -58,6 +68,10 @@ def load(path: Path = DEFAULT_PATH) -> Config:
             raise ConfigError(f"capture.mode must be one of {CAPTURE_MODES}, got {mode!r}")
         region = cap.get("region")
         debug = raw.get("debug", {})
+        ai = raw.get("ai", {})
+        provider = ai.get("provider", "none")
+        if provider not in AI_PROVIDERS:
+            raise ConfigError(f"ai.provider must be one of {AI_PROVIDERS}, got {provider!r}")
         return Config(
             capture=CaptureSettings(
                 mode=mode,
@@ -68,6 +82,12 @@ def load(path: Path = DEFAULT_PATH) -> Config:
             ocr_engine=raw["ocr"]["engine"],
             save_captures=bool(debug.get("save_captures", False)),
             captures_dir=Path(debug.get("captures_dir", "captures")),
+            ai=AISettings(
+                provider=provider,
+                model=ai.get("model", ""),
+                base_url=ai.get("base_url", ""),
+                api_key_env=ai.get("api_key_env", ""),
+            ),
         )
     except (KeyError, TypeError) as e:
         raise ConfigError(f"Invalid config in {path}: {e!r}") from e

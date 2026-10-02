@@ -24,3 +24,20 @@ engine = "rapidocr"
 # Save every capture as a PNG, handy when OCR misreads something.
 save_captures = false
 captures_dir = "captures"
+
+[ai]
+# Optional: AI translations and explanations. Dictionary lookups work without it.
+# Horu never ships API keys: put yours in .env (copy .env.example).
+#
+# "none":          AI features off.
+# "anthropic":     Claude. Key: ANTHROPIC_API_KEY in .env.
+# "openai_compat": anything that speaks the OpenAI API (set base_url and api_key_env):
+#   OpenAI:  base_url = "https://api.openai.com/v1", api_key_env = "OPENAI_API_KEY"
+#   Gemini:  base_url = "https://generativelanguage.googleapis.com/v1beta/openai/",
+#            api_key_env = "GEMINI_API_KEY"
+#   Ollama (free, runs locally): base_url = "http://localhost:11434/v1", no key needed,
+#            model e.g. "qwen3:8b" (run `ollama pull qwen3:8b` first)
+provider = "none"
+model = "claude-opus-5-5"
+# base_url = ""
+# api_key_env = ""

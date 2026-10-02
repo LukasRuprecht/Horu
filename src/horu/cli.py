@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from horu import capture, config, hotkey, layout, text_sources
 
 
@@ -98,6 +100,8 @@ def main() -> None:
     # Make sure Japanese prints correctly even when output is redirected on Windows.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
+    # API keys for AI providers live in .env (gitignored).
+    load_dotenv()
 
     parser = argparse.ArgumentParser(prog="horu", description="Japanese study buddy for games.")
     parser.add_argument("--config", type=Path, default=config.DEFAULT_PATH, help="path to config.toml")

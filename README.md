@@ -22,7 +22,7 @@ Hotkey ─► Capture the game window
         Local analysis: words, conjugations, furigana, JMdict lookups (instant, offline)
             │
             ▼
-        Line history window (clickable words) ◄──► LLM explanations (planned, bring your own key)
+        Line history window (clickable words) ◄──► AI translations and explanations (optional, bring your own key)
             │
             ▼
         Optional: Anki export
@@ -32,7 +32,7 @@ Hotkey ─► Capture the game window
 
 - [x] **Phase 1:** hotkey → capture region → OCR → print text
 - [x] **Phase 2:** line-history window with furigana, clickable words, and JMdict popups
-- [ ] **Phase 3:** LLM translation and explanations (Claude, OpenAI-compatible APIs, Ollama)
+- [x] **Phase 3:** AI translations, explanations, and follow-up questions (Claude, OpenAI-compatible APIs, Ollama)
 - [ ] **Phase 4:** auto-capture and more text sources (owocr, text hooking)
 - [ ] **Phase 5:** Anki export
 - [ ] **Phase 6:** first release
@@ -62,6 +62,10 @@ there's no capture region to set up.
 - Dialogue (and the speaker's name tag) is shown large; other screen text such as menus and
   the HUD is shown small, and can be hidden.
 - If OCR gets a character wrong, hover the line and click **Edit** to fix it.
+- With an AI provider set up (below): click **Translate** under a line (or turn on automatic
+  translation in settings; translations stay blurred until you click them), **Explain** on a
+  line for a grammar breakdown, or **Explain in context** in a word's popup. Ask follow-up
+  questions in the panel that opens.
 
 Other commands:
 
@@ -98,9 +102,31 @@ Set `capture.mode` in `config.toml`:
 
 ## AI providers
 
-Horu never ships with API keys. You bring your own (put them in `.env`, see `.env.example`),
-or run a free local model with [Ollama](https://ollama.com). Dictionary lookups work without
-any AI provider at all.
+AI features are optional; everything else works without them. Horu never ships with API
+keys: you bring your own, or run a free local model.
+
+1. Copy `.env.example` to `.env` and fill in the key for your provider (`.env` is gitignored).
+2. Set the `[ai]` section of `config.toml`:
+
+   | Provider | Settings |
+   |---|---|
+   | Claude | `provider = "anthropic"`, `model = "claude-opus-5-5"`, key `ANTHROPIC_API_KEY` |
+   | OpenAI | `provider = "openai_compat"`, `base_url = "https://api.openai.com/v1"`, `api_key_env = "OPENAI_API_KEY"`, `model` of your choice |
+   | Gemini | `provider = "openai_compat"`, `base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"`, `api_key_env = "GEMINI_API_KEY"` |
+   | Ollama (free, local) | `provider = "openai_compat"`, `base_url = "http://localhost:11434/v1"`, `model = "qwen3:8b"` (after `ollama pull qwen3:8b`), no key |
+
+   Any other OpenAI-compatible server (OpenRouter, LM Studio, ...) works the same way.
+3. Restart Horu. The settings panel shows which provider is active, and lets you set your
+   level (explanations are pitched to it) and turn on automatic translation.
+
+**Cost:** each translation, explanation, and follow-up is one request to your provider, billed
+to your account. Automatic translation makes one request per new dialogue line, so it's off by
+default. With Claude, Horu uses low effort for fast replies and turns on Anthropic's
+server-side refusal fallback, so the rare request a model declines is retried on another
+model instead of failing.
+
+Horu sends the provider the line's text, the few dialogue lines before it (for context), and
+your level. No screenshots are sent.
 
 ## License and credits
 
