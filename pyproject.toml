@@ -1,0 +1,15 @@
+[project]
+name = "horu"
+version = "0.1.0"
+description = "A Japanese study buddy for video games: capture on-screen text, look it up, and get explanations."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+horu = "horu.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
