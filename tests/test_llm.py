@@ -111,6 +111,22 @@ class FakeOpenAIStream(list):
         pass
 
 
+def test_prefilled_history_and_temperature():
+    client = FakeOpenAIClient(["Hi"])
+    history = [{"role": "user", "content": "Task"}, {"role": "assistant", "content": "OK"}]
+    chat = OpenAICompatProvider("m", "http://127.0.0.1:1/v1", client=client).chat("", history=history, temperature=0)
+    list(chat.send("text"))
+    [call] = client.calls
+    assert call["messages"] == [*history, {"role": "user", "content": "text"}]
+    assert call["temperature"] == 0
+
+    claude = FakeAnthropicClient(["Hi"])
+    list(AnthropicProvider("claude-opus-5-5", client=claude).chat("", history=history, temperature=0).send("text"))
+    [call] = claude.calls
+    assert call["messages"] == [*history, {"role": "user", "content": "text"}]
+    assert "temperature" not in call and "system" not in call
+
+
 def test_openai_compat_streams_and_keeps_history():
     client = FakeOpenAIClient(["こん", "にちは"], ["ok"])
     provider = OpenAICompatProvider("qwen3:8b", "http://localhost:11434/v1", client=client)

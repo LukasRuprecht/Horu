@@ -52,6 +52,51 @@
     </div>
 
     <h2>AI</h2>
+    <label class="field">
+      <span>Provider</span>
+      <select id="ai-provider"></select>
+    </label>
+    <div id="ai-key-row" class="field">
+      <span>API key</span>
+      <div class="field-row">
+        <input id="ai-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+        <button id="ai-key-save" type="button">Save</button>
+      </div>
+      <div class="field-hint">
+        <span id="ai-key-status"></span>
+        <button id="ai-key-link" class="link" type="button">Get a key</button>
+      </div>
+    </div>
+    <label id="ai-baseurl-row" class="field">
+      <span>Server address</span>
+      <input id="ai-baseurl" type="text" placeholder="https://example.com/v1" spellcheck="false">
+    </label>
+    <label id="ai-model-row" class="field">
+      <span>Model for explanations</span>
+      <input id="ai-model" type="text" list="ai-model-list" placeholder="Model name" spellcheck="false">
+      <span id="ai-model-warning" class="field-warning" hidden>This is a translation-only model; it can't explain grammar. Use it for translations instead.</span>
+    </label>
+    <label id="ai-translation-row" class="field">
+      <span>Model for translations (optional)</span>
+      <input id="ai-translation-model" type="text" list="ai-model-list" placeholder="Same as above" spellcheck="false">
+    </label>
+    <datalist id="ai-model-list"></datalist>
+
+    <div id="ollama-box" class="ollama-box" hidden>
+      <div class="ollama-head">
+        <span id="ollama-status"></span>
+        <button id="ollama-refresh" class="link" type="button">Refresh</button>
+      </div>
+      <p class="ollama-note">Small local models translate well, but their grammar explanations can be
+        confidently wrong. Horu's own word popups (dictionary form and grammar notes) don't use AI
+        and are reliable.</p>
+      <div id="ollama-suggestions" class="suggestions"></div>
+    </div>
+
+    <div id="ai-test-row" class="test-row">
+      <button id="ai-test" type="button">Test</button>
+      <span id="ai-test-result" class="test-result"></span>
+    </div>
     <p id="ai-status" class="ai-status"></p>
     <div id="ai-options">
       <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>

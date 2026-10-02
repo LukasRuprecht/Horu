@@ -105,22 +105,48 @@ Set `capture.mode` in `config.toml`:
 AI features are optional; everything else works without them. Horu never ships with API
 keys: you bring your own, or run a free local model.
 
-1. Copy `.env.example` to `.env` and fill in the key for your provider (`.env` is gitignored).
-2. Set the `[ai]` section of `config.toml`:
+Open settings (the sliders button, top right) and pick a provider under **AI**:
 
-   | Provider | Settings |
-   |---|---|
-   | Claude | `provider = "anthropic"`, `model = "claude-opus-5-5"`, key `ANTHROPIC_API_KEY` |
-   | OpenAI | `provider = "openai_compat"`, `base_url = "https://api.openai.com/v1"`, `api_key_env = "OPENAI_API_KEY"`, `model` of your choice |
-   | Gemini | `provider = "openai_compat"`, `base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"`, `api_key_env = "GEMINI_API_KEY"` |
-   | Ollama (free, local) | `provider = "openai_compat"`, `base_url = "http://localhost:11434/v1"`, `model = "qwen3:8b"` (after `ollama pull qwen3:8b`), no key |
+| Provider | What you need |
+|---|---|
+| **Claude** | An API key from the [Anthropic Console](https://console.anthropic.com/settings/keys). Default model `claude-opus-5-5`. |
+| **OpenAI** | An API key from the [OpenAI dashboard](https://platform.openai.com/api-keys) and a model name. |
+| **Google Gemini** | An API key from [Google AI Studio](https://aistudio.google.com/apikey) and a model name. |
+| **Ollama** | Free and runs on your PC: install [Ollama](https://ollama.com/download), then download a model from inside Horu. No key. |
+| **Other** | Any OpenAI-compatible server (OpenRouter, LM Studio, ...): its address, model, and key if it needs one. |
 
-   Any other OpenAI-compatible server (OpenRouter, LM Studio, ...) works the same way.
-3. Restart Horu. The settings panel shows which provider is active, and lets you set your
-   level (explanations are pitched to it) and turn on automatic translation.
+Keys are saved in the Windows Credential Manager (the system keychain elsewhere), not in a
+file. **Test** sends a tiny request to check everything works. You can also pick a separate,
+smaller model just for translations.
 
-**Cost:** each translation, explanation, and follow-up is one request to your provider, billed
-to your account. Automatic translation makes one request per new dialogue line, so it's off by
+<details>
+<summary>Prefer config files?</summary>
+
+If no provider is chosen in the app, Horu reads the `[ai]` section of `config.toml` (see the
+comments in `config.example.toml`) and API keys from `.env` (copy `.env.example`).
+</details>
+
+### Local models with Ollama
+
+Install [Ollama](https://ollama.com/download), choose **Ollama** in Horu's settings, and use
+the **Download** buttons there, or run `ollama pull <name>` yourself. Suggestions, tested with
+Horu's prompts on game dialogue:
+
+| Use | Model | Download | Notes |
+|---|---|---|---|
+| Translations | [`7shi/gemma-2-jpn-translate:2b-instruct-q8_0`](https://ollama.com/7shi/gemma-2-jpn-translate) | 3.3 GB | Google's Japanese⇄English Gemma fine-tune. Fast (about 0.2 s a line on a GPU) and good for its size. Translation only. |
+| Explanations, 12 GB+ graphics card | [`qwen3:14b`](https://ollama.com/library/qwen3) | 9.3 GB | Strong Japanese. Thinks before answering, so replies start a few seconds later. |
+| Explanations, most PCs | [`gemma3:4b`](https://ollama.com/library/gemma3) or [`qwen3:4b`](https://ollama.com/library/qwen3) | 2.5 to 3.3 GB | Quick, readable answers, but gemma3:4b often got grammar wrong in testing. |
+| Explanations, low-end PCs | [`gemma3:1b`](https://ollama.com/library/gemma3) | 0.8 GB | Runs almost anywhere; basic and sometimes wrong. |
+| Not recommended | [`llama3.2:1b`](https://ollama.com/library/llama3.2) | 1.3 GB | Japanese isn't one of its supported languages; explanations came out garbled. |
+
+A good setup on modest hardware is the translation model for translations plus a 4B model for
+explanations, treating the explanations with some caution. Small models' grammar explanations
+can be confidently wrong; Horu's own word popups (dictionary form and grammar notes) don't use
+AI and are reliable. For trustworthy explanations, use a larger local model or a cloud provider.
+
+**Cost:** Ollama is free. With a cloud provider, each translation, explanation, and follow-up
+is one request billed to your account. Automatic translation makes one request per new dialogue line, so it's off by
 default. With Claude, Horu uses low effort for fast replies and turns on Anthropic's
 server-side refusal fallback, so the rare request a model declines is retried on another
 model instead of failing.

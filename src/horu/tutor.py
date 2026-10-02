@@ -13,8 +13,9 @@ from horu.llm import Chat, Provider
 
 SYSTEM = """\
 You are Horu, a Japanese tutor built into a tool that reads text from video games while \
-the learner plays. The learner pauses mid-game to read your answer, so be brief and \
-scannable: lead with what they need, skip filler and pleasantries.
+the learner plays. Answer in English; quote the Japanese you're explaining. The learner \
+pauses mid-game to read your answer, so be brief and scannable: lead with what they need, \
+skip filler and pleasantries.
 
 The learner's level: {level}. Pitch explanations to that level. When a grammar point is \
 probably beyond it, say so in a few words rather than teaching it in full.
@@ -31,6 +32,15 @@ TRANSLATE = """\
 {line}
 
 Reply with only the translation: no quotes, notes, or romaji."""
+
+# For a dedicated translation model (e.g. Google's Japanese-English Gemma fine-tune): no
+# system prompt, so it keeps the instruction it was built with, and the task given as its own
+# turn, acknowledged, before the text. Sent as one message, the 2B Gemma translator often
+# replies just "OK" instead of translating.
+TRANSLATE_ONLY_SETUP = [
+    {"role": "user", "content": "Translate Japanese to English."},
+    {"role": "assistant", "content": "OK"},
+]
 
 EXPLAIN_WORD = """\
 {context}Current line:
@@ -64,15 +74,19 @@ class Line:
 
 
 class Tutor:
-    def __init__(self, provider: Provider, level: str) -> None:
+    def __init__(self, provider: Provider, level: str, translator: Provider | None = None) -> None:
         self.provider = provider
         self.level = level
+        self.translator = translator
 
-    def _chat(self, effort: str = "low") -> Chat:
-        return self.provider.chat(SYSTEM.format(level=self.level), effort=effort)
+    def _chat(self, effort: str = "low", temperature: float | None = None) -> Chat:
+        return self.provider.chat(SYSTEM.format(level=self.level), effort=effort, temperature=temperature)
 
     def translate(self, line: Line) -> Iterator[str]:
-        return self._chat().send(TRANSLATE.format(context=line.context(), line=line.quoted()))
+        # Temperature 0 where supported: the same line should get the same translation.
+        if self.translator:
+            return self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
+        return self._chat(temperature=0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
 
     def explain_word(self, line: Line, word: dict) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()
@@ -93,4 +107,4 @@ def _word_analysis(word: dict) -> str:
         parts.append(f"dictionary form {word['dictionary_form']}")
     if word.get("grammar"):
         parts.append("forms: " + ", ".join(word["grammar"]))
-    return f" (my tokenizer says: {'; '.join(parts)})" if parts else ""
+    return f" (Horu's analyzer, which is reliable on conjugations, says: {'; '.join(parts)})" if parts else ""

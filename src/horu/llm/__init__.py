@@ -5,21 +5,21 @@ from __future__ import annotations
 from horu.llm.base import AIError, Chat, Provider
 
 
-def create(provider: str, model: str, base_url: str = "", api_key_env: str = "") -> Provider | None:
-    """Build the configured provider, or return None when AI is turned off."""
-    if provider == "none":
-        return None
-    if provider == "anthropic":
+def create(kind: str, model: str, base_url: str = "", api_key: str = "") -> Provider:
+    """Build a provider. `kind` is "anthropic" or "openai_compat"."""
+    if not model:
+        raise AIError("Choose a model in Horu's AI settings.")
+    if kind == "anthropic":
         from horu.llm.anthropic_provider import AnthropicProvider
 
-        return AnthropicProvider(model)
-    if provider == "openai_compat":
+        return AnthropicProvider(model, api_key)
+    if kind == "openai_compat":
         from horu.llm.openai_compat import OpenAICompatProvider
 
         if not base_url:
-            raise AIError('provider "openai_compat" needs base_url in the [ai] section of config.toml.')
-        return OpenAICompatProvider(model, base_url, api_key_env)
-    raise AIError(f"Unknown AI provider {provider!r} in config.toml.")
+            raise AIError("This provider needs a server address (base URL).")
+        return OpenAICompatProvider(model, base_url, api_key)
+    raise AIError(f"Unknown AI provider type {kind!r}.")
 
 
 __all__ = ["AIError", "Chat", "Provider", "create"]

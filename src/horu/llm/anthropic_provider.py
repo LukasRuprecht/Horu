@@ -17,27 +17,30 @@ _MAX_TOKENS = 16000  # includes thinking; explanations themselves are short
 
 
 class AnthropicProvider:
-    def __init__(self, model: str, client=None) -> None:
+    def __init__(self, model: str, api_key: str = "", client=None) -> None:
         self.model = model
         self.label = f"Claude ({model})"
         if client is None:
             import anthropic
 
-            # Credentials come from the environment (ANTHROPIC_API_KEY, e.g. via .env). A
+            # Without an explicit key the SDK reads the environment (ANTHROPIC_API_KEY). A
             # missing key only surfaces when the first request is made.
-            client = anthropic.Anthropic()
+            client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
         self._client = client
 
-    def chat(self, system: str, effort: str = "low") -> AnthropicChat:
-        return AnthropicChat(self, system, effort)
+    def chat(
+        self, system: str, effort: str = "low", history: list[dict] | None = None, temperature: float | None = None
+    ) -> AnthropicChat:
+        # `temperature` is ignored: current Claude models reject sampling parameters.
+        return AnthropicChat(self, system, effort, history)
 
 
 class AnthropicChat:
-    def __init__(self, provider: AnthropicProvider, system: str, effort: str) -> None:
+    def __init__(self, provider: AnthropicProvider, system: str, effort: str, history: list[dict] | None) -> None:
         self._provider = provider
         self._system = system
         self._effort = effort
-        self._messages: list[dict] = []
+        self._messages: list[dict] = list(history or [])
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -51,10 +54,11 @@ class AnthropicChat:
         request: dict = {
             "model": model,
             "max_tokens": _MAX_TOKENS,
-            # Cached so follow-up questions in the same chat reuse the prefix.
-            "system": [{"type": "text", "text": self._system, "cache_control": {"type": "ephemeral"}}],
             "messages": [*self._messages, user_message],
         }
+        if self._system:
+            # Cached so follow-up questions in the same chat reuse the prefix.
+            request["system"] = [{"type": "text", "text": self._system, "cache_control": {"type": "ephemeral"}}]
         # Thinking is left at the model's default (adaptive where supported); effort is the
         # control. Low effort keeps replies quick, which matters mid-game.
         if not model.startswith(_NO_EFFORT_PREFIXES):
@@ -75,7 +79,7 @@ class AnthropicChat:
                     yield chunk
                 final = stream.get_final_message()
         except anthropic.AuthenticationError as e:
-            raise AIError("Claude rejected the API key. Check ANTHROPIC_API_KEY in your .env file.") from e
+            raise AIError("Claude rejected the API key. Check it in Horu's AI settings.") from e
         except anthropic.PermissionDeniedError as e:
             raise AIError(f"This API key can't use {model}.") from e
         except anthropic.NotFoundError as e:
@@ -90,7 +94,7 @@ class AnthropicChat:
             # The SDK raises TypeError when it finds no credentials at all.
             if "authentication" not in str(e):
                 raise
-            raise AIError("No Claude API key found. Put ANTHROPIC_API_KEY in your .env file.") from e
+            raise AIError("No Claude API key yet. Add one in Horu's AI settings.") from e
 
         if final.stop_reason == "refusal":
             raise AIError("Claude declined to answer this one.")

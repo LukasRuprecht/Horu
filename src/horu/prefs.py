@@ -20,6 +20,12 @@ DEFAULTS: dict = {
     "autoTranslate": False,  # one AI request per new dialogue line
     "blurTranslations": True,
     "learnerLevel": "Beginner (studying with Genki I)",
+    # AI provider chosen in the settings panel ("" = use config.toml). Keys are not stored
+    # here; they go to the system credential store.
+    "aiProvider": "",
+    "aiModel": "",
+    "aiBaseUrl": "",
+    "translationModel": "",  # "" = same model as explanations
 }
 
 
@@ -35,6 +41,16 @@ class Prefs:
             raise KeyError(f"Unknown preference: {key}")
         with self._lock:
             self.values[key] = type(DEFAULTS[key])(value)
+            self._write()
+
+    def update(self, values: dict) -> None:
+        """Set several preferences with a single write."""
+        unknown = set(values) - set(DEFAULTS)
+        if unknown:
+            raise KeyError(f"Unknown preferences: {', '.join(sorted(unknown))}")
+        with self._lock:
+            for key, value in values.items():
+                self.values[key] = type(DEFAULTS[key])(value)
             self._write()
 
     def _read(self) -> dict:

@@ -3,7 +3,6 @@ local servers such as Ollama and LM Studio."""
 
 from __future__ import annotations
 
-import os
 from typing import Iterator
 from urllib.parse import urlparse
 
@@ -11,7 +10,7 @@ from horu.llm.base import AIError
 
 
 class OpenAICompatProvider:
-    def __init__(self, model: str, base_url: str, api_key_env: str = "", client=None) -> None:
+    def __init__(self, model: str, base_url: str, api_key: str = "", client=None) -> None:
         self.model = model
         self.base_url = base_url
         host = urlparse(base_url).hostname or base_url
@@ -19,21 +18,26 @@ class OpenAICompatProvider:
         if client is None:
             import openai
 
-            api_key = os.environ.get(api_key_env, "") if api_key_env else ""
-            if api_key_env and not api_key:
-                raise AIError(f"No API key found. Put {api_key_env} in your .env file.")
             # Local servers such as Ollama ignore the key, but the client requires one.
             client = openai.OpenAI(base_url=base_url, api_key=api_key or "not-needed")
         self._client = client
 
-    def chat(self, system: str, effort: str = "low") -> OpenAICompatChat:
-        return OpenAICompatChat(self, system)
+    def chat(
+        self, system: str, effort: str = "low", history: list[dict] | None = None, temperature: float | None = None
+    ) -> OpenAICompatChat:
+        return OpenAICompatChat(self, system, history, temperature)
 
 
 class OpenAICompatChat:
-    def __init__(self, provider: OpenAICompatProvider, system: str) -> None:
+    def __init__(
+        self, provider: OpenAICompatProvider, system: str, history: list[dict] | None, temperature: float | None
+    ) -> None:
         self._provider = provider
-        self._messages: list[dict] = [{"role": "system", "content": system}]
+        self._temperature = temperature
+        # Without a system message, a local model keeps the one it was built with (useful for
+        # specialised translation models).
+        self._messages: list[dict] = [{"role": "system", "content": system}] if system else []
+        self._messages += list(history or [])
         self._cancelled = False
 
     def cancel(self) -> None:
@@ -47,8 +51,9 @@ class OpenAICompatChat:
         reply = []
         self._cancelled = False
         try:
+            extra = {} if self._temperature is None else {"temperature": self._temperature}
             stream = provider._client.chat.completions.create(
-                model=provider.model, messages=[*self._messages, user_message], stream=True
+                model=provider.model, messages=[*self._messages, user_message], stream=True, **extra
             )
             for chunk in stream:
                 if self._cancelled:

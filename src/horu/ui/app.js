@@ -22,9 +22,9 @@ const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjec
 // Used until Python's saved preferences arrive, and by "Reset to defaults".
 const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };
 const AI_SETUP_HINT =
-  "AI explanations need a provider. Add one in the [ai] section of config.toml (Claude, OpenAI, " +
-  "Gemini, or a free local model with Ollama), then restart Horu. The README has the details. " +
-  "Dictionary lookups keep working without it.";
+  "AI explanations need a provider. Open settings (the sliders button, top right) and choose " +
+  "one under AI: Claude, OpenAI or Gemini with your own API key, or Ollama to run a free model " +
+  "on this PC. Dictionary lookups keep working without it.";
 
 function api() {
   return window.pywebview && window.pywebview.api;
@@ -494,10 +494,202 @@ for (const [selector, key] of FIELDS) {
 
 function applyAI() {
   const status = $("#ai-status");
-  if (state.ai.enabled) status.textContent = `Using ${state.ai.label}.`;
-  else status.textContent = state.ai.error || "Off. Add a provider in config.toml (see the README).";
+  if (state.ai.enabled) {
+    const translator = state.ai.translator ? `; translations: ${state.ai.translator}` : "";
+    status.textContent = `Active: ${state.ai.label}${translator}.`;
+  } else {
+    status.textContent = state.ai.error || "AI is off. Dictionary lookups still work.";
+  }
   status.classList.toggle("error", Boolean(state.ai.error));
+  status.classList.toggle("ok", state.ai.enabled);
   $("#ai-options").hidden = !state.ai.enabled;
+  $("#ai-test-row").hidden = !state.ai.enabled && !state.ai.error;
+}
+
+// --- AI provider setup -----------------------------------------------------------------
+
+const aiSetup = { settings: null, ollama: { running: false, models: [] }, pulls: {} };
+
+// Translation-only models (such as the Japanese-English Gemma fine-tune) can't explain grammar.
+function isTranslationOnly(name) {
+  const known = (aiSetup.settings ? aiSetup.settings.ollamaSuggestions : []).some((s) => s.name === name && s.use === "translation");
+  return known || /translat/i.test(name);
+}
+
+function openExternal(url) {
+  if (api()) api().open_url(url);
+}
+
+async function loadAISettings() {
+  const s = await api().ai_settings();
+  aiSetup.settings = s;
+  const select = $("#ai-provider");
+  select.replaceChildren(...Object.entries(s.presets).map(([id, p]) => {
+    const option = el("option", null, p.label);
+    option.value = id;
+    return option;
+  }));
+  select.value = s.provider || "none";
+  $("#ai-model").value = s.model;
+  $("#ai-translation-model").value = s.translationModel;
+  $("#ai-baseurl").value = s.baseUrl;
+  renderAIForm();
+}
+
+function renderAIForm() {
+  const s = aiSetup.settings;
+  if (!s) return;
+  const id = $("#ai-provider").value;
+  const preset = s.presets[id] || {};
+  const on = id !== "none";
+  const needsKey = Boolean(preset.key_env || preset.needs_key);
+  $("#ai-key-row").hidden = !needsKey;
+  if (needsKey) {
+    const saved = s.savedKeys.includes(id);
+    $("#ai-key-status").textContent = saved ? "Key saved" : preset.needs_key === "optional" ? "Only if your server needs one" : "No key saved yet";
+    $("#ai-key-status").className = saved ? "saved" : "";
+    $("#ai-key").placeholder = saved ? "Paste a new key to replace it" : "Paste your key";
+    $("#ai-key-link").hidden = !preset.key_url;
+  }
+  $("#ai-model-warning").hidden = !on || !isTranslationOnly($("#ai-model").value);
+  $("#ai-baseurl-row").hidden = id !== "custom";
+  $("#ai-model-row").hidden = !on;
+  $("#ai-translation-row").hidden = !on;
+  $("#ollama-box").hidden = id !== "ollama";
+  if (id === "ollama") refreshOllama();
+}
+
+function saveAI(changes) {
+  if (!api()) return;
+  api().set_ai(changes).then((info) => horu.setAI(info));
+  $("#ai-test-result").textContent = "";
+}
+
+$("#ai-provider").addEventListener("change", async () => {
+  const id = $("#ai-provider").value;
+  const preset = aiSetup.settings.presets[id] || {};
+  let model = preset.model || "";
+  let translationModel = "";
+  if (id === "ollama") {
+    // Pick an installed general model for explanations, and an installed translation-only
+    // model (if any) for translations.
+    await refreshOllama();
+    const names = aiSetup.ollama.models.map((m) => m.name);
+    model = names.find((n) => !isTranslationOnly(n)) || "";
+    translationModel = names.find(isTranslationOnly) || "";
+  }
+  $("#ai-model").value = model;
+  $("#ai-translation-model").value = translationModel;
+  $("#ai-baseurl").value = "";
+  renderAIForm();
+  saveAI({ aiProvider: id, aiModel: model, translationModel, aiBaseUrl: "" });
+});
+
+for (const [selector, key] of [["#ai-model", "aiModel"], ["#ai-translation-model", "translationModel"], ["#ai-baseurl", "aiBaseUrl"]]) {
+  $(selector).addEventListener("change", (e) => {
+    saveAI({ aiProvider: $("#ai-provider").value, [key]: e.target.value.trim() });
+    renderAIForm();
+  });
+}
+
+$("#ai-key-save").addEventListener("click", async () => {
+  const input = $("#ai-key");
+  const id = $("#ai-provider").value;
+  const info = await api().save_api_key(id, input.value);
+  input.value = "";
+  // Make sure the provider choice is saved too, then refresh what's shown.
+  saveAI({ aiProvider: id });
+  horu.setAI(info);
+  await loadAISettings();
+});
+$("#ai-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#ai-key-save").click();
+});
+$("#ai-key-link").addEventListener("click", () => {
+  const preset = aiSetup.settings.presets[$("#ai-provider").value];
+  if (preset && preset.key_url) openExternal(preset.key_url);
+});
+
+$("#ai-test").addEventListener("click", async () => {
+  const result = $("#ai-test-result");
+  result.className = "test-result";
+  result.textContent = "Testing...";
+  $("#ai-test").disabled = true;
+  try {
+    const outcome = await api().test_ai();
+    result.className = `test-result ${outcome.ok ? "ok" : "error"}`;
+    result.textContent = outcome.message;
+  } finally {
+    $("#ai-test").disabled = false;
+  }
+});
+
+async function refreshOllama() {
+  aiSetup.ollama = await api().ollama_models();
+  const { running, models, download } = aiSetup.ollama;
+  const status = $("#ollama-status");
+  status.replaceChildren();
+  if (!running) {
+    status.append(el("span", "error", "Ollama isn't running. "), button("link", "Download Ollama", () => openExternal(download)));
+  } else {
+    status.textContent = models.length ? `Installed models: ${models.length}` : "Ollama is running, but has no models yet.";
+  }
+  $("#ai-model-list").replaceChildren(...models.map((m) => {
+    const option = el("option");
+    option.value = m.name;
+    return option;
+  }));
+  renderSuggestions();
+}
+$("#ollama-refresh").addEventListener("click", refreshOllama);
+
+function renderSuggestions() {
+  const box = $("#ollama-suggestions");
+  box.replaceChildren(el("div", "suggestions-title", "Suggested models"));
+  const installed = new Set(aiSetup.ollama.models.map((m) => m.name));
+  for (const s of aiSetup.settings.ollamaSuggestions) {
+    const row = el("div", "suggestion");
+    row.dataset.name = s.name;
+    const head = el("div", "suggestion-head");
+    head.append(el("span", "suggestion-name", s.name), el("span", "suggestion-size", s.size));
+    const actions = el("div", "suggestion-actions");
+    const pull = aiSetup.pulls[s.name];
+    if (installed.has(s.name)) {
+      actions.append(el("span", "installed", "Installed"));
+      const field = s.use === "translation" ? "#ai-translation-model" : "#ai-model";
+      if ($(field).value === s.name) {
+        actions.append(el("span", "in-use", s.use === "translation" ? "Used for translations" : "Used for explanations"));
+      } else {
+        const label = s.use === "translation" ? "Use for translations" : "Use for explanations";
+        actions.append(button(null, label, () => {
+          $(field).value = s.name;
+          $(field).dispatchEvent(new Event("change"));
+        }));
+      }
+    } else if (pull && !pull.done) {
+      actions.append(el("span", "progress", pullText(pull)));
+    } else if (aiSetup.ollama.running) {
+      if (pull && pull.error) actions.append(el("span", "error", pull.error));
+      actions.append(button(null, "Download", () => startPull(s.name)));
+    }
+    actions.append(button("link", "About", () => openExternal(s.url)));
+    row.append(head, el("div", "suggestion-note", s.note), actions);
+    box.append(row);
+  }
+}
+
+function pullText(pull) {
+  if (pull.total) {
+    const pct = Math.floor((100 * pull.completed) / pull.total);
+    return `Downloading ${pct}% (${(pull.completed / 1e9).toFixed(1)} of ${(pull.total / 1e9).toFixed(1)} GB)`;
+  }
+  return pull.status ? `${pull.status[0].toUpperCase()}${pull.status.slice(1)}...` : "Starting...";
+}
+
+function startPull(name) {
+  aiSetup.pulls[name] = { status: "starting", completed: 0, total: 0, done: false };
+  renderSuggestions();
+  api().ollama_pull(name);
 }
 
 function applyAllPrefs() {
@@ -563,6 +755,7 @@ async function loadFromPython() {
   state.prefs = await api().get_prefs();
   applyAllPrefs();
   horu.setAI(await api().ai_info());
+  await loadAISettings();
 }
 
 applyAllPrefs();
@@ -582,6 +775,17 @@ window.horu = {
   setAI(info) {
     state.ai = info;
     applyAI();
+  },
+
+  pullProgress(event) {
+    aiSetup.pulls[event.name] = { ...(aiSetup.pulls[event.name] || {}), ...event };
+    if (event.done && !event.error) refreshOllama();
+    else if (!$("#ollama-box").hidden) {
+      // Update just the progress text, so buttons under the cursor don't jump around.
+      const row = $(`#ollama-suggestions .suggestion[data-name="${CSS.escape(event.name)}"] .progress`);
+      if (row) row.textContent = pullText(aiSetup.pulls[event.name]);
+      else renderSuggestions();
+    }
   },
 
   addCapture(capture) {

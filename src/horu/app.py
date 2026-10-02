@@ -8,10 +8,11 @@ import queue
 import threading
 import time
 import traceback
+import webbrowser
 from collections import deque
 from pathlib import Path
 
-from horu import capture, config, dictionary, hotkey, layout, llm, prefs, text_sources
+from horu import ai_setup, capture, config, dictionary, hotkey, layout, llm, prefs, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -59,6 +60,32 @@ class Api:
     def ask(self, session: int, question: str) -> None:
         self._app.ask(session, question)
 
+    # AI setup (settings panel)
+
+    def ai_settings(self) -> dict:
+        return self._app.ai_settings()
+
+    def set_ai(self, values: dict) -> dict:
+        return self._app.set_ai(values)
+
+    def save_api_key(self, preset: str, key: str) -> dict:
+        ai_setup.save_key(preset, key.strip())
+        return self._app.apply_ai()
+
+    def ollama_models(self) -> dict:
+        return ai_setup.ollama_models()
+
+    def ollama_pull(self, name: str) -> None:
+        self._app.ollama_pull(name)
+
+    def test_ai(self) -> dict:
+        return self._app.test_ai()
+
+    def open_url(self, url: str) -> None:
+        # Links open in the user's browser; the app window itself never navigates away.
+        if url.startswith(("https://", "http://")):
+            webbrowser.open(url)
+
     def get_prefs(self) -> dict:
         return self._app.prefs.values
 
@@ -80,8 +107,7 @@ class App:
         self.prefs = prefs.Prefs()
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
-        self._provider: llm.Provider | None = None
-        self._ai_error: str | None = None
+        self._ai = ai_setup.Resolved()
         self._tutor_chat: tuple[int, llm.Chat] | None = None  # (session id, chat) in the tutor panel
         self._source: text_sources.TextSource | None = None
         self._dictionary: dictionary.Dictionary | None = None
@@ -121,12 +147,78 @@ class App:
 
     # --- AI ----------------------------------------------------------------------------
 
+    @property
+    def _provider(self) -> llm.Provider | None:
+        return self._ai.provider
+
     def ai_info(self) -> dict:
+        ai = self._ai
         return {
-            "enabled": self._provider is not None,
-            "label": self._provider.label if self._provider else None,
-            "error": self._ai_error,
+            "enabled": ai.provider is not None,
+            "label": ai.provider.label if ai.provider else None,
+            "translator": ai.translator.label if ai.translator else None,
+            "error": ai.error,
+            "source": ai.source,
         }
+
+    def apply_ai(self) -> dict:
+        """Rebuild the providers from the current settings and tell the page."""
+        self._ai = ai_setup.resolve(self.prefs.values, self.cfg.ai)
+        info = self.ai_info()
+        self._call("setAI", info)
+        return info
+
+    def ai_settings(self) -> dict:
+        values = self.prefs.values
+        if not values["aiProvider"]:  # nothing chosen in the app yet: show config.toml's setup
+            values = {**values, **ai_setup.settings_from_config(self.cfg.ai)}
+        return {
+            "provider": values["aiProvider"],
+            "model": values["aiModel"],
+            "baseUrl": values["aiBaseUrl"],
+            "translationModel": values["translationModel"],
+            "presets": ai_setup.PRESETS,
+            "savedKeys": [p for p in ai_setup.PRESETS if ai_setup.has_saved_key(p)],
+            "ollamaSuggestions": ai_setup.OLLAMA_SUGGESTIONS,
+        }
+
+    def set_ai(self, values: dict) -> dict:
+        allowed = {"aiProvider", "aiModel", "aiBaseUrl", "translationModel"}
+        self.prefs.update({k: v for k, v in values.items() if k in allowed})
+        return self.apply_ai()
+
+    def test_ai(self) -> dict:
+        ai = self._ai
+        if ai.provider is None:
+            return {"ok": False, "message": ai.error or "AI is off."}
+        results = []
+        for role, provider in (("Explanations", ai.provider), ("Translations", ai.translator)):
+            if provider is None:
+                continue
+            start = time.perf_counter()
+            try:
+                reply = ai_setup.test(provider)
+            except llm.AIError as e:
+                return {"ok": False, "message": f"{role}: {e}"}
+            results.append(f"{role}: replied \"{reply}\" in {time.perf_counter() - start:.1f}s")
+        return {"ok": True, "message": " · ".join(results)}
+
+    def ollama_pull(self, name: str) -> None:
+        def run() -> None:
+            last = 0.0
+            try:
+                def progress(event: dict) -> None:
+                    nonlocal last
+                    if time.monotonic() - last >= 0.25:  # throttle page updates
+                        last = time.monotonic()
+                        self._call("pullProgress", {"name": name, **event})
+
+                ai_setup.ollama_pull(name, progress)
+                self._call("pullProgress", {"name": name, "status": "success", "done": True})
+            except llm.AIError as e:
+                self._call("pullProgress", {"name": name, "status": "error", "error": str(e), "done": True})
+
+        threading.Thread(target=run, name="horu-ollama-pull", daemon=True).start()
 
     def translate(self, line_id: int) -> None:
         if self._provider and line_id in self.lines:
@@ -149,7 +241,7 @@ class App:
             self._stream({"target": "tutor", "session": session}, self._tutor_chat[1].send(question))
 
     def _tutor(self) -> Tutor:
-        return Tutor(self._provider, self.prefs.values["learnerLevel"])
+        return Tutor(self._provider, self.prefs.values["learnerLevel"], self._ai.translator)
 
     def _start_tutor_session(self, session: int, chat: llm.Chat, chunks) -> None:
         # The tutor panel shows one conversation at a time; stop the previous one.
@@ -213,12 +305,7 @@ class App:
             self._status("loading", f"Loading OCR ({self.cfg.ocr_engine})...")
             self._source = text_sources.create(self.cfg.ocr_engine)
             self._stop_hotkey = hotkey.listen(self.cfg.capture_hotkey, lambda: self._requests.put(None))
-            ai = self.cfg.ai
-            try:
-                self._provider = llm.create(ai.provider, ai.model, ai.base_url, ai.api_key_env)
-            except llm.AIError as e:
-                self._ai_error = str(e)  # AI is optional: report it and carry on
-            self._call("setAI", self.ai_info())
+            self.apply_ai()  # AI is optional: problems are reported in settings, not fatal
         except Exception as e:
             traceback.print_exc()
             self._status("error", str(e))

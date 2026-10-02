@@ -25,6 +25,12 @@ class Chat(Protocol):
 class Provider(Protocol):
     label: str  # shown in the UI, e.g. "Claude (claude-opus-5-5)"
 
-    def chat(self, system: str, effort: str = "low") -> Chat:
-        """Start a conversation. `effort` is a hint; providers without the concept ignore it."""
+    def chat(
+        self, system: str, effort: str = "low", history: list[dict] | None = None, temperature: float | None = None
+    ) -> Chat:
+        """Start a conversation.
+
+        `history` pre-fills earlier turns ({"role", "content"} dicts with text content).
+        `effort` and `temperature` are hints; providers that don't support one ignore it.
+        """
         ...
