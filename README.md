@@ -63,6 +63,10 @@ there's no capture region to set up.
   (names, 〜の声), a different text style, or a different size. Other text such as button
   legends, menus, and the HUD is shown small, and can be hidden. Backlog screens (like
   Persona 5's Log & Voice) are split into one entry per speaker.
+- Speakers get an English label next to them: names come from the names dictionary
+  (順平 · Junpei), and descriptions like 謎の通信 are translated by your AI provider once per
+  game and cached. Misread name tags are corrected against names Horu has already seen in
+  that game.
 - Lines already shown in an earlier capture are collapsed rather than repeated.
 - If OCR gets a character wrong, hover the line and click **Edit** to fix it.
 - If Horu files something wrongly, use the line's **⋯** menu: treat it as dialogue or other

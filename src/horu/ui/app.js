@@ -137,7 +137,7 @@ function renderLine(line) {
     const speaker = el("span", "speaker");
     speaker.lang = "ja";
     renderWords(line, speaker, "speaker");
-    meta.append(speaker);
+    meta.append(speaker, speakerEnglish(line));
   }
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
   meta.append(
@@ -156,6 +156,16 @@ function renderLine(line) {
     row.append(translationRow(line, line.repeat ? { auto: false } : undefined));
   }
   return row;
+}
+
+// The speaker's English, e.g. 謎の通信 · Mysterious transmission. Filled in later when it comes
+// from the AI; every row with the same speaker updates together.
+function speakerEnglish(line) {
+  const node = el("span", "speaker-en", line.speaker.english || "");
+  node.dataset.game = line.game;
+  node.dataset.speaker = line.speaker.text;
+  node.title = "Speaker in English";
+  return node;
 }
 
 // One capture (one hotkey press) is one card; its lines are rows inside it, in screen order.
@@ -199,6 +209,7 @@ function openLineMenu(anchor, line, row) {
     items.push(["Treat as dialogue", () => mark(line, row, "dialogue")]);
   }
   if (line.speaker) {
+    items.push(["Edit the speaker's English…", () => editSpeakerEnglish(line)]);
     items.push([`「${line.speaker.text}」 isn't a speaker`, () => mark(line, row, "not_speaker", "speaker")]);
   } else if (line.text.length <= 10) {
     items.push([`「${line.text}」 is a speaker name`, () => mark(line, row, "speaker")]);
@@ -216,6 +227,14 @@ function openLineMenu(anchor, line, row) {
 
 function closeLineMenu() {
   lineMenu.hidden = true;
+}
+
+function editSpeakerEnglish(line) {
+  const current = line.speaker.english || "";
+  const english = window.prompt(`English for 「${line.speaker.text}」 in ${line.game}:`, current);
+  if (english !== null && english.trim() && english.trim() !== current) {
+    api().set_speaker_english(line.game, line.speaker.text, english.trim());
+  }
 }
 
 async function mark(line, row, label, part = "text") {
@@ -885,6 +904,15 @@ window.horu = {
       const row = $(`#ollama-suggestions .suggestion[data-name="${CSS.escape(event.name)}"] .progress`);
       if (row) row.textContent = pullText(aiSetup.pulls[event.name]);
       else renderSuggestions();
+    }
+  },
+
+  speakerEnglish({ game, text, english }) {
+    for (const line of state.lines.values()) {
+      if (line.speaker && line.game === game && line.speaker.text === text) line.speaker.english = english;
+    }
+    for (const node of linesEl.querySelectorAll(".speaker-en")) {
+      if (node.dataset.game === game && node.dataset.speaker === text) node.textContent = english;
     }
   },
 

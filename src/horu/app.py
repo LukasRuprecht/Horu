@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import itertools
 import json
 import queue
@@ -12,7 +13,7 @@ import webbrowser
 from collections import deque
 from pathlib import Path
 
-from horu import ai_setup, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, text_sources
+from horu import ai_setup, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -96,6 +97,13 @@ class Api:
         """Remember a correction for this line's text (or its speaker) in this game."""
         return self._app.mark(line_id, label, part)
 
+    def set_speaker_english(self, game: str, text: str, english: str) -> None:
+        """The user's own English for a speaker; replaces any cached translation."""
+        self._app.set_speaker_english(game, text, english)
+
+    def translate_speaker(self, game: str, text: str) -> None:
+        self._app.translate_speaker(game, text)
+
     def clear(self) -> None:
         self._app.recent.clear()
         self._app.lines.clear()
@@ -108,6 +116,8 @@ class App:
         self.window = None
         self.prefs = prefs.Prefs()
         self.corrections = corrections.Corrections()
+        self.speakers = speakers.SpeakerBook()
+        self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
         self._ai = ai_setup.Resolved()
@@ -243,10 +253,77 @@ class App:
 
         threading.Thread(target=run, name="horu-ollama-pull", daemon=True).start()
 
+    # --- speaker names -------------------------------------------------------------------
+
+    def speaker_english(self, game: str, text: str) -> str | None:
+        """Cached English for a speaker, filling the cache from the names dictionary when the
+        speaker is a person's name (free and exact, e.g. 順平 -> Junpei)."""
+        cached = self.speakers.english(game, text)
+        if cached is None and not layout.is_japanese(text):
+            # ？？？ and the like need no translation.
+            cached = text.replace("？", "?").replace("！", "!")
+            self.speakers.set_english(game, text, cached, "as-is")
+        if cached is None and (romaji := self._name_romaji(text)):
+            self.speakers.set_english(game, text, romaji, "names")
+            cached = romaji
+        return cached
+
+    def translate_speaker(self, game: str, text: str) -> None:
+        """Ask the AI for a speaker's English once; the page is told when it arrives."""
+        if not self._provider or self.speaker_english(game, text) or (game, text) in self._speakers_pending:
+            return
+        self._speakers_pending.add((game, text))
+
+        def run() -> None:
+            try:
+                english = self._tutor().translate_speaker(text)
+                if english:
+                    self.speakers.set_english(game, text, english, "ai")
+                    self._call("speakerEnglish", {"game": game, "text": text, "english": english})
+            except llm.AIError:
+                pass  # the name is still shown; a failed label translation isn't worth an alert
+            except Exception:
+                traceback.print_exc()
+            finally:
+                self._speakers_pending.discard((game, text))
+
+        threading.Thread(target=run, name="horu-speaker", daemon=True).start()
+
+    def set_speaker_english(self, game: str, text: str, english: str) -> None:
+        self.speakers.set_english(game, text, english.strip(), "user")
+        self._call("speakerEnglish", {"game": game, "text": text, "english": english.strip()})
+
+    def _name_romaji(self, text: str) -> str | None:
+        """"Junpei" for 順平, "Sakamoto Ryūji" for 坂本竜司: only when every word is a person's
+        name with a matching reading."""
+        if not self._dictionary:
+            return None
+        words = [w for w in analyze(text) if w.pos != "symbol"]
+        if not words or any(w.pos != "name" for w in words):
+            return None
+        parts = []
+        for word in words:
+            names = self._dictionary.lookup_names(word.to_dict())
+            person = next(
+                (
+                    n
+                    for n in names
+                    if word.reading in n["readings"] and any(set(t["types"]) & _PERSON_NAME_TYPES for t in n["names"])
+                ),
+                None,
+            )
+            if person is None:
+                return None
+            parts.append(person["names"][0]["det"][0])
+        return " ".join(parts)
+
     def translate(self, line_id: int) -> None:
         if self._provider and line_id in self.lines:
             chunks = self._tutor().translate(self._line_context(line_id))
             self._stream({"target": "translation", "lineId": line_id}, chunks)
+            line = self.lines[line_id]
+            if line["speaker"]:
+                self.translate_speaker(line["game"], line["speaker"]["text"])
 
     def explain_word(self, line_id: int, index: int, session: int, part: str = "text") -> None:
         if self._provider and line_id in self.lines:
@@ -352,6 +429,11 @@ class App:
             capture.save(image, self.cfg.captures_dir)
         game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
         blocks = layout.group_blocks(self._source.read(image), image, hints=self.corrections.hints(game))
+        # Correct misread name tags against names already seen in this game.
+        blocks = [
+            dataclasses.replace(b, speaker=self.speakers.resolve(game, b.speaker, b.speaker_score)) if b.speaker else b
+            for b in blocks
+        ]
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -362,6 +444,8 @@ class App:
                 self.recent.append(block.text)
             line = self._line(block, repeat)
             line["game"] = game
+            if line["speaker"]:
+                line["speaker"]["english"] = self.speaker_english(game, block.speaker)
             lines.append(line)
         new = [l for l in lines if not l["repeat"]]
         if not lines:
@@ -403,6 +487,9 @@ class App:
     def _call(self, function: str, *args) -> None:
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
+
+
+_PERSON_NAME_TYPES = {"surname", "given name", "female given name", "male given name", "full name", "character", "fictional"}
 
 
 def _speaker_text(line: dict) -> str | None:

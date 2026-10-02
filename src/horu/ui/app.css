@@ -175,6 +175,8 @@ button { font: inherit; color: inherit; }
 }
 .speaker { color: var(--accent); font-family: var(--jp); font-weight: 600; font-size: calc(var(--text-size) * 0.55); }
 .speaker .word { font-weight: 600; }
+.speaker-en { color: var(--muted); font-size: 12px; }
+.speaker-en:not(:empty)::before { content: "· "; color: var(--faint); }
 .speaker rt { font-weight: 400; }
 body.no-furigana .speaker rt { display: none; }
 

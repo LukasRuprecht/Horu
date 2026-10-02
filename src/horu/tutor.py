@@ -42,6 +42,12 @@ TRANSLATE_ONLY_SETUP = [
     {"role": "assistant", "content": "OK"},
 ]
 
+SPEAKER = """\
+This is the speaker label shown above a line of video game dialogue: {text}
+It may be a character's name or a description such as 謎の通信 or 少年のような声. Translate it \
+into short, natural English as an English release of the game would show it: names in \
+romaji, descriptions translated. Reply with only the English."""
+
 EXPLAIN_WORD = """\
 {context}Current line:
 {line}
@@ -88,6 +94,14 @@ class Tutor:
             return self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
         return self._chat(temperature=0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
 
+    def translate_speaker(self, text: str) -> str:
+        """Short English for a speaker label, e.g. 謎の通信 -> "Mysterious transmission"."""
+        if self.translator:
+            chunks = self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(text)
+        else:
+            chunks = self.provider.chat("", temperature=0).send(SPEAKER.format(text=text))
+        return _clean_label("".join(chunks))
+
     def explain_word(self, line: Line, word: dict) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()
         prompt = EXPLAIN_WORD.format(
@@ -98,6 +112,12 @@ class Tutor:
     def explain_line(self, line: Line) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()
         return chat, chat.send(EXPLAIN_LINE.format(context=line.context(), line=line.quoted()))
+
+
+def _clean_label(reply: str) -> str:
+    """First line of a reply, without quotes or a trailing full stop."""
+    first = reply.strip().splitlines()[0] if reply.strip() else ""
+    return first.strip().strip("\"'「」『』").rstrip(".。").strip()[:60]
 
 
 def _word_analysis(word: dict) -> str:

@@ -58,6 +58,7 @@ class TextBlock:
     lines: tuple[TextLine, ...]
     speaker: str | None = None
     kind: str = "dialogue"  # "dialogue" or "other"
+    speaker_score: float = 1.0  # OCR confidence for the speaker line
 
     @property
     def text(self) -> str:
@@ -164,6 +165,7 @@ def group_blocks(
             group = {"speaker": None, "lines": [group["speaker"]]}
         block_lines = tuple(lines[i] for i in group["lines"])
         speaker = lines[group["speaker"]].text if group["speaker"] is not None else None
+        speaker_score = lines[group["speaker"]].score if group["speaker"] is not None else 1.0
         text = "".join(l.text for l in block_lines)
         # Lone characters are almost always icons or decorations misread as kanji.
         if len(text) < _MIN_BLOCK_CHARS and speaker is None:
@@ -173,7 +175,7 @@ def group_blocks(
             kind = "dialogue"
         elif normalize(text) in hints.other:
             kind = "other"
-        blocks.append(TextBlock(block_lines, speaker, kind))
+        blocks.append(TextBlock(block_lines, speaker, kind, speaker_score))
     return blocks
 
 
