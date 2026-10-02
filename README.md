@@ -158,7 +158,8 @@ your level. No screenshots are sent.
 
 Horu is MIT licensed. See [LICENSE](LICENSE).
 
-- Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html), property of the
+- Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html) and
+  [JMnedict](https://www.edrdg.org/enamdict/enamdict_doc.html) (names), property of the
   [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under
   [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). Downloaded on first run, not
   bundled.

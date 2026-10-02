@@ -371,9 +371,9 @@ function openPopover(wordEl) {
   positionPopover(wordEl);
 
   const request = wordEl;
-  Promise.resolve(api() ? api().lookup(word) : []).then((entries) => {
+  Promise.resolve(api() ? api().lookup(word) : { entries: [], names: [] }).then((result) => {
     if (state.selected !== request) return; // another word was clicked meanwhile
-    body.replaceChildren(...popoverEntries(word, entries));
+    body.replaceChildren(...nameEntries(result.names), ...popoverEntries(word, result.entries, result.names.length > 0));
     positionPopover(wordEl);
   });
 }
@@ -402,8 +402,25 @@ function popoverHeader(word) {
   return nodes;
 }
 
-function popoverEntries(word, entries) {
+// Name readings from JMnedict, e.g. 順平【じゅんぺい】 Junpei (given name).
+function nameEntries(names) {
+  if (!names.length) return [];
+  const list = el("ul", "names");
+  for (const entry of names) {
+    const item = el("li");
+    const reading = entry.readings.join("・");
+    item.append(el("span", "name-reading", reading));
+    for (const n of entry.names) {
+      item.append(" ", el("span", "name-det", n.det.join(", ")), " ", el("span", "sense-notes", `(${n.types.join(", ")})`));
+    }
+    list.append(item);
+  }
+  return [el("div", "names-title", "Name"), list];
+}
+
+function popoverEntries(word, entries, hasNames = false) {
   if (!entries.length) {
+    if (hasNames) return [];
     const message = word.pos === "name" ? "A name; not in the dictionary." : "No dictionary entry found.";
     return [el("p", "pop-note", message)];
   }

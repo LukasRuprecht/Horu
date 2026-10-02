@@ -40,13 +40,41 @@ JMDICT_SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
+JMNEDICT_SAMPLE = """<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE JMnedict [
+<!ENTITY given "given name or forename, gender not specified">
+<!ENTITY surname "family or surname">
+<!ENTITY station "railway station">
+]>
+<JMnedict>
+<entry><ent_seq>10</ent_seq>
+<k_ele><keb>順平</keb></k_ele>
+<r_ele><reb>じゅんぺい</reb></r_ele>
+<trans><name_type>&given;</name_type><trans_det>Junpei</trans_det></trans>
+</entry>
+<entry><ent_seq>11</ent_seq>
+<k_ele><keb>順平</keb></k_ele>
+<r_ele><reb>じゅんぺ</reb></r_ele>
+<trans><name_type>&surname;</name_type><trans_det>Junpe</trans_det></trans>
+</entry>
+<entry><ent_seq>12</ent_seq>
+<k_ele><keb>行く駅</keb></k_ele>
+<r_ele><reb>いくえき</reb></r_ele>
+<trans><name_type>&station;</name_type><trans_det>Iku Station</trans_det></trans>
+</entry>
+</JMnedict>
+"""
+
+
 @pytest.fixture(scope="module")
 def jmdict(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("jmdict")
     source = tmp / "JMdict_e.gz"
     source.write_bytes(gzip.compress(JMDICT_SAMPLE.encode("utf-8")))
+    names = tmp / "JMnedict.xml.gz"
+    names.write_bytes(gzip.compress(JMNEDICT_SAMPLE.encode("utf-8")))
     path = tmp / "jmdict.sqlite"
-    assert dictionary.build(path, source=source) == 4
+    assert dictionary.build(path, source=source, names_source=names) == 4
     return dictionary.Dictionary(path)
 
 
@@ -71,3 +99,15 @@ def test_conjugated_word_looks_up_its_dictionary_form(jmdict):
 def test_missing_dictionary_raises(tmp_path):
     with pytest.raises(dictionary.DictionaryMissing):
         dictionary.Dictionary(tmp_path / "nope.sqlite")
+
+
+def test_names_prefer_the_matching_reading(jmdict):
+    [word] = analyze("順平")
+    names = jmdict.lookup_names(word.to_dict())
+    assert jmdict.has_names
+    assert [n["readings"] for n in names] == [["じゅんぺい"], ["じゅんぺ"]]
+    assert names[0]["names"] == [{"types": ["given name"], "det": ["Junpei"]}]
+
+
+def test_unwanted_name_types_are_not_indexed(jmdict):
+    assert jmdict.lookup_names({"surface": "行く駅", "reading": "いくえき"}) == []

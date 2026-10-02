@@ -32,7 +32,7 @@ class Api:
     def __init__(self, app: App) -> None:
         self._app = app
 
-    def lookup(self, word: dict) -> list[dict]:
+    def lookup(self, word: dict) -> dict:
         return self._app.lookup(word)
 
     def update_line(self, line_id: int, text: str) -> list[dict]:
@@ -134,8 +134,14 @@ class App:
         if self._stop_hotkey:
             self._stop_hotkey()
 
-    def lookup(self, word: dict) -> list[dict]:
-        return self._dictionary.lookup(word) if self._dictionary else []
+    def lookup(self, word: dict) -> dict:
+        """Dictionary entries for a word, plus name readings for names (or when the dictionary
+        has nothing, since unusual names are often tokenized as ordinary nouns)."""
+        if not self._dictionary:
+            return {"entries": [], "names": []}
+        entries = self._dictionary.lookup(word)
+        names = self._dictionary.lookup_names(word) if word["pos"] == "name" or not entries else []
+        return {"entries": entries, "names": names}
 
     def apply_capture_exclusion(self) -> None:
         hwnd = self.window.native.Handle.ToInt32()
@@ -305,6 +311,10 @@ class App:
             except dictionary.DictionaryMissing:
                 self._status("loading", "Downloading the dictionary (first run only)...")
                 dictionary.build()
+                self._dictionary = dictionary.Dictionary()
+            if not self._dictionary.has_names:  # dictionaries built before names were added
+                self._status("loading", "Downloading the names dictionary (one time only)...")
+                dictionary.build_names()
                 self._dictionary = dictionary.Dictionary()
             self._status("loading", f"Loading OCR ({self.cfg.ocr_engine})...")
             self._source = text_sources.create(self.cfg.ocr_engine)

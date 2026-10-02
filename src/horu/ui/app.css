@@ -538,6 +538,10 @@ button.link {
 .sense-notes { color: var(--faint); font-size: 12px; }
 
 .pop-note { color: var(--muted); margin: 4px 0 0; }
+.names-title { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.names { margin: 0 0 8px; padding-left: 18px; line-height: 1.5; }
+.name-reading { font-family: var(--jp); color: var(--muted); }
+.name-det { color: var(--text); font-weight: 600; }
 
 .pop-actions { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .pop-action {
