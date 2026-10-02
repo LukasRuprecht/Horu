@@ -456,6 +456,8 @@ button.link {
 .ai-status.error { color: var(--error); }
 .check { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
 .check input { accent-color: var(--accent); }
+.check-hint { margin: -4px 0 10px 26px; color: var(--faint); font-size: 12px; line-height: 1.4; }
+.check-hint[hidden] { display: none; }
 .setting-text { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; color: var(--muted); font-size: 12px; }
 .setting-text input {
   padding: 6px 8px;

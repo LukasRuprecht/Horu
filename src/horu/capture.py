@@ -85,6 +85,16 @@ def focused_window_is_own() -> bool:
     return pid.value == os.getpid()
 
 
+def exclude_from_capture(hwnd: int, exclude: bool = True) -> bool:
+    """Hide a window from screen captures, so Horu never reads its own window even when it
+    sits on top of the game. Also hides it from OBS, screen sharing, and screenshots.
+    Needs Windows 10 2004 or later; returns False where unsupported."""
+    if sys.platform != "win32":
+        return False
+    WDA_NONE, WDA_EXCLUDEFROMCAPTURE = 0x0, 0x11
+    return bool(_user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE if exclude else WDA_NONE))
+
+
 def save(image: Image.Image, directory: Path) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{datetime.now():%Y%m%d-%H%M%S-%f}.png"

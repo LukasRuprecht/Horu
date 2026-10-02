@@ -93,6 +93,8 @@ class Api:
         self._app.prefs.set(key, value)
         if key == "onTop":
             self._app.window.on_top = bool(value)
+        elif key == "hideFromCapture":
+            self._app.apply_capture_exclusion()
 
     def clear(self) -> None:
         self._app.recent.clear()
@@ -138,6 +140,10 @@ class App:
 
     def lookup(self, word: dict) -> list[dict]:
         return self._dictionary.lookup(word) if self._dictionary else []
+
+    def apply_capture_exclusion(self) -> None:
+        hwnd = self.window.native.Handle.ToInt32()
+        capture.exclude_from_capture(hwnd, self.prefs.values["hideFromCapture"])
 
     def update_line(self, line_id: int, text: str) -> list[dict]:
         words = [w.to_dict() for w in analyze(text)]
@@ -284,6 +290,7 @@ class App:
 
     def _worker(self) -> None:
         self._page_loaded.wait()
+        self.apply_capture_exclusion()
         if not self._load():
             return
         while True:

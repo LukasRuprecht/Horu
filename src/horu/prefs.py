@@ -17,6 +17,9 @@ DEFAULTS: dict = {
     "furigana": True,
     "screenText": True,
     "onTop": False,
+    # Keep Horu's window out of screen captures, so it's never read even when it overlaps the
+    # game. Off for people who stream or share their screen with Horu visible.
+    "hideFromCapture": True,
     "autoTranslate": False,  # one AI request per new dialogue line
     "blurTranslations": True,
     "learnerLevel": "Beginner (studying with Genki I)",

@@ -469,6 +469,7 @@ for (const key of Object.keys(TOGGLES)) {
 
 // Settings-panel checkboxes and text fields: [element, preference, default].
 const FIELDS = [
+  ["#hide-from-capture", "hideFromCapture", true],
   ["#auto-translate", "autoTranslate", false],
   ["#blur-translations", "blurTranslations", true],
   ["#learner-level", "learnerLevel", ""],
