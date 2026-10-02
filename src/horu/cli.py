@@ -69,6 +69,13 @@ def cmd_read(cfg: config.Config, path: Path) -> None:
         print(f"{block.speaker}: {block.text}" if block.speaker else block.text)
 
 
+def cmd_setup() -> None:
+    from horu import dictionary
+
+    count = dictionary.build()
+    print(f"Dictionary ready: {count} JMdict entries in {dictionary.DEFAULT_PATH}")
+
+
 def cmd_monitors() -> None:
     for i, m in enumerate(capture.list_monitors()):
         label = "all monitors" if i == 0 else f"monitor {i}"
@@ -102,10 +109,14 @@ def main() -> None:
     read = sub.add_parser("read", help="read the Japanese text in an image file")
     read.add_argument("image", type=Path)
     sub.add_parser("monitors", help="list monitors and their coordinates")
+    sub.add_parser("setup", help="download and index the JMdict dictionary")
     args = parser.parse_args()
 
     if args.command == "monitors":
         cmd_monitors()
+        return
+    if args.command == "setup":
+        cmd_setup()
         return
 
     try:
