@@ -1,0 +1,27 @@
+# Horu configuration.
+# On first run this file is copied to config.toml (gitignored). Edit config.toml, not this file.
+
+# Which [profiles.*] entry to use.
+active_profile = "persona"
+
+[hotkeys]
+# pynput format: modifiers in angle brackets, e.g. "<ctrl>+<alt>+j", "<f9>".
+capture = "<ctrl>+<alt>+j"
+
+[ocr]
+# Available: "manga_ocr"
+source = "manga_ocr"
+# Trim empty space around the text before OCR. Greatly improves manga-ocr on wide dialogue boxes.
+crop_to_text = true
+
+[debug]
+# Save every capture as a PNG, handy for checking that the region lines up.
+save_captures = false
+captures_dir = "captures"
+
+# A profile is a capture region for one game (or one capture-card setup).
+# Coordinates are physical pixels relative to the chosen monitor's top-left corner.
+# Run `uv run horu monitors` to list monitors and `uv run horu snap` to test a region.
+[profiles.persona]
+monitor = 1
+region = { left = 280, top = 790, width = 1360, height = 230 }

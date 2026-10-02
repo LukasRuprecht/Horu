@@ -28,7 +28,7 @@ Hotkey ─► Capture (screen region per game)
 
 ## Roadmap
 
-- [ ] **Phase 1:** hotkey → capture region → OCR → print text
+- [x] **Phase 1:** hotkey → capture region → OCR → print text
 - [ ] **Phase 2:** overlay with clickable tokens and JMdict popups
 - [ ] **Phase 3:** LLM explanations and follow-up chat (Claude, OpenAI-compatible APIs, Ollama)
 - [ ] **Phase 4:** more text sources (owocr, text hooking, vision fallback) and a region picker
@@ -45,6 +45,27 @@ cd Horu
 uv sync
 uv run horu
 ```
+
+The first run creates `config.toml` from `config.example.toml` and downloads the manga-ocr
+model (~450 MB).
+
+### Setting the capture region
+
+1. `uv run horu monitors` lists your monitors and their resolutions.
+2. Edit the `[profiles.*]` region in `config.toml` so it covers the game's dialogue box.
+   Coordinates are relative to the chosen monitor's top-left corner.
+3. `uv run horu snap` saves the region to `captures/` so you can check it lines up.
+
+Then run `uv run horu` and press the hotkey (default `Ctrl+Alt+J`) whenever text appears.
+
+### Troubleshooting
+
+- **Captures are black:** switch the game to borderless windowed; exclusive fullscreen
+  often can't be captured.
+- **Hotkey does nothing in-game:** if the game runs as administrator, Horu must too.
+- **Garbled OCR:** make the region hug the dialogue text and leave out name tags and icons.
+  `crop_to_text` (on by default) trims empty space, since manga-ocr struggles with
+  wide, mostly empty images.
 
 ## AI providers
 
