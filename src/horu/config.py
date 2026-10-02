@@ -9,6 +9,7 @@ from pathlib import Path
 
 DEFAULT_PATH = Path("config.toml")
 EXAMPLE_PATH = Path("config.example.toml")
+CAPTURE_MODES = ("window", "monitor", "region")
 
 
 class ConfigError(Exception):
@@ -24,18 +25,17 @@ class Region:
 
 
 @dataclass(frozen=True)
-class Profile:
-    name: str
+class CaptureSettings:
+    mode: str
     monitor: int
-    region: Region
+    region: Region | None
 
 
 @dataclass(frozen=True)
 class Config:
-    profile: Profile
+    capture: CaptureSettings
     capture_hotkey: str
-    ocr_source: str
-    crop_to_text: bool
+    ocr_engine: str
     save_captures: bool
     captures_dir: Path
 
@@ -44,7 +44,7 @@ def load(path: Path = DEFAULT_PATH) -> Config:
     if not path.exists():
         if path == DEFAULT_PATH and EXAMPLE_PATH.exists():
             shutil.copy(EXAMPLE_PATH, path)
-            print(f"Created {path} from {EXAMPLE_PATH}. Edit it to match your game.")
+            print(f"Created {path} from {EXAMPLE_PATH}.")
         else:
             raise ConfigError(f"Config file not found: {path}")
 
@@ -52,20 +52,22 @@ def load(path: Path = DEFAULT_PATH) -> Config:
         raw = tomllib.load(f)
 
     try:
-        profile_name = raw["active_profile"]
-        p = raw["profiles"][profile_name]
-        profile = Profile(
-            name=profile_name,
-            monitor=int(p.get("monitor", 1)),
-            region=Region(**{k: int(v) for k, v in p["region"].items()}),
-        )
+        cap = raw.get("capture", {})
+        mode = cap.get("mode", "window")
+        if mode not in CAPTURE_MODES:
+            raise ConfigError(f"capture.mode must be one of {CAPTURE_MODES}, got {mode!r}")
+        region = cap.get("region")
+        debug = raw.get("debug", {})
         return Config(
-            profile=profile,
+            capture=CaptureSettings(
+                mode=mode,
+                monitor=int(cap.get("monitor", 1)),
+                region=Region(**{k: int(v) for k, v in region.items()}) if region else None,
+            ),
             capture_hotkey=raw["hotkeys"]["capture"],
-            ocr_source=raw["ocr"]["source"],
-            crop_to_text=bool(raw["ocr"].get("crop_to_text", True)),
-            save_captures=bool(raw.get("debug", {}).get("save_captures", False)),
-            captures_dir=Path(raw.get("debug", {}).get("captures_dir", "captures")),
+            ocr_engine=raw["ocr"]["engine"],
+            save_captures=bool(debug.get("save_captures", False)),
+            captures_dir=Path(debug.get("captures_dir", "captures")),
         )
     except (KeyError, TypeError) as e:
         raise ConfigError(f"Invalid config in {path}: {e!r}") from e

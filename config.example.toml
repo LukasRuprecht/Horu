@@ -1,27 +1,26 @@
 # Horu configuration.
 # On first run this file is copied to config.toml (gitignored). Edit config.toml, not this file.
 
-# Which [profiles.*] entry to use.
-active_profile = "persona"
-
 [hotkeys]
-# pynput format: modifiers in angle brackets, e.g. "<ctrl>+<alt>+j", "<f9>".
+# Modifiers in angle brackets, e.g. "<ctrl>+<alt>+j", "<f9>", "<ctrl>+<shift>+<space>".
 capture = "<ctrl>+<alt>+j"
 
+[capture]
+# "window":  the focused window, i.e. your game. No setup needed. (Windows only; elsewhere
+#            falls back to "monitor".)
+# "monitor": a whole monitor. Run `uv run horu monitors` to list them.
+# "region":  a fixed box, for capture-card previews or to ignore the rest of the screen.
+mode = "window"
+monitor = 1
+# Only used when mode = "region". Physical pixels relative to the monitor's top-left corner.
+# region = { left = 370, top = 1050, width = 1820, height = 300 }
+
 [ocr]
-# Available: "manga_ocr"
-source = "manga_ocr"
-# Trim empty space around the text before OCR. Greatly improves manga-ocr on wide dialogue boxes.
-crop_to_text = true
+# "rapidocr":  finds every line of text on screen, then reads it (PP-OCRv5). Recommended.
+# "manga_ocr": reads one block of text; only useful with a tight capture region.
+engine = "rapidocr"
 
 [debug]
-# Save every capture as a PNG, handy for checking that the region lines up.
+# Save every capture as a PNG, handy when OCR misreads something.
 save_captures = false
 captures_dir = "captures"
-
-# A profile is a capture region for one game (or one capture-card setup).
-# Coordinates are physical pixels relative to the chosen monitor's top-left corner.
-# Run `uv run horu monitors` to list monitors and `uv run horu snap` to test a region.
-[profiles.persona]
-monitor = 1
-region = { left = 280, top = 790, width = 1360, height = 230 }

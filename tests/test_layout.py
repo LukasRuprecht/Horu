@@ -1,0 +1,42 @@
+from horu.layout import group_blocks
+from horu.text_sources.base import TextLine
+from horu.text_sources.rapidocr_source import merge_rows
+
+
+def line(text, left, top, right, bottom):
+    return TextLine(text, (left, top, right, bottom))
+
+
+def test_dialogue_box_with_name_tag():
+    lines = [
+        line("4/7火 放課後", 49, 27, 406, 100),
+        line("MENU", 2192, 54, 2332, 105),
+        line("順平", 326, 1020, 446, 1089),
+        line("おいおい、転校初日から遅刻かよ？", 370, 1119, 1269, 1200),
+        line("まあ、オレも人のこと言えねーけどな。", 372, 1208, 1361, 1289),
+    ]
+    blocks = group_blocks(lines)
+    assert [b.text for b in blocks] == [
+        "4/7火 放課後",
+        "おいおい、転校初日から遅刻かよ？まあ、オレも人のこと言えねーけどな。",
+    ]
+    assert blocks[1].speaker == "順平"
+
+
+def test_short_first_line_with_punctuation_is_not_a_speaker():
+    blocks = group_blocks([line("えっ？", 100, 100, 200, 160), line("本当にそうなの？", 100, 170, 500, 230)])
+    assert blocks[0].speaker is None
+    assert blocks[0].text == "えっ？本当にそうなの？"
+
+
+def test_lone_characters_are_dropped():
+    assert group_blocks([line("日", 10, 10, 40, 40)]) == []
+
+
+def test_merge_rows_joins_split_line_but_not_lines_below():
+    boxes = [(370, 1119, 678, 1200), (646, 1121, 1269, 1193), (372, 1208, 1361, 1289)]
+    assert merge_rows(boxes) == [(370, 1119, 1269, 1200), (372, 1208, 1361, 1289)]
+
+
+def test_merge_rows_keeps_distant_boxes_apart():
+    assert len(merge_rows([(0, 0, 100, 50), (400, 0, 500, 50)])) == 2
