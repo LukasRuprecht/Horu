@@ -23,6 +23,10 @@
   --auxiliary: #c9a6f5;
   --other: #7d8597;
 
+  /* Set from the display settings. */
+  --text-size: 26px;
+  --rt-scale: 0.5;
+
   --jp: "Yu Gothic UI", "Yu Gothic", "Meiryo", "Hiragino Sans", "Noto Sans JP", sans-serif;
   --ui: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -133,15 +137,33 @@ button { font: inherit; color: inherit; }
 .empty-title { color: var(--text); font-weight: 600; font-size: 16px; margin-bottom: 4px; }
 .credit { margin-top: 24px; font-size: 12px; color: var(--faint); }
 
-.line {
-  position: relative;
-  padding: 10px 14px 12px;
+/* One card per capture; its lines are rows divided by a hairline. */
+.capture {
+  flex: none;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  transition: background 1.5s ease;
+  overflow: hidden;
+  transition: background 1.5s ease, border-color 1.5s ease;
 }
-.line.new { background: var(--card-new); transition: none; }
+.capture.new { background: var(--card-new); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); transition: none; }
+
+.capture-head {
+  display: flex;
+  gap: 8px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--faint);
+  font-size: 12px;
+}
+.capture-head span + span::before { content: "·"; margin-right: 8px; }
+.capture-num { color: var(--muted); font-weight: 600; }
+
+.line {
+  position: relative;
+  padding: 8px 14px 10px;
+}
+.line + .line { border-top: 1px solid var(--border); }
 
 .line-meta {
   display: flex;
@@ -170,13 +192,17 @@ button { font: inherit; color: inherit; }
 
 .text {
   font-family: var(--jp);
-  font-size: 24px;
-  line-height: 2.1;
-  word-break: break-all;
+  font-size: var(--text-size);
+  /* Leave room above each line for the furigana. */
+  line-height: calc(1.5 + var(--rt-scale) * 1.3);
+  overflow-wrap: anywhere;
 }
+.unit { white-space: nowrap; }
 
-.line.screen .text { font-size: 17px; line-height: 1.9; color: var(--muted); }
+.line.screen .text { font-size: calc(var(--text-size) * 0.7); color: var(--muted); }
 body.hide-screen .line.screen { display: none; }
+/* A capture with only screen text disappears entirely when screen text is hidden. */
+body.hide-screen .capture:not(:has(.line.dialogue)) { display: none; }
 
 /* Each word is a button with a coloured bar underneath, Language Reactor style. */
 .word {
@@ -204,7 +230,7 @@ span.word { background: none; cursor: default; margin: 0; padding: 0; }
 .pos-particle, .pos-conjunction { --c: var(--particle); }
 .pos-auxiliary { --c: var(--auxiliary); }
 
-rt { font-size: 0.45em; color: var(--muted); user-select: none; }
+rt { font-size: calc(var(--rt-scale) * 1em); color: var(--muted); user-select: none; }
 body.no-furigana .text rt { display: none; }
 
 .editor { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
@@ -229,6 +255,56 @@ body.no-furigana .text rt { display: none; }
   cursor: pointer;
 }
 .editor-actions button.primary { background: var(--accent); border-color: var(--accent); color: #1b1e26; font-weight: 600; }
+
+/* --- Settings panel ---------------------------------------------------------------- */
+
+.settings {
+  position: fixed;
+  z-index: 20;
+  top: 52px;
+  right: 12px;
+  width: min(320px, calc(100vw - 24px));
+  padding: 14px 16px 16px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.settings h2 {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+.setting {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: 12px;
+}
+.setting input { grid-column: 1 / -1; grid-row: 2; width: 100%; accent-color: var(--accent); }
+.setting output { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+.settings .preview {
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.settings-actions { display: flex; justify-content: flex-end; }
+.settings-actions button {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.settings-actions button:hover { color: var(--text); }
 
 /* --- Word popover ------------------------------------------------------------------- */
 
@@ -294,3 +370,6 @@ body.no-furigana .text rt { display: none; }
 .more summary { cursor: pointer; font-size: 13px; }
 .more .entry { margin-top: 8px; }
 .more .entry-head { font-family: var(--jp); color: var(--text); }
+
+/* The size preview always shows furigana, even when it's toggled off for the lines. */
+body.no-furigana .settings .preview rt { display: revert; }

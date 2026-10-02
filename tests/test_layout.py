@@ -40,3 +40,13 @@ def test_merge_rows_joins_split_line_but_not_lines_below():
 
 def test_merge_rows_keeps_distant_boxes_apart():
     assert len(merge_rows([(0, 0, 100, 50), (400, 0, 500, 50)])) == 2
+
+
+def test_fix_misreads_long_vowel_mark():
+    from horu.text_sources.rapidocr_source import fix_misreads
+
+    assert fix_misreads("言えね一けどな") == "言えねーけどな"
+    assert fix_misreads("ラ一メン") == "ラーメン"
+    assert fix_misreads("すご一") == "すごー"
+    for real in ("この一つ", "もう一度", "その一人", "一番"):
+        assert fix_misreads(real) == real

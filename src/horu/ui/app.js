@@ -4,15 +4,19 @@
 const state = {
   lines: new Map(), // id -> line object from Python
   selected: null, // the .word element whose popover is open
+  prefs: {}, // display preferences, loaded from and saved through Python
 };
 
 const $ = (selector) => document.querySelector(selector);
 const linesEl = $("#lines");
 const popover = $("#popover");
+const settings = $("#settings");
 
 const SENSES_SHOWN = 5;
 const KIND_LABEL = { screen: "Screen text" };
 const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjectival" };
+// Used until Python's saved preferences arrive, and by "Reset to defaults".
+const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };
 
 function api() {
   return window.pywebview && window.pywebview.api;
@@ -35,47 +39,73 @@ function furiganaNodes(segments) {
   });
 }
 
-// --- Lines -----------------------------------------------------------------------------
+// --- Captures and lines ----------------------------------------------------------------
+
+// Opening brackets stick to the word after them; all other punctuation to the word before,
+// so a line never starts with 、 or 。 (or ends with 「).
+const OPENING = /^[「『（(【〈《［]/;
 
 function renderWords(line, container) {
   container.replaceChildren();
+  let unit = null; // a no-wrap group: one word plus the punctuation attached to it
+  let openUnit = false;
   line.words.forEach((word, index) => {
-    const clickable = word.pos !== "symbol";
-    const node = el(clickable ? "button" : "span", `word pos-${word.pos}`);
-    if (clickable) {
+    const symbol = word.pos === "symbol";
+    const node = el(symbol ? "span" : "button", `word pos-${word.pos}`);
+    if (!symbol) {
       node.type = "button";
       node.dataset.line = line.id;
       node.dataset.index = index;
     }
     node.append(...furiganaNodes(word.furigana));
-    container.append(node);
+
+    const opening = symbol && OPENING.test(word.surface);
+    if (unit && (openUnit || (symbol && !opening))) {
+      unit.append(node);
+    } else {
+      unit = el("span", "unit");
+      unit.append(node);
+      container.append(unit);
+    }
+    openUnit = opening || (openUnit && symbol);
   });
 }
 
 function renderLine(line) {
-  const card = el("article", `line ${line.kind}`);
-  card.dataset.id = line.id;
+  const row = el("article", `line ${line.kind}`);
+  row.dataset.id = line.id;
 
   const meta = el("div", "line-meta");
   if (line.speaker) meta.append(el("span", "speaker", line.speaker));
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
-  meta.append(el("span", "spacer"), el("span", "time", line.time));
+  meta.append(el("span", "spacer"));
   const edit = el("button", "edit-btn", "Edit");
   edit.type = "button";
   edit.title = "Fix OCR mistakes in this line";
-  edit.addEventListener("click", () => startEdit(line, card));
+  edit.addEventListener("click", () => startEdit(line, row));
   meta.append(edit);
 
   const text = el("div", "text");
   text.lang = "ja";
   renderWords(line, text);
-  card.append(meta, text);
+  row.append(meta, text);
+  return row;
+}
+
+// One capture (one hotkey press) is one card; its lines are rows inside it, in screen order.
+function renderCapture(capture) {
+  const card = el("section", "capture");
+  const head = el("header", "capture-head");
+  const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
+  head.append(el("span", "capture-num", `Capture ${capture.id}`), el("span", null, capture.time), el("span", null, count));
+  card.append(head);
+  for (const line of capture.lines) card.append(renderLine(line));
   return card;
 }
 
-function startEdit(line, card) {
+function startEdit(line, row) {
   closePopover();
-  const text = card.querySelector(".text");
+  const text = row.querySelector(".text");
   const editor = el("div", "editor");
   const area = el("textarea");
   area.lang = "ja";
@@ -86,7 +116,7 @@ function startEdit(line, card) {
   actions.append(cancel, save);
   editor.append(area, actions);
   text.hidden = true;
-  card.append(editor);
+  row.append(editor);
   area.focus();
 
   const finish = () => {
@@ -222,49 +252,76 @@ function closePopover() {
   state.selected = null;
 }
 
-// --- Toolbar ---------------------------------------------------------------------------
+// --- Preferences and toolbar -----------------------------------------------------------
 
-function loadPref(key, fallback) {
-  try {
-    const value = localStorage.getItem(`horu.${key}`);
-    return value === null ? fallback : value === "true";
-  } catch {
-    return fallback;
-  }
+function setPref(key, value) {
+  state.prefs[key] = value;
+  if (api()) api().set_pref(key, value);
 }
 
-function savePref(key, value) {
-  try {
-    localStorage.setItem(`horu.${key}`, String(value));
-  } catch {
-    // Preferences are a convenience; ignore storage failures.
-  }
+function applyDisplay() {
+  const { textSize, furiganaScale } = { ...DISPLAY_DEFAULTS, ...state.prefs };
+  document.documentElement.style.setProperty("--text-size", `${textSize}px`);
+  document.documentElement.style.setProperty("--rt-scale", furiganaScale);
+  $("#text-size").value = textSize;
+  $("#text-size-value").textContent = `${textSize}px`;
+  $("#furigana-scale").value = furiganaScale;
+  $("#furigana-scale-value").textContent = `${Math.round(textSize * furiganaScale)}px`;
+  if (state.selected) positionPopover(state.selected);
 }
 
-function setupToggle(id, key, fallback, apply) {
-  const button = $(id);
-  const set = (on) => {
-    button.setAttribute("aria-pressed", String(on));
-    apply(on);
-    savePref(key, on);
-  };
-  set(loadPref(key, fallback));
-  button.addEventListener("click", () => set(button.getAttribute("aria-pressed") !== "true"));
+// Toggle buttons: each mirrors one boolean preference: [button, default, apply].
+const TOGGLES = {
+  furigana: ["#toggle-furigana", true, (on) => document.body.classList.toggle("no-furigana", !on)],
+  screenText: ["#toggle-screen", true, (on) => document.body.classList.toggle("hide-screen", !on)],
+  onTop: ["#toggle-top", false, () => {}], // applied to the window by Python
+};
+
+function applyToggle(key) {
+  const [selector, fallback, apply] = TOGGLES[key];
+  const on = state.prefs[key] ?? fallback;
+  $(selector).setAttribute("aria-pressed", String(on));
+  apply(on);
 }
 
-setupToggle("#toggle-furigana", "furigana", true, (on) => document.body.classList.toggle("no-furigana", !on));
-setupToggle("#toggle-screen", "screenText", true, (on) => document.body.classList.toggle("hide-screen", !on));
-// On-top is applied through Python, which may not be connected yet when the page loads.
-$("#toggle-top").addEventListener("click", (e) => {
-  const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
-  e.currentTarget.setAttribute("aria-pressed", String(on));
-  if (api()) api().set_on_top(on);
+for (const key of Object.keys(TOGGLES)) {
+  $(TOGGLES[key][0]).addEventListener("click", (e) => {
+    setPref(key, e.currentTarget.getAttribute("aria-pressed") !== "true");
+    applyToggle(key);
+  });
+}
+
+function applyAllPrefs() {
+  applyDisplay();
+  for (const key of Object.keys(TOGGLES)) applyToggle(key);
+}
+
+for (const [id, key] of [["#text-size", "textSize"], ["#furigana-scale", "furiganaScale"]]) {
+  const input = $(id);
+  // Apply live while dragging; save once the slider is released.
+  input.addEventListener("input", () => {
+    state.prefs[key] = Number(input.value);
+    applyDisplay();
+  });
+  input.addEventListener("change", () => setPref(key, Number(input.value)));
+}
+
+$("#reset-display").addEventListener("click", () => {
+  for (const [key, value] of Object.entries(DISPLAY_DEFAULTS)) setPref(key, value);
+  applyDisplay();
 });
+
+function toggleSettings(open) {
+  settings.hidden = !open;
+  $("#open-settings").setAttribute("aria-pressed", String(open));
+  if (open) closePopover();
+}
+$("#open-settings").addEventListener("click", () => toggleSettings(settings.hidden));
 
 $("#clear").addEventListener("click", () => {
   closePopover();
   state.lines.clear();
-  linesEl.querySelectorAll(".line").forEach((node) => node.remove());
+  linesEl.querySelectorAll(".capture").forEach((node) => node.remove());
   $("#empty").hidden = false;
   if (api()) api().clear();
 });
@@ -278,14 +335,27 @@ linesEl.addEventListener("click", (e) => {
 
 document.addEventListener("mousedown", (e) => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest("button.word")) closePopover();
+  if (!settings.hidden && !settings.contains(e.target) && !e.target.closest("#open-settings")) toggleSettings(false);
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closePopover();
+  if (e.key === "Escape") {
+    closePopover();
+    toggleSettings(false);
+  }
 });
 linesEl.addEventListener("scroll", () => {
   if (state.selected) positionPopover(state.selected);
 });
 window.addEventListener("resize", closePopover);
+
+async function loadPrefs() {
+  state.prefs = await api().get_prefs();
+  applyAllPrefs();
+}
+
+applyAllPrefs();
+if (api()) loadPrefs();
+else window.addEventListener("pywebviewready", loadPrefs, { once: true });
 
 // --- Called from Python ----------------------------------------------------------------
 
@@ -296,19 +366,16 @@ window.horu = {
     $("#status").title = message;
   },
 
-  addLines(lines) {
+  addCapture(capture) {
     const stick = isNearBottom();
     $("#empty").hidden = true;
-    linesEl.querySelectorAll(".line.new").forEach((node) => node.classList.remove("new"));
-    let last;
-    for (const line of lines) {
-      state.lines.set(line.id, line);
-      last = renderLine(line);
-      last.classList.add("new");
-      linesEl.append(last);
-    }
-    if (stick && last) last.scrollIntoView({ block: "end" });
+    for (const line of capture.lines) state.lines.set(line.id, line);
+    const card = renderCapture(capture);
+    linesEl.querySelectorAll(".capture.new").forEach((node) => node.classList.remove("new"));
+    card.classList.add("new");
+    linesEl.append(card);
+    if (stick) card.scrollIntoView({ block: "end" });
     // Let the highlight fade out.
-    setTimeout(() => linesEl.querySelectorAll(".line.new").forEach((n) => n.classList.remove("new")), 2500);
+    setTimeout(() => card.classList.remove("new"), 2500);
   },
 };

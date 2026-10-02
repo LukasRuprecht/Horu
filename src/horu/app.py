@@ -11,15 +11,17 @@ import traceback
 from collections import deque
 from pathlib import Path
 
-from horu import capture, config, dictionary, hotkey, layout, text_sources
+from horu import capture, config, dictionary, hotkey, layout, prefs, text_sources
 from horu.nlp import analyze
 
 UI_DIR = Path(__file__).parent / "ui"
 # Blocks already shown recently are skipped, so persistent text (HUD, menus) and repeated
 # hotkey presses on the same dialogue don't flood the history.
 _RECENT_LINES = 20
-# Blocks centred below this fraction of the frame height are treated as dialogue.
+# A block is main text (shown large) if it has a speaker, sits in the lower part of the
+# screen where dialogue boxes live, or is long; HUD and menu labels are short.
 _DIALOGUE_ZONE = 0.6
+_MAIN_TEXT_CHARS = 12
 
 
 class Api:
@@ -34,8 +36,13 @@ class Api:
     def reanalyze(self, text: str) -> list[dict]:
         return [w.to_dict() for w in analyze(text)]
 
-    def set_on_top(self, on_top: bool) -> None:
-        self._app.window.on_top = bool(on_top)
+    def get_prefs(self) -> dict:
+        return self._app.prefs.values
+
+    def set_pref(self, key: str, value) -> None:
+        self._app.prefs.set(key, value)
+        if key == "onTop":
+            self._app.window.on_top = bool(value)
 
     def clear(self) -> None:
         self._app.recent.clear()
@@ -46,11 +53,13 @@ class App:
         self.cfg = cfg
         self.debug = debug
         self.window = None
+        self.prefs = prefs.Prefs()
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self._source: text_sources.TextSource | None = None
         self._dictionary: dictionary.Dictionary | None = None
         self._requests: queue.Queue[None] = queue.Queue()
         self._ids = itertools.count(1)
+        self._capture_ids = itertools.count(1)
         self._page_loaded = threading.Event()
         self._stop_hotkey = None
 
@@ -64,6 +73,7 @@ class App:
             width=560,
             height=900,
             min_size=(360, 400),
+            on_top=self.prefs.values["onTop"],
             background_color="#15171d",
         )
         self.window.events.loaded += self._page_loaded.set
@@ -124,20 +134,23 @@ class App:
             self.recent.append(block.text)
             lines.append(self._line(block, image.height))
         if lines:
-            self._call("addLines", lines)
+            self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
             self._ready()
         else:
             self._ready("No new Japanese text found.")
 
     def _line(self, block: layout.TextBlock, frame_height: int) -> dict:
         top, bottom = block.box[1], block.box[3]
-        is_dialogue = block.speaker is not None or (top + bottom) / 2 > _DIALOGUE_ZONE * frame_height
+        is_main = (
+            block.speaker is not None
+            or (top + bottom) / 2 > _DIALOGUE_ZONE * frame_height
+            or len(block.text) >= _MAIN_TEXT_CHARS
+        )
         return {
             "id": next(self._ids),
-            "time": time.strftime("%H:%M"),
             "speaker": block.speaker,
             "text": block.text,
-            "kind": "dialogue" if is_dialogue else "screen",
+            "kind": "dialogue" if is_main else "screen",
             "words": [w.to_dict() for w in analyze(block.text)],
         }
 

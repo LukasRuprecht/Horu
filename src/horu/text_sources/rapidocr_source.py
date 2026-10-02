@@ -5,12 +5,20 @@ Detection finds every line on screen, so no capture region is needed.
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 from PIL import Image
 
 from horu.text_sources.base import TextLine
 
 Box = tuple[int, int, int, int]
+
+# The long-vowel mark ー and the kanji 一 ("one") look almost identical, and OCR mixes them
+# up. After katakana, 一 is practically always ー (ラ一メン). After hiragana it is ー only
+# when no kanji or つ follows: 言えね一けど is 言えねーけど, but この一つ and もう一度 are real.
+_KATAKANA_THEN_ICHI = re.compile(r"(?<=[ァ-ヺ])一")
+_HIRAGANA_THEN_ICHI = re.compile(r"(?<=[ぁ-ゖ])一(?![\u3400-\u9fffつ])")
 
 
 class RapidOcrSource:
@@ -51,14 +59,20 @@ class RapidOcrSource:
         lines = []
         for left, top, right, bottom in merge_rows(boxes):
             pad = max(2, (bottom - top) // 10)
-            crop = pixels[max(top - pad, 0) : bottom + pad, max(left - pad, 0) : right + pad]
+            # Extra room on the right: detection boxes tend to stop short of a small 、 or 。
+            # at the end of a line.
+            crop = pixels[max(top - pad, 0) : bottom + pad, max(left - pad, 0) : right + (bottom - top) // 2]
             result = self._engine(crop, use_det=False, use_cls=False, use_rec=True)
             if not result.txts:
                 continue
-            text, score = "".join(result.txts), float(min(result.scores))
+            text, score = fix_misreads("".join(result.txts)), float(min(result.scores))
             if text and score >= self._min_score:
                 lines.append(TextLine(text, (left, top, right, bottom), score))
         return lines
+
+
+def fix_misreads(text: str) -> str:
+    return _HIRAGANA_THEN_ICHI.sub("ー", _KATAKANA_THEN_ICHI.sub("ー", text))
 
 
 def merge_rows(boxes: list[Box]) -> list[Box]:
