@@ -50,6 +50,10 @@ class SpeakerBook:
             self._save()
         return text
 
+    def known(self, game: str) -> frozenset[str]:
+        """Names read confidently at least once in this game."""
+        return frozenset(name for name, entry in self._data.get(game, {}).items() if entry.get("seen"))
+
     def english(self, game: str, text: str) -> str | None:
         return self._data.get(game, {}).get(text, {}).get("en")
 

@@ -25,6 +25,9 @@ class Hints:
     other: frozenset[str] = field(default_factory=frozenset)
     speaker: frozenset[str] = field(default_factory=frozenset)
     not_speaker: frozenset[str] = field(default_factory=frozenset)
+    # Not a correction: speaker names already read confidently in this game (from the
+    # speaker book), which count as name-like.
+    known_speakers: frozenset[str] = field(default_factory=frozenset)
 
 
 def normalize(text: str) -> str:

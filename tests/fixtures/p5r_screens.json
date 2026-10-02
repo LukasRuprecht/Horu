@@ -1,5 +1,5 @@
 {
- "about": "Persona 5 Royal screens (PC, 1260x1052 window): OCR'd lines with measured text styles, and the expected blocks. Generated from local screenshots, which aren't committed.",
+ "about": "Persona 5 Royal screens (PC, windowed at 1260x1052 and 1280x649): OCR'd lines with measured text styles, and the expected blocks. Generated from local screenshots, which aren't committed.",
  "screens": [
   {
    "name": "dialogue_box",
@@ -1373,6 +1373,1210 @@
      "speaker": null,
      "kind": "other",
      "text": "音声再生"
+    }
+   ]
+  },
+  {
+   "name": "settings_menu",
+   "size": [
+    1280,
+    649
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      1,
+      1,
+      25,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       130,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "開じる",
+     "box": [
+      129,
+      600,
+      179,
+      630
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ights reserved.",
+     "box": [
+      262,
+      615,
+      341,
+      628
+     ],
+     "style": {
+      "ink": [
+       99,
+       93,
+       93
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ゲームシステム設定",
+     "box": [
+      649,
+      163,
+      854,
+      192
+     ],
+     "style": {
+      "ink": [
+       255,
+       242,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "キーコンフィグ設定",
+     "box": [
+      693,
+      359,
+      891,
+      388
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "グラフィック設定",
+     "box": [
+      700,
+      261,
+      873,
+      290
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ディスプレイ設定",
+     "box": [
+      703,
+      311,
+      880,
+      338
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "サウンド設定",
+     "box": [
+      731,
+      213,
+      863,
+      241
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "どの設定を変更しますか？",
+     "box": [
+      747,
+      94,
+      979,
+      121
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "どの設定を変更しますか？"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ゲームシステム設定"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "サウンド設定"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "グラフィック設定"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ディスプレイ設定"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "キーコンフィグ設定"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "開じる"
+    }
+   ]
+  },
+  {
+   "name": "settings_list_with_help_text",
+   "size": [
+    1280,
+    649
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      1,
+      1,
+      25,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       130,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "HADC",
+     "box": [
+      100,
+      597,
+      423,
+      633
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "決定",
+     "box": [
+      448,
+      600,
+      489,
+      628
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "バブレーション機能ON",
+     "box": [
+      644,
+      205,
+      987,
+      252
+     ],
+     "style": {
+      "ink": [
+       247,
+       247,
+       247
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "早送り機能の継続",
+     "box": [
+      720,
+      408,
+      899,
+      435
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "自動ページ送り",
+     "box": [
+      727,
+      310,
+      881,
+      339
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "カーソル位置記憶",
+     "box": [
+      727,
+      456,
+      908,
+      485
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "日本語音声",
+     "box": [
+      739,
+      165,
+      854,
+      192
+     ],
+     "style": {
+      "ink": [
+       254,
+       235,
+       238
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "日本語音声を有効にします",
+     "box": [
+      746,
+      97,
+      978,
+      120
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "セリフ音声ON",
+     "box": [
+      759,
+      252,
+      991,
+      300
+     ],
+     "style": {
+      "ink": [
+       248,
+       248,
+       248
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "アニメ字幕",
+     "box": [
+      774,
+      358,
+      891,
+      388
+     ],
+     "style": {
+      "ink": [
+       234,
+       234,
+       234
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ONFF",
+     "box": [
+      876,
+      158,
+      1010,
+      205
+     ],
+     "style": {
+      "ink": [
+       251,
+       244,
+       245
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "日本語音声を有効にします"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "日本語音声"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "バブレーション機能ON"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "セリフ音声ON"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "自動ページ送り"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "アニメ字幕"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "早送り機能の継続"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "カーソル位置記憶"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "決定"
+    }
+   ]
+  },
+  {
+   "name": "key_config_list_with_icons",
+   "size": [
+    1280,
+    649
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      1,
+      1,
+      25,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       130,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "HN",
+     "box": [
+      100,
+      596,
+      307,
+      635
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ATUS",
+     "box": [
+      122,
+      580,
+      226,
+      601
+     ],
+     "style": {
+      "ink": [
+       123,
+       123,
+       119
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ドマ",
+     "box": [
+      504,
+      16,
+      987,
+      131
+     ],
+     "style": {
+      "ink": [
+       251,
+       249,
+       250
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "A",
+     "box": [
+      599,
+      134,
+      615,
+      151
+     ],
+     "style": {
+      "ink": [
+       224,
+       215,
+       216
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "キャラクター移動（前）",
+     "box": [
+      626,
+      162,
+      847,
+      193
+     ],
+     "style": {
+      "ink": [
+       255,
+       241,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "キャラクター移動(後）",
+     "box": [
+      636,
+      215,
+      854,
+      239
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "COMMON",
+     "box": [
+      638,
+      118,
+      712,
+      146
+     ],
+     "style": {
+      "ink": [
+       255,
+       246,
+       247
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "キャラクター移動(左）",
+     "box": [
+      645,
+      263,
+      865,
+      289
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "キャラクター移動(右)",
+     "box": [
+      652,
+      310,
+      873,
+      337
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "決定・アクション",
+     "box": [
+      729,
+      359,
+      891,
+      388
+     ],
+     "style": {
+      "ink": [
+       125,
+       125,
+       125
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "汎用メニュー操作",
+     "box": [
+      732,
+      456,
+      908,
+      485
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "MOVIE",
+     "box": [
+      742,
+      115,
+      794,
+      141
+     ],
+     "style": {
+      "ink": [
+       16,
+       16,
+       16
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "路キャンセル",
+     "box": [
+      772,
+      401,
+      903,
+      442
+     ],
+     "style": {
+      "ink": [
+       142,
+       142,
+       142
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "M1",
+     "box": [
+      919,
+      361,
+      947,
+      383
+     ],
+     "style": {
+      "ink": [
+       116,
+       116,
+       116
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "M2",
+     "box": [
+      925,
+      408,
+      958,
+      432
+     ],
+     "style": {
+      "ink": [
+       120,
+       120,
+       120
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "D",
+     "box": [
+      1012,
+      102,
+      1028,
+      120
+     ],
+     "style": {
+      "ink": [
+       211,
+       211,
+       211
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ドマ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "キャラクター移動（前）"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "キャラクター移動(後）"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "キャラクター移動(左）"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "キャラクター移動(右)"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "決定・アクション"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "路キャンセル"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "汎用メニュー操作"
+    }
+   ]
+  },
+  {
+   "name": "tutorial_list_big_header",
+   "size": [
+    1280,
+    649
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      0,
+      1,
+      26,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "タステ",
+     "box": [
+      207,
+      53,
+      913,
+      173
+     ],
+     "style": {
+      "ink": [
+       248,
+       248,
+       248
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "確認できるチュートリアルがありません",
+     "box": [
+      283,
+      209,
+      669,
+      235
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "決定",
+     "box": [
+      1137,
+      599,
+      1180,
+      630
+     ],
+     "style": {
+      "ink": [
+       13,
+       12,
+       13
+      ],
+      "light_on_dark": false
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "タステ"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "確認できるチュートリアルがありません"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "決定"
+    }
+   ]
+  },
+  {
+   "name": "graphics_settings_with_help_text",
+   "size": [
+    1280,
+    649
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      1,
+      1,
+      25,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       130,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "HAD变更C民定",
+     "box": [
+      100,
+      594,
+      520,
+      634
+     ],
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "グラフィック品質の設定を一括で変更します",
+     "box": [
+      448,
+      107,
+      832,
+      132
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "レンダリングスケール",
+     "box": [
+      494,
+      223,
+      716,
+      252
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "グラフィック品質",
+     "box": [
+      535,
+      174,
+      708,
+      205
+     ],
+     "style": {
+      "ink": [
+       255,
+       239,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "フレームレート上限",
+     "box": [
+      555,
+      369,
+      743,
+      399
+     ],
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "アンチエイリアス",
+     "box": [
+      577,
+      420,
+      751,
+      446
+     ],
+     "style": {
+      "ink": [
+       245,
+       245,
+       245
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "画面の明るさ",
+     "box": [
+      597,
+      322,
+      733,
+      349
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "影の品質",
+     "box": [
+      629,
+      272,
+      727,
+      302
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "被写界深度",
+     "box": [
+      642,
+      465,
+      762,
+      497
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "HiGH",
+     "box": [
+      762,
+      168,
+      836,
+      210
+     ],
+     "style": {
+      "ink": [
+       64,
+       7,
+       16
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "100%",
+     "box": [
+      777,
+      220,
+      837,
+      257
+     ],
+     "style": {
+      "ink": [
+       10,
+       10,
+       10
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "HiGH",
+     "box": [
+      782,
+      266,
+      853,
+      306
+     ],
+     "style": {
+      "ink": [
+       12,
+       12,
+       12
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "HiGH",
+     "box": [
+      813,
+      459,
+      893,
+      501
+     ],
+     "style": {
+      "ink": [
+       8,
+       8,
+       8
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "明",
+     "box": [
+      867,
+      312,
+      907,
+      357
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "グラフィック品質の設定を一括で変更します"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "グラフィック品質"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "レンダリングスケール"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "影の品質"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "画面の明るさ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "フレームレート上限"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "アンチエイリアス"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "被写界深度"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "HAD变更C民定"
     }
    ]
   }

@@ -8,8 +8,10 @@ any single rule, because games style name tags very differently:
 - a different text style from the line below (colour, or light-on-dark vs dark-on-light)
 - a different size from the line below (name tags are often bigger or slanted)
 
-A speaker must sit directly above (or overlap) a body line, and every speaker starts a new
-block. That keeps log/backlog screens, which stack many speaker + line entries, apart.
+A speaker must sit directly above (or overlap) a body line that reads like dialogue, and
+every speaker starts a new block. That keeps log/backlog screens, which stack many speaker +
+line entries, apart, while menus (a highlighted item above other items) and big headers
+above help text don't produce speakers.
 """
 
 from __future__ import annotations
@@ -31,6 +33,12 @@ _MAX_SPEAKER_CHARS = 10
 # A line wraps onto the next only if it's long (it filled the text box) or ends mid-sentence
 # with punctuation; short labels stacked in a menu are separate items.
 _MIN_WRAPPED_CHARS = 6
+# Wrapped lines are set tightly (in every game seen so far the gap is at most ~10% of the
+# line height); list items are spaced out (~70%).
+_MAX_WRAP_GAP = 0.35
+# Name tags are moderately bigger than dialogue (about 2-3x); titles and headers are bigger
+# still, so size only counts within this range.
+_NAME_TAG_SIZE = (1.6, 3.2)
 _WRAP_END = re.compile(r"[、。！？!?…‥」』]$")
 _MIN_BLOCK_CHARS = 2
 _LONG_TEXT_CHARS = 12  # longer than any button label or menu item
@@ -188,7 +196,11 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     marked = normalize(text) in hints.speaker
     if normalize(text) in hints.not_speaker:
         return False
-    if not marked and (len(text) > _MAX_SPEAKER_CHARS or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text))):
+    if not marked and (
+        len(_JAPANESE.findall(text)) < 2 and not _NAME_LIKE.search(text)
+        or len(text) > _MAX_SPEAKER_CHARS
+        or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text))
+    ):
         return False
     below = [j for j in range(len(lines)) if j != i and j not in legends and _under_speaker(candidate, lines[j])]
     if not below:
@@ -196,16 +208,21 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if marked:
         return True
     body = min(below, key=lambda j: lines[j].box[1])
+    # A speaker says something: the line below must read like dialogue, not be another menu
+    # item or label.
+    if not _reads_like_dialogue(lines[body].text):
+        return False
 
     score = 0
-    if _NAME_LIKE.search(text) or _has_person_name(text):
+    if _NAME_LIKE.search(text) or normalize(text) in hints.known_speakers or _has_person_name(text):
         score += 2
     if i in styles and body in styles and styles[i].differs_from(styles[body]):
         score += 2
     ratio = _height(candidate) / max(_height(lines[body]), 1)
-    if ratio >= 1.8 or ratio <= 0.55:
+    low, high = _NAME_TAG_SIZE
+    if low <= ratio <= high:
         score += 2
-    elif ratio >= 1.25 or ratio <= 0.8:
+    elif 1.25 <= ratio < low or ratio <= 0.8:
         score += 1
     return score >= 2
 
@@ -259,10 +276,14 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
     p_height, height = p_bottom - p_top, bottom - top
     similar_size = max(p_height, height) <= 1.5 * min(p_height, height)
     # Tightly set lines' boxes can overlap by up to about half a line.
-    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= 0.9 * p_height
+    # Measured against the smaller line, since an icon beside a menu item can inflate its box.
+    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height)
     overlaps = min(p_right, right) > max(p_left, left)
     wraps = len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
-    return similar_size and close_below and overlaps and wraps
+    # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
+    # the same left edge (or is centred).
+    right_aligned_list = abs(right - p_right) <= 0.5 * p_height and abs(left - p_left) > p_height
+    return similar_size and close_below and overlaps and wraps and not right_aligned_list
 
 
 def _height(line: TextLine) -> int:

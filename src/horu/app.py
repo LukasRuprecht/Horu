@@ -353,8 +353,12 @@ class App:
 
     def _line_context(self, line_id: int) -> Line:
         line = self.lines[line_id]
-        earlier = [l for i, l in self.lines.items() if i < line_id and l["kind"] == "dialogue" and not l["repeat"]]
-        previous = [Line(l["text"], _speaker_text(l)).quoted() for l in earlier[-_CONTEXT_LINES:]]
+        # Earlier dialogue only helps actual dialogue: help, menu, and tutorial text (no
+        # speaker) is translated on its own.
+        previous = []
+        if line["speaker"]:
+            earlier = [l for i, l in self.lines.items() if i < line_id and l["speaker"] and not l["repeat"]]
+            previous = [Line(l["text"], _speaker_text(l)).quoted() for l in earlier[-_CONTEXT_LINES:]]
         return Line(line["text"], _speaker_text(line), previous)
 
     def _stream(self, meta: dict, chunks) -> None:
@@ -428,7 +432,8 @@ class App:
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
         game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
-        blocks = layout.group_blocks(self._source.read(image), image, hints=self.corrections.hints(game))
+        hints = dataclasses.replace(self.corrections.hints(game), known_speakers=self.speakers.known(game))
+        blocks = layout.group_blocks(self._source.read(image), image, hints=hints)
         # Correct misread name tags against names already seen in this game.
         blocks = [
             dataclasses.replace(b, speaker=self.speakers.resolve(game, b.speaker, b.speaker_score)) if b.speaker else b

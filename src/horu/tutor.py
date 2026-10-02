@@ -33,6 +33,16 @@ TRANSLATE = """\
 
 Reply with only the translation: no quotes, notes, or romaji."""
 
+# Text without a speaker may be narration, but is often help, menu, or tutorial text, which
+# shouldn't be rewritten as speech.
+TRANSLATE_TEXT = """\
+Translate this text from a video game into natural English. It may be narration, or help, \
+menu, or tutorial text; keep its tone, and keep any line breaks and lists.
+
+{text}
+
+Reply with only the translation: no quotes, notes, or romaji."""
+
 # For a dedicated translation model (e.g. Google's Japanese-English Gemma fine-tune): no
 # system prompt, so it keeps the instruction it was built with, and the task given as its own
 # turn, acknowledged, before the text. Sent as one message, the 2B Gemma translator often
@@ -92,6 +102,8 @@ class Tutor:
         # Temperature 0 where supported: the same line should get the same translation.
         if self.translator:
             return self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
+        if line.speaker is None and not line.previous:
+            return self._chat(temperature=0).send(TRANSLATE_TEXT.format(text=line.text))
         return self._chat(temperature=0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
 
     def translate_speaker(self, text: str) -> str:
