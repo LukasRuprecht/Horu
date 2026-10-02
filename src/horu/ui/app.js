@@ -99,17 +99,19 @@ function renderMarkdown(text) {
 // so a line never starts with 、 or 。 (or ends with 「).
 const OPENING = /^[「『（(【〈《［]/;
 
-function renderWords(line, container) {
+function renderWords(line, container, part = "text") {
   container.replaceChildren();
+  const words = part === "speaker" ? line.speaker.words : line.words;
   let unit = null; // a no-wrap group: one word plus the punctuation attached to it
   let openUnit = false;
-  line.words.forEach((word, index) => {
+  words.forEach((word, index) => {
     const symbol = word.pos === "symbol";
     const node = el(symbol ? "span" : "button", `word pos-${word.pos}`);
     if (!symbol) {
       node.type = "button";
       node.dataset.line = line.id;
       node.dataset.index = index;
+      node.dataset.part = part;
     }
     node.append(...furiganaNodes(word.furigana));
 
@@ -130,7 +132,13 @@ function renderLine(line) {
   row.dataset.id = line.id;
 
   const meta = el("div", "line-meta");
-  if (line.speaker) meta.append(el("span", "speaker", line.speaker));
+  if (line.speaker) {
+    // The speaker is words too: names and phrases like 少年の声 can be looked up.
+    const speaker = el("span", "speaker");
+    speaker.lang = "ja";
+    renderWords(line, speaker, "speaker");
+    meta.append(speaker);
+  }
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
   meta.append(
     el("span", "spacer"),
@@ -142,7 +150,10 @@ function renderLine(line) {
   text.lang = "ja";
   renderWords(line, text);
   row.append(meta, text);
-  if (line.kind === "dialogue" && state.ai.enabled) row.append(translationRow(line));
+  if (line.kind === "dialogue" && state.ai.enabled) {
+    // Repeats were translated (or skipped) when first shown; translate them only on request.
+    row.append(translationRow(line, line.repeat ? { auto: false } : undefined));
+  }
   return row;
 }
 
@@ -153,7 +164,24 @@ function renderCapture(capture) {
   const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
   head.append(el("span", "capture-num", `Capture ${capture.id}`), el("span", null, capture.time), el("span", null, count));
   card.append(head);
-  for (const line of capture.lines) card.append(renderLine(line));
+  // Runs of lines that were already shown are collapsed, so a re-captured backlog page shows
+  // what's new without anything silently disappearing.
+  let repeats = null;
+  for (const line of capture.lines) {
+    if (line.repeat) {
+      if (!repeats) {
+        repeats = el("details", "repeats");
+        repeats.append(el("summary"));
+        card.append(repeats);
+      }
+      repeats.append(renderLine(line));
+      const count = repeats.querySelectorAll(".line").length;
+      repeats.querySelector("summary").textContent = count === 1 ? "1 line shown earlier" : `${count} lines shown earlier`;
+    } else {
+      repeats = null;
+      card.append(renderLine(line));
+    }
+  }
   return card;
 }
 
@@ -291,14 +319,14 @@ function scrollTutor() {
 }
 
 function linePreview(line) {
-  return el("span", "tutor-line", line.speaker ? `${line.speaker}「${line.text}」` : `「${line.text}」`);
+  return el("span", "tutor-line", line.speaker ? `${line.speaker.text}「${line.text}」` : `「${line.text}」`);
 }
 
-function explainWord(line, index) {
-  const word = line.words[index];
+function explainWord(line, index, part = "text") {
+  const word = (part === "speaker" ? line.speaker.words : line.words)[index];
   if (!openTutor([el("strong", "tutor-word", word.surface), " in ", linePreview(line)])) return;
   state.tutor.session = state.nextSession++;
-  api().explain_word(line.id, index, state.tutor.session);
+  api().explain_word(line.id, index, state.tutor.session, part);
 }
 
 function explainLine(line) {
@@ -325,7 +353,8 @@ $("#tutor-close").addEventListener("click", closeTutor);
 function openPopover(wordEl) {
   const line = state.lines.get(Number(wordEl.dataset.line));
   const index = Number(wordEl.dataset.index);
-  const word = line && line.words[index];
+  const part = wordEl.dataset.part || "text";
+  const word = line && (part === "speaker" ? line.speaker.words : line.words)[index];
   if (!word) return;
 
   if (state.selected) state.selected.classList.remove("selected");
@@ -336,7 +365,7 @@ function openPopover(wordEl) {
   const body = el("div", "pop-body");
   body.append(el("p", "pop-note", "Looking up..."));
   const actions = el("div", "pop-actions");
-  actions.append(button("pop-action", "Explain in context", () => explainWord(line, index)));
+  actions.append(button("pop-action", "Explain in context", () => explainWord(line, index, part)));
   popover.append(body, actions);
   popover.hidden = false;
   positionPopover(wordEl);

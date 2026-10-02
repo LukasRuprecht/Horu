@@ -173,7 +173,17 @@ button { font: inherit; color: inherit; }
   color: var(--faint);
   font-size: 12px;
 }
-.speaker { color: var(--accent); font-family: var(--jp); font-weight: 600; font-size: 13px; }
+.speaker { color: var(--accent); font-family: var(--jp); font-weight: 600; font-size: calc(var(--text-size) * 0.55); }
+.speaker .word { font-weight: 600; }
+.speaker rt { font-weight: 400; }
+body.no-furigana .speaker rt { display: none; }
+
+/* Lines already shown in an earlier capture, collapsed. */
+.repeats { border-top: 1px solid var(--border); }
+.repeats summary { padding: 6px 14px; color: var(--faint); font-size: 12px; cursor: pointer; }
+.repeats summary:hover { color: var(--muted); }
+.repeats .line { opacity: 0.7; }
+.repeats + .line, .line + .repeats { border-top: 1px solid var(--border); }
 .kind-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
 .line-meta .spacer { flex: 1; }
 

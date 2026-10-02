@@ -47,8 +47,8 @@ class Api:
 
     # The page picks the session id, so it can accept the first streamed chunk even if
     # it arrives before this call returns.
-    def explain_word(self, line_id: int, index: int, session: int) -> None:
-        self._app.explain_word(line_id, index, session)
+    def explain_word(self, line_id: int, index: int, session: int, part: str = "text") -> None:
+        self._app.explain_word(line_id, index, session, part)
 
     def explain_line(self, line_id: int, session: int) -> None:
         self._app.explain_line(line_id, session)
@@ -227,9 +227,10 @@ class App:
             chunks = self._tutor().translate(self._line_context(line_id))
             self._stream({"target": "translation", "lineId": line_id}, chunks)
 
-    def explain_word(self, line_id: int, index: int, session: int) -> None:
+    def explain_word(self, line_id: int, index: int, session: int, part: str = "text") -> None:
         if self._provider and line_id in self.lines:
-            word = self.lines[line_id]["words"][index]
+            line = self.lines[line_id]
+            word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
             chat, chunks = self._tutor().explain_word(self._line_context(line_id), word)
             self._start_tutor_session(session, chat, chunks)
 
@@ -254,9 +255,9 @@ class App:
 
     def _line_context(self, line_id: int) -> Line:
         line = self.lines[line_id]
-        earlier = [l for i, l in self.lines.items() if i < line_id and l["kind"] == "dialogue"]
-        previous = [Line(l["text"], l["speaker"]).quoted() for l in earlier[-_CONTEXT_LINES:]]
-        return Line(line["text"], line["speaker"], previous)
+        earlier = [l for i, l in self.lines.items() if i < line_id and l["kind"] == "dialogue" and not l["repeat"]]
+        previous = [Line(l["text"], _speaker_text(l)).quoted() for l in earlier[-_CONTEXT_LINES:]]
+        return Line(line["text"], _speaker_text(line), previous)
 
     def _stream(self, meta: dict, chunks) -> None:
         """Push an AI reply to the page as it arrives, on a background thread."""
@@ -326,28 +327,39 @@ class App:
             capture.save(image, self.cfg.captures_dir)
         blocks = layout.group_blocks(self._source.read(image), image)
 
+        # Text shown recently stays in the capture but is marked as a repeat, so the page can
+        # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
         lines = []
         for block in blocks:
-            if block.text in self.recent:
-                continue
-            self.recent.append(block.text)
-            line = self._line(block)
-            self.lines[line["id"]] = line
+            repeat = block.text in self.recent
+            if not repeat:
+                self.recent.append(block.text)
+            line = self._line(block, repeat)
             lines.append(line)
-        if lines:
-            self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
-            self._ready()
-            if self.prefs.values["autoTranslate"]:
-                for line in lines:
-                    if line["kind"] == "dialogue":
-                        self.translate(line["id"])
-        else:
-            self._ready("No new Japanese text found.")
+        new = [l for l in lines if not l["repeat"]]
+        if not lines:
+            self._ready("No Japanese text found.")
+            return
+        if not new:
+            self._ready(f"Nothing new: all {len(lines)} line(s) were already shown.")
+            return
+        for line in lines:
+            self.lines[line["id"]] = line
+        self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
+        self._ready()
+        if self.prefs.values["autoTranslate"]:
+            for line in new:
+                if line["kind"] == "dialogue":
+                    self.translate(line["id"])
 
-    def _line(self, block: layout.TextBlock) -> dict:
+    def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
+        speaker = None
+        if block.speaker:
+            speaker = {"text": block.speaker, "words": [w.to_dict() for w in analyze(block.speaker)]}
         return {
             "id": next(self._ids),
-            "speaker": block.speaker,
+            "speaker": speaker,
+            "repeat": repeat,
             "text": block.text,
             "kind": block.kind,
             "words": [w.to_dict() for w in analyze(block.text)],
@@ -364,6 +376,10 @@ class App:
     def _call(self, function: str, *args) -> None:
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
+
+
+def _speaker_text(line: dict) -> str | None:
+    return line["speaker"]["text"] if line["speaker"] else None
 
 
 def _pretty_hotkey(spec: str) -> str:
