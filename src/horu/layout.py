@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 from PIL import Image
 
+from horu.corrections import Hints, normalize
 from horu.text_sources.base import TextLine
 
 # Hiragana, katakana, CJK ideographs (kanji), and the halfwidth katakana range.
@@ -114,21 +115,26 @@ def line_style(image: Image.Image, box: tuple[int, int, int, int]) -> Style | No
 
 
 def group_blocks(
-    lines: list[TextLine], image: Image.Image | None = None, styles: list[Style | None] | None = None
+    lines: list[TextLine],
+    image: Image.Image | None = None,
+    styles: list[Style | None] | None = None,
+    hints: Hints | None = None,
 ) -> list[TextBlock]:
     """Group lines into blocks in reading order.
 
     Text styles are measured from `image`, or given directly as `styles` (one per line, for
-    tests). Without either, speakers are found from text and size alone.
+    tests). Without either, speakers are found from text and size alone. `hints` are the
+    user's corrections for this game, and win over the automatic rules.
     """
+    hints = hints or Hints()
     if styles is None:
         styles = [line_style(image, l.box) if image is not None else None for l in lines]
     kept = [(l, st) for l, st in zip(lines, styles) if is_japanese(l.text)]
     lines = [l for l, _ in kept]
     styles = {i: st for i, (_, st) in enumerate(kept) if st is not None}
     order = sorted(range(len(lines)), key=lambda i: (lines[i].box[1], lines[i].box[0]))
-    legends = {i for i in order if is_legend(lines[i].text)}
-    speakers = {i for i in order if i not in legends and _is_speaker(i, lines, styles, legends)}
+    legends = {i for i in order if is_legend(lines[i].text) and normalize(lines[i].text) not in hints.dialogue}
+    speakers = {i for i in order if i not in legends and _is_speaker(i, lines, styles, legends, hints)}
 
     groups: list[dict] = []  # {"speaker": index or None, "lines": [indices]}
     for i in order:
@@ -163,6 +169,10 @@ def group_blocks(
         if len(text) < _MIN_BLOCK_CHARS and speaker is None:
             continue
         kind = "other" if group.get("legend") else ("dialogue" if speaker or _reads_like_dialogue(text) else "other")
+        if normalize(text) in hints.dialogue:
+            kind = "dialogue"
+        elif normalize(text) in hints.other:
+            kind = "other"
         blocks.append(TextBlock(block_lines, speaker, kind))
     return blocks
 
@@ -170,14 +180,19 @@ def group_blocks(
 # --- Speakers --------------------------------------------------------------------------
 
 
-def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends: set[int]) -> bool:
+def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends: set[int], hints: Hints) -> bool:
     candidate = lines[i]
     text = candidate.text.strip()
-    if len(text) > _MAX_SPEAKER_CHARS or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text)):
+    marked = normalize(text) in hints.speaker
+    if normalize(text) in hints.not_speaker:
+        return False
+    if not marked and (len(text) > _MAX_SPEAKER_CHARS or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text))):
         return False
     below = [j for j in range(len(lines)) if j != i and j not in legends and _under_speaker(candidate, lines[j])]
     if not below:
         return False
+    if marked:
+        return True
     body = min(below, key=lambda j: lines[j].box[1])
 
     score = 0

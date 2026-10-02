@@ -12,7 +12,7 @@ import webbrowser
 from collections import deque
 from pathlib import Path
 
-from horu import ai_setup, capture, config, dictionary, hotkey, layout, llm, prefs, text_sources
+from horu import ai_setup, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -92,6 +92,10 @@ class Api:
         elif key == "hideFromCapture":
             self._app.apply_capture_exclusion()
 
+    def mark(self, line_id: int, label: str, part: str = "text") -> dict:
+        """Remember a correction for this line's text (or its speaker) in this game."""
+        return self._app.mark(line_id, label, part)
+
     def clear(self) -> None:
         self._app.recent.clear()
         self._app.lines.clear()
@@ -103,6 +107,7 @@ class App:
         self.debug = debug
         self.window = None
         self.prefs = prefs.Prefs()
+        self.corrections = corrections.Corrections()
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
         self._ai = ai_setup.Resolved()
@@ -146,6 +151,16 @@ class App:
     def apply_capture_exclusion(self) -> None:
         hwnd = self.window.native.Handle.ToInt32()
         capture.exclude_from_capture(hwnd, self.prefs.values["hideFromCapture"])
+
+    def mark(self, line_id: int, label: str, part: str = "text") -> dict:
+        line = self.lines.get(line_id)
+        if line is None:
+            return {}
+        text = line["speaker"]["text"] if part == "speaker" and line["speaker"] else line["text"]
+        self.corrections.mark(line["game"], text, label)
+        if part == "text" and label in ("dialogue", "other"):
+            line["kind"] = label
+        return {"kind": line["kind"], "game": line["game"]}
 
     def update_line(self, line_id: int, text: str) -> list[dict]:
         words = [w.to_dict() for w in analyze(text)]
@@ -335,7 +350,8 @@ class App:
         image = capture.grab(self.cfg.capture)
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
-        blocks = layout.group_blocks(self._source.read(image), image)
+        game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
+        blocks = layout.group_blocks(self._source.read(image), image, hints=self.corrections.hints(game))
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -345,6 +361,7 @@ class App:
             if not repeat:
                 self.recent.append(block.text)
             line = self._line(block, repeat)
+            line["game"] = game
             lines.append(line)
         new = [l for l in lines if not l["repeat"]]
         if not lines:

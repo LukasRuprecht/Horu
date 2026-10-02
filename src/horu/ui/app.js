@@ -144,6 +144,7 @@ function renderLine(line) {
     el("span", "spacer"),
     button("line-btn", "Explain", () => explainLine(line), "Break this line down with AI"),
     button("line-btn", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
+    button("line-btn", "⋯", (e) => openLineMenu(e.currentTarget, line, row), "Correct how this line was read"),
   );
 
   const text = el("div", "text");
@@ -183,6 +184,56 @@ function renderCapture(capture) {
     }
   }
   return card;
+}
+
+// --- Corrections ("this is dialogue", "this is a speaker name"), remembered per game --------
+
+const lineMenu = $("#line-menu");
+
+function openLineMenu(anchor, line, row) {
+  closePopover();
+  const items = [];
+  if (line.kind === "dialogue") {
+    items.push(["Treat as other text", () => mark(line, row, "other")]);
+  } else {
+    items.push(["Treat as dialogue", () => mark(line, row, "dialogue")]);
+  }
+  if (line.speaker) {
+    items.push([`「${line.speaker.text}」 isn't a speaker`, () => mark(line, row, "not_speaker", "speaker")]);
+  } else if (line.text.length <= 10) {
+    items.push([`「${line.text}」 is a speaker name`, () => mark(line, row, "speaker")]);
+  }
+  lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
+    closeLineMenu();
+    action();
+  })));
+  lineMenu.append(el("p", "menu-note", `Remembered for ${line.game}.`));
+  lineMenu.hidden = false;
+  const rect = anchor.getBoundingClientRect();
+  lineMenu.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - lineMenu.offsetHeight - 8)}px`;
+  lineMenu.style.left = `${Math.max(8, rect.right - lineMenu.offsetWidth)}px`;
+}
+
+function closeLineMenu() {
+  lineMenu.hidden = true;
+}
+
+async function mark(line, row, label, part = "text") {
+  const result = await api().mark(line.id, label, part);
+  if (part === "text" && (label === "dialogue" || label === "other")) {
+    line.kind = result.kind;
+    row.classList.remove("dialogue", "other");
+    row.classList.add(line.kind);
+    const kindLabel = row.querySelector(".kind-label");
+    if (kindLabel) kindLabel.remove();
+    if (KIND_LABEL[line.kind]) row.querySelector(".spacer").before(el("span", "kind-label", KIND_LABEL[line.kind]));
+    if (line.kind === "dialogue" && state.ai.enabled && !row.querySelector(".translation")) {
+      row.append(translationRow(line, { auto: false }));
+    }
+    horu.setStatus({ state: "ready", message: `Saved: "${line.text}" will be read as ${line.kind === "other" ? "other text" : "dialogue"} in ${line.game}.` });
+  } else {
+    horu.setStatus({ state: "ready", message: `Saved for ${line.game}; applies from the next capture.` });
+  }
 }
 
 function startEdit(line, row) {
@@ -785,11 +836,13 @@ linesEl.addEventListener("click", (e) => {
 
 document.addEventListener("mousedown", (e) => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest("button.word")) closePopover();
+  if (!lineMenu.hidden && !lineMenu.contains(e.target)) closeLineMenu();
   if (!settings.hidden && !settings.contains(e.target) && !e.target.closest("#open-settings")) toggleSettings(false);
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePopover();
+    closeLineMenu();
     toggleSettings(false);
   }
 });

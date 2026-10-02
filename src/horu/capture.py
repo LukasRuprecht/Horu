@@ -17,6 +17,7 @@ if sys.platform == "win32":
     from ctypes import wintypes
 
     _user32 = ctypes.WinDLL("user32")
+    _kernel32 = ctypes.WinDLL("kernel32")
     # Work in physical pixels so window coordinates match what mss captures.
     try:
         _user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # PER_MONITOR_AWARE_V2
@@ -93,6 +94,28 @@ def exclude_from_capture(hwnd: int, exclude: bool = True) -> bool:
         return False
     WDA_NONE, WDA_EXCLUDEFROMCAPTURE = 0x0, 0x11
     return bool(_user32.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE if exclude else WDA_NONE))
+
+
+def focused_process_name() -> str | None:
+    """The executable name of the focused window's program (e.g. "P5R.exe"), used to keep
+    per-game settings apart."""
+    if sys.platform != "win32":
+        return None
+    hwnd = _user32.GetForegroundWindow()
+    pid = wintypes.DWORD()
+    _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+    handle = _kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid.value)
+    if not handle:
+        return None
+    try:
+        buffer = ctypes.create_unicode_buffer(1024)
+        size = wintypes.DWORD(len(buffer))
+        if not _kernel32.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+            return None
+        return Path(buffer.value).name
+    finally:
+        _kernel32.CloseHandle(handle)
 
 
 def save(image: Image.Image, directory: Path) -> Path:

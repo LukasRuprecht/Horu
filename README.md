@@ -59,9 +59,14 @@ the focused window, finds every line of Japanese on screen, and adds it to the h
 there's no capture region to set up.
 
 - Click a word for its dictionary form, reading, grammar notes, and meanings.
-- Dialogue (and the speaker's name tag) is shown large; other screen text such as menus and
-  the HUD is shown small, and can be hidden.
+- Dialogue is shown large, with its speaker above it; speakers are found from the text
+  (names, 〜の声), a different text style, or a different size. Other text such as button
+  legends, menus, and the HUD is shown small, and can be hidden. Backlog screens (like
+  Persona 5's Log & Voice) are split into one entry per speaker.
+- Lines already shown in an earlier capture are collapsed rather than repeated.
 - If OCR gets a character wrong, hover the line and click **Edit** to fix it.
+- If Horu files something wrongly, use the line's **⋯** menu: treat it as dialogue or other
+  text, or mark a speaker name. Corrections are remembered per game.
 - With an AI provider set up (below): click **Translate** under a line (or turn on automatic
   translation in settings; translations stay blurred until you click them), **Explain** on a
   line for a grammar breakdown, or **Explain in context** in a word's popup. Ask follow-up
