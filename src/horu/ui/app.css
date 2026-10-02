@@ -1,0 +1,296 @@
+:root {
+  color-scheme: dark;
+  --bg: #15171d;
+  --bar: #1b1e26;
+  --card: #1f232c;
+  --card-new: #262b36;
+  --border: #2d323e;
+  --text: #e8eaf0;
+  --muted: #9aa1b2;
+  --faint: #6b7283;
+  --accent: #f2c14e;
+  --error: #ef6f6f;
+  --ok: #5cc98a;
+  --popover: #232834;
+
+  /* Part-of-speech colours (underlines and badges). */
+  --noun: #3fb8a5;
+  --name: #e0a84f;
+  --verb: #ef6f8e;
+  --adjective: #6aa0ff;
+  --adverb: #8f8cf2;
+  --particle: #b48ef0;
+  --auxiliary: #c9a6f5;
+  --other: #7d8597;
+
+  --jp: "Yu Gothic UI", "Yu Gothic", "Meiryo", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --bg: #f4f2ec;
+    --bar: #ffffff;
+    --card: #ffffff;
+    --card-new: #fff8e6;
+    --border: #e2ded4;
+    --text: #22252c;
+    --muted: #5d6474;
+    --faint: #8a90a0;
+    --popover: #ffffff;
+    --noun: #1f9c89;
+    --name: #c3862a;
+    --verb: #de4f73;
+    --adjective: #3f7fe8;
+    --adverb: #6d69de;
+    --particle: #9a6ae0;
+    --auxiliary: #a77fe0;
+    --other: #8a90a0;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 14px;
+}
+
+button { font: inherit; color: inherit; }
+
+/* --- Top bar ------------------------------------------------------------------------ */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--bar);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand { font-weight: 700; letter-spacing: 0.02em; }
+
+.status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.status #status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+.status.ready .dot { background: var(--ok); }
+.status.busy .dot { background: var(--accent); animation: pulse 0.8s ease-in-out infinite alternate; }
+.status.loading .dot { background: var(--accent); }
+.status.error { color: var(--error); }
+.status.error .dot { background: var(--error); }
+
+@keyframes pulse { to { opacity: 0.3; } }
+
+.actions { display: flex; gap: 4px; }
+
+.actions button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.actions button:hover { background: var(--card); color: var(--text); }
+.actions button[aria-pressed="true"] { background: var(--card); border-color: var(--border); color: var(--accent); }
+.actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.actions ruby { font-family: var(--jp); font-size: 15px; line-height: 1; }
+.actions rt { font-size: 7px; }
+
+/* --- Line history ------------------------------------------------------------------- */
+
+#lines {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.empty { margin: auto; max-width: 320px; text-align: center; color: var(--muted); line-height: 1.5; }
+.empty-title { color: var(--text); font-weight: 600; font-size: 16px; margin-bottom: 4px; }
+.credit { margin-top: 24px; font-size: 12px; color: var(--faint); }
+
+.line {
+  position: relative;
+  padding: 10px 14px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: background 1.5s ease;
+}
+.line.new { background: var(--card-new); transition: none; }
+
+.line-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  color: var(--faint);
+  font-size: 12px;
+}
+.speaker { color: var(--accent); font-family: var(--jp); font-weight: 600; font-size: 13px; }
+.kind-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.line-meta .spacer { flex: 1; }
+
+.edit-btn {
+  border: 0;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  opacity: 0;
+  font-size: 12px;
+}
+.line:hover .edit-btn, .edit-btn:focus-visible { opacity: 1; }
+.edit-btn:hover { color: var(--text); background: var(--bg); }
+
+.text {
+  font-family: var(--jp);
+  font-size: 24px;
+  line-height: 2.1;
+  word-break: break-all;
+}
+
+.line.screen .text { font-size: 17px; line-height: 1.9; color: var(--muted); }
+body.hide-screen .line.screen { display: none; }
+
+/* Each word is a button with a coloured bar underneath, Language Reactor style. */
+.word {
+  --c: var(--other);
+  display: inline;
+  margin: 0 2px;
+  padding: 0 1px 1px;
+  border: 0;
+  border-radius: 4px;
+  background: linear-gradient(var(--c), var(--c)) left bottom / 100% 3px no-repeat;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.word:hover { background-color: color-mix(in srgb, var(--c) 22%, transparent); }
+.word.selected { background-color: color-mix(in srgb, var(--c) 32%, transparent); }
+.word:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
+span.word { background: none; cursor: default; margin: 0; padding: 0; }
+
+.pos-noun, .pos-pronoun, .pos-prefix, .pos-suffix { --c: var(--noun); }
+.pos-name { --c: var(--name); }
+.pos-verb { --c: var(--verb); }
+.pos-adjective, .pos-na-adjective, .pos-pre-noun { --c: var(--adjective); }
+.pos-adverb { --c: var(--adverb); }
+.pos-particle, .pos-conjunction { --c: var(--particle); }
+.pos-auxiliary { --c: var(--auxiliary); }
+
+rt { font-size: 0.45em; color: var(--muted); user-select: none; }
+body.no-furigana .text rt { display: none; }
+
+.editor { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.editor textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--jp);
+  font-size: 18px;
+  resize: vertical;
+}
+.editor-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.editor-actions button {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  cursor: pointer;
+}
+.editor-actions button.primary { background: var(--accent); border-color: var(--accent); color: #1b1e26; font-weight: 600; }
+
+/* --- Word popover ------------------------------------------------------------------- */
+
+.popover {
+  position: fixed;
+  z-index: 10;
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(460px, calc(100vh - 24px));
+  overflow-y: auto;
+  padding: 14px 16px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.pop-head { display: flex; align-items: flex-start; gap: 10px; }
+.pop-word { flex: 1; font-family: var(--jp); font-size: 28px; line-height: 1.6; }
+.pop-word rt { font-size: 0.42em; }
+.pop-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pop-close:hover { background: var(--card); color: var(--text); }
+
+.pop-base { color: var(--muted); margin: 2px 0 8px; }
+.pop-base b { font-family: var(--jp); color: var(--text); font-weight: 600; font-size: 16px; }
+.pop-base .kana { font-family: var(--jp); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.chip.pos {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--c, var(--other)) 22%, transparent);
+  color: var(--c, var(--other));
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+.chip.grammar { font-family: var(--jp), var(--ui); }
+
+.senses { margin: 0; padding-left: 20px; line-height: 1.45; }
+.senses li { margin-bottom: 6px; }
+.sense-pos { display: block; color: var(--faint); font-size: 11px; }
+.sense-notes { color: var(--faint); font-size: 12px; }
+
+.pop-note { color: var(--muted); margin: 4px 0 0; }
+
+.more { margin-top: 8px; color: var(--muted); }
+.more summary { cursor: pointer; font-size: 13px; }
+.more .entry { margin-top: 8px; }
+.more .entry-head { font-family: var(--jp); color: var(--text); }

@@ -6,13 +6,18 @@ import argparse
 import queue
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 from horu import capture, config, hotkey, layout, text_sources
 
 
-def cmd_run(cfg: config.Config) -> None:
+def cmd_run(cfg: config.Config, debug: bool) -> None:
+    from horu.app import App
+
+    App(cfg, debug=debug).run()
+
+
+def cmd_console(cfg: config.Config) -> None:
     print(f"Loading OCR ({cfg.ocr_engine})...")
     source = load_source(cfg)
 
@@ -40,7 +45,7 @@ def cmd_run(cfg: config.Config) -> None:
 def read_screen(cfg: config.Config, source: text_sources.TextSource) -> None:
     image = capture.grab(cfg.capture)
     if cfg.save_captures:
-        print(f"  saved {save_capture(image, cfg.captures_dir)}")
+        print(f"  saved {capture.save(image, cfg.captures_dir)}")
     start = time.perf_counter()
     blocks = layout.group_blocks(source.read(image))
     elapsed = time.perf_counter() - start
@@ -58,7 +63,7 @@ def cmd_snap(cfg: config.Config) -> None:
         print("Capturing the focused window in 3 seconds; switch to your game...")
         time.sleep(3)
     image = capture.grab(cfg.capture)
-    print(f"Saved {save_capture(image, cfg.captures_dir)} ({image.width}x{image.height})")
+    print(f"Saved {capture.save(image, cfg.captures_dir)} ({image.width}x{image.height})")
 
 
 def cmd_read(cfg: config.Config, path: Path) -> None:
@@ -89,13 +94,6 @@ def load_source(cfg: config.Config) -> text_sources.TextSource:
         sys.exit(str(e))
 
 
-def save_capture(image, directory: Path) -> Path:
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{datetime.now():%Y%m%d-%H%M%S-%f}.png"
-    image.save(path)
-    return path
-
-
 def main() -> None:
     # Make sure Japanese prints correctly even when output is redirected on Windows.
     if hasattr(sys.stdout, "reconfigure"):
@@ -104,7 +102,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="horu", description="Japanese study buddy for games.")
     parser.add_argument("--config", type=Path, default=config.DEFAULT_PATH, help="path to config.toml")
     sub = parser.add_subparsers(dest="command")
-    sub.add_parser("run", help="listen for the hotkey and read text on screen (default)")
+    parser.add_argument("--debug", action="store_true", help="open the web inspector in the app window")
+    sub.add_parser("run", help="open the Horu window and listen for the hotkey (default)")
+    sub.add_parser("console", help="listen for the hotkey and print text to the terminal")
     sub.add_parser("snap", help="capture once and save it as a PNG")
     read = sub.add_parser("read", help="read the Japanese text in an image file")
     read.add_argument("image", type=Path)
@@ -128,5 +128,7 @@ def main() -> None:
         cmd_snap(cfg)
     elif args.command == "read":
         cmd_read(cfg, args.image)
+    elif args.command == "console":
+        cmd_console(cfg)
     else:
-        cmd_run(cfg)
+        cmd_run(cfg, args.debug)

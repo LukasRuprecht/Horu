@@ -1,8 +1,10 @@
 # Horu
 
 A Japanese study buddy for video games. Press a hotkey while you play, and Horu reads the
-dialogue on screen, breaks it into words with instant dictionary lookups, and (optionally)
-asks an AI model to explain the kanji, vocabulary, and grammar at your level.
+Japanese on screen and shows it in a side window, Language Reactor style: furigana over the
+kanji, words colour-coded by part of speech, and a click on any word for its dictionary form,
+grammar (conjugations like 〜たら or 〜てしまう), and meaning. Optionally, an AI model can
+explain lines in context.
 
 The goal is to cut lookup time so you can stay in the game.
 
@@ -11,16 +13,16 @@ The goal is to cut lookup time so you can stay in the game.
 ## How it works
 
 ```
-Hotkey ─► Capture (screen region per game)
+Hotkey ─► Capture the game window
             │
             ▼
-        Text source:  game text hook ─► OCR (manga-ocr, owocr) ─► vision LLM fallback
+        OCR: find every line of text on screen, read it, group it into blocks
             │
             ▼
-        Local parsing:  tokenizer + JMdict lookups (instant, offline)
+        Local analysis: words, conjugations, furigana, JMdict lookups (instant, offline)
             │
             ▼
-        Overlay UI (clickable words, "Explain", follow-up chat) ◄──► LLM (bring your own key)
+        Line history window (clickable words) ◄──► LLM explanations (planned, bring your own key)
             │
             ▼
         Optional: Anki export
@@ -29,9 +31,9 @@ Hotkey ─► Capture (screen region per game)
 ## Roadmap
 
 - [x] **Phase 1:** hotkey → capture region → OCR → print text
-- [ ] **Phase 2:** overlay with clickable tokens and JMdict popups
-- [ ] **Phase 3:** LLM explanations and follow-up chat (Claude, OpenAI-compatible APIs, Ollama)
-- [ ] **Phase 4:** more text sources (owocr, text hooking, vision fallback) and a region picker
+- [x] **Phase 2:** line-history window with furigana, clickable words, and JMdict popups
+- [ ] **Phase 3:** LLM translation and explanations (Claude, OpenAI-compatible APIs, Ollama)
+- [ ] **Phase 4:** auto-capture and more text sources (owocr, text hooking)
 - [ ] **Phase 5:** Anki export
 - [ ] **Phase 6:** first release
 
@@ -46,26 +48,28 @@ uv sync
 uv run horu
 ```
 
-The first run creates `config.toml` from `config.example.toml` and downloads the OCR models
-(~100 MB).
+The first run creates `config.toml` from `config.example.toml`, downloads the OCR models
+(~100 MB), and builds the dictionary (~70 MB, a few seconds).
 
 ### Usage
 
-Start Horu, switch to your game, and press the hotkey (default `Ctrl+Alt+J`) whenever text
-appears. Horu captures the focused window, finds every line of Japanese on screen, and
-groups them into blocks, so there's no capture region to set up:
+`uv run horu` opens the Horu window; put it on a second monitor, or pin it on top. Switch
+to your game and press the hotkey (default `Ctrl+Alt+J`) whenever text appears. Horu captures
+the focused window, finds every line of Japanese on screen, and adds it to the history, so
+there's no capture region to set up.
 
-```
-[0.41s] 2 block(s):
-  4/7火 放課後
-  順平: おいおい、転校初日から遅刻かよ？まあ、オレも人のこと言えねーけどな。
-```
+- Click a word for its dictionary form, reading, grammar notes, and meanings.
+- Dialogue (and the speaker's name tag) is shown large; other screen text such as menus and
+  the HUD is shown small, and can be hidden.
+- If OCR gets a character wrong, hover the line and click **Edit** to fix it.
 
 Other commands:
 
+- `uv run horu console` prints captured text to the terminal instead of opening a window.
 - `uv run horu read <image>` reads the Japanese text in a screenshot.
 - `uv run horu snap` saves a capture to `captures/`.
 - `uv run horu monitors` lists monitors, for the `monitor` and `region` capture modes.
+- `uv run horu setup` re-downloads and rebuilds the dictionary.
 
 ### Capture modes
 
@@ -98,6 +102,15 @@ Horu never ships with API keys. You bring your own (put them in `.env`, see `.en
 or run a free local model with [Ollama](https://ollama.com). Dictionary lookups work without
 any AI provider at all.
 
-## License
+## License and credits
 
-MIT. See [LICENSE](LICENSE).
+Horu is MIT licensed. See [LICENSE](LICENSE).
+
+- Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html), property of the
+  [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under
+  [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). Downloaded on first run, not
+  bundled.
+- Word analysis: [fugashi](https://github.com/polm/fugashi) with
+  [UniDic](https://clrd.ninjal.ac.jp/unidic/) (unidic-lite).
+- OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
+  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.

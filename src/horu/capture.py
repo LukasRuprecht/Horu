@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import sys
+from datetime import datetime
+from pathlib import Path
 
 import mss
 from PIL import Image
@@ -23,7 +26,7 @@ if sys.platform == "win32":
 
 def list_monitors() -> list[dict]:
     """Monitors as mss reports them. Index 0 is the virtual all-monitors screen."""
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         return list(sct.monitors)
 
 
@@ -42,7 +45,7 @@ def grab(settings: CaptureSettings) -> Image.Image:
 
 def grab_region(region: Region | None, monitor: int = 1) -> Image.Image:
     """Capture `region` relative to `monitor`'s top-left corner, or the whole monitor."""
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         monitors = sct.monitors
         if not 1 <= monitor < len(monitors):
             raise ValueError(f"Monitor {monitor} not found (have 1..{len(monitors) - 1})")
@@ -72,8 +75,25 @@ def focused_window_box() -> dict | None:
     return {"left": origin.x, "top": origin.y, "width": width, "height": height}
 
 
+def focused_window_is_own() -> bool:
+    """True when Horu's own window has focus (so "capture the focused window" would capture Horu)."""
+    if sys.platform != "win32":
+        return False
+    hwnd = _user32.GetForegroundWindow()
+    pid = wintypes.DWORD()
+    _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return pid.value == os.getpid()
+
+
+def save(image: Image.Image, directory: Path) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{datetime.now():%Y%m%d-%H%M%S-%f}.png"
+    image.save(path)
+    return path
+
+
 def _grab_box(box: dict) -> Image.Image:
     # A fresh mss instance per call: mss handles are not safe to share across threads.
-    with mss.mss() as sct:
+    with mss.MSS() as sct:
         shot = sct.grab({k: box[k] for k in ("left", "top", "width", "height")})
         return Image.frombytes("RGB", shot.size, shot.bgra, "raw", "BGRX")
