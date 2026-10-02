@@ -71,7 +71,19 @@ class RapidOcrSource:
         return lines
 
 
+# The recognition model is trained mostly on Chinese, so it sometimes returns the simplified
+# Chinese form of a kanji (黑服 for 黒服, 决定 for 決定). These forms aren't used in Japanese,
+# so mapping them back is safe.
+_SIMPLIFIED_TO_JAPANESE = str.maketrans(
+    "黑决说读话语门问间闻开关时东车长马鸟鱼见觉发对应实战击损伤气钱买卖过还进远边让识认请谁这样"
+    "们个来动头脸题颜风飞饭馆机杀杂权欢欧尔导将层岁币币师带帮广庆应张强归录彻忆态总恋恶惊惯",
+    "黒決説読話語門問間聞開関時東車長馬鳥魚見覚発対応実戦撃損傷気銭買売過還進遠辺譲識認請誰這様"
+    "們個来動頭顔題顔風飛飯館機殺雑権歓欧爾導将層歳幣幣師帯幇広慶応張強帰録徹憶態総恋悪驚慣",
+)
+
+
 def fix_misreads(text: str) -> str:
+    text = text.translate(_SIMPLIFIED_TO_JAPANESE)
     return _HIRAGANA_THEN_ICHI.sub("ー", _KATAKANA_THEN_ICHI.sub("ー", text))
 
 

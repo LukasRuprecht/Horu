@@ -1,0 +1,1380 @@
+{
+ "about": "Persona 5 Royal screens (PC, 1260x1052 window): OCR'd lines with measured text styles, and the expected blocks. Generated from local screenshots, which aren't committed.",
+ "screens": [
+  {
+   "name": "dialogue_box",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少女の声",
+     "box": [
+      408,
+      674,
+      523,
+      740
+     ],
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ん…?何だ?",
+     "box": [
+      442,
+      765,
+      605,
+      798
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      1153,
+      765,
+      1230,
+      799
+     ],
+     "style": {
+      "ink": [
+       239,
+       238,
+       239
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "区オート",
+     "box": [
+      1153,
+      796,
+      1230,
+      830
+     ],
+     "style": {
+      "ink": [
+       239,
+       238,
+       239
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "少女の声",
+     "kind": "dialogue",
+     "text": "ん…?何だ?"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "区オート"
+    }
+   ]
+  },
+  {
+   "name": "dialogue_box_two_lines",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少年のような声",
+     "box": [
+      391,
+      648,
+      574,
+      735
+     ],
+     "style": {
+      "ink": [
+       248,
+       246,
+       238
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "逃げ切る事だけ考えてくれ！",
+     "box": [
+      440,
+      784,
+      744,
+      814
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "とにかく、こっちの事は心配無用だ。",
+     "box": [
+      442,
+      754,
+      827,
+      784
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      1150,
+      764,
+      1230,
+      799
+     ],
+     "style": {
+      "ink": [
+       238,
+       237,
+       237
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "区オート",
+     "box": [
+      1154,
+      797,
+      1228,
+      829
+     ],
+     "style": {
+      "ink": [
+       236,
+       235,
+       236
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "B",
+     "box": [
+      1169,
+      825,
+      1228,
+      858
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "少年のような声",
+     "kind": "dialogue",
+     "text": "とにかく、こっちの事は心配無用だ。逃げ切る事だけ考えてくれ！"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "区オート"
+    }
+   ]
+  },
+  {
+   "name": "log_view",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "音声再生",
+     "box": [
+      161,
+      830,
+      238,
+      867
+     ],
+     "style": {
+      "ink": [
+       6,
+       5,
+       6
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "少年のような声",
+     "box": [
+      328,
+      546,
+      534,
+      582
+     ],
+     "style": {
+      "ink": [
+       154,
+       100,
+       2
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "黒服",
+     "box": [
+      355,
+      735,
+      415,
+      765
+     ],
+     "style": {
+      "ink": [
+       238,
+       156,
+       0
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少女の声",
+     "box": [
+      357,
+      421,
+      467,
+      458
+     ],
+     "style": {
+      "ink": [
+       190,
+       1,
+       2
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "アタッシュケースはこっちで回収しとくわ。",
+     "box": [
+      359,
+      178,
+      808,
+      209
+     ],
+     "style": {
+      "ink": [
+       153,
+       152,
+       153
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "謎の通信",
+     "box": [
+      359,
+      269,
+      462,
+      297
+     ],
+     "style": {
+      "ink": [
+       150,
+       98,
+       1
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "…つづき、現場…機…",
+     "box": [
+      359,
+      328,
+      603,
+      360
+     ],
+     "style": {
+      "ink": [
+       149,
+       148,
+       148
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ん…?何だ？",
+     "box": [
+      359,
+      461,
+      520,
+      491
+     ],
+     "style": {
+      "ink": [
+       153,
+       152,
+       153
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "あそこだ!",
+     "box": [
+      360,
+      770,
+      474,
+      801
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "…ル被、現…できず…",
+     "box": [
+      361,
+      305,
+      603,
+      335
+     ],
+     "style": {
+      "ink": [
+       150,
+       149,
+       149
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "とにかく、こっちの事は心配無用だ。",
+     "box": [
+      361,
+      585,
+      747,
+      617
+     ],
+     "style": {
+      "ink": [
+       153,
+       152,
+       152
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "逃げ切る事だけ考えてくれ！",
+     "box": [
+      362,
+      612,
+      662,
+      639
+     ],
+     "style": {
+      "ink": [
+       152,
+       150,
+       150
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "アタッシュケースはこっちで回収しとくわ。"
+    },
+    {
+     "speaker": "謎の通信",
+     "kind": "dialogue",
+     "text": "…ル被、現…できず……つづき、現場…機…"
+    },
+    {
+     "speaker": "少女の声",
+     "kind": "dialogue",
+     "text": "ん…?何だ？"
+    },
+    {
+     "speaker": "少年のような声",
+     "kind": "dialogue",
+     "text": "とにかく、こっちの事は心配無用だ。逃げ切る事だけ考えてくれ！"
+    },
+    {
+     "speaker": "黒服",
+     "kind": "dialogue",
+     "text": "あそこだ!"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "音声再生"
+    }
+   ]
+  },
+  {
+   "name": "speech_bubble_and_legends",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tab X=ュ- snit",
+     "box": [
+      23,
+      820,
+      212,
+      860
+     ],
+     "style": {
+      "ink": [
+       43,
+       24,
+       41
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "大丈夫、誘導できる!",
+     "box": [
+      756,
+      229,
+      959,
+      256
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "大丈夫、誘導できる!"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "Tab X=ュ- snit"
+    }
+   ]
+  },
+  {
+   "name": "cutscene_skip",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      14
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "スキップ",
+     "box": [
+      1162,
+      792,
+      1245,
+      827
+     ],
+     "style": {
+      "ink": [
+       230,
+       230,
+       230
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "スキップ"
+    }
+   ]
+  },
+  {
+   "name": "battle_skill_menu",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "PERSONA",
+     "box": [
+      0,
+      145,
+      482,
+      350
+     ],
+     "style": {
+      "ink": [
+       228,
+       243,
+       246
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "エイガオン",
+     "box": [
+      230,
+      366,
+      360,
+      410
+     ],
+     "style": {
+      "ink": [
+       255,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ブレイブザッパー",
+     "box": [
+      240,
+      396,
+      441,
+      449
+     ],
+     "style": {
+      "ink": [
+       246,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "敵1体に呪怨属性で",
+     "box": [
+      280,
+      647,
+      473,
+      681
+     ],
+     "style": {
+      "ink": [
+       171,
+       171,
+       171
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "大ダメージを与える",
+     "box": [
+      282,
+      667,
+      479,
+      705
+     ],
+     "style": {
+      "ink": [
+       174,
+       174,
+       174
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "12sP",
+     "box": [
+      463,
+      342,
+      586,
+      382
+     ],
+     "style": {
+      "ink": [
+       245,
+       245,
+       245
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "106",
+     "box": [
+      481,
+      380,
+      590,
+      420
+     ],
+     "style": {
+      "ink": [
+       106,
+       246,
+       215
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "H40,377",
+     "box": [
+      1069,
+      765,
+      1188,
+      818
+     ],
+     "style": {
+      "ink": [
+       178,
+       184,
+       222
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "エイガオン"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ブレイブザッパー"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "敵1体に呪怨属性で大ダメージを与える"
+    }
+   ]
+  },
+  {
+   "name": "battle_skill_menu_2",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "PERSONA",
+     "box": [
+      0,
+      142,
+      490,
+      352
+     ],
+     "style": {
+      "ink": [
+       228,
+       244,
+       247
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "決定",
+     "box": [
+      134,
+      833,
+      178,
+      866
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "エイガオン",
+     "box": [
+      230,
+      366,
+      360,
+      409
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "フレイブザッパー106年",
+     "box": [
+      240,
+      379,
+      598,
+      450
+     ],
+     "style": {
+      "ink": [
+       250,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "敵1体に物理属性で",
+     "box": [
+      282,
+      647,
+      473,
+      680
+     ],
+     "style": {
+      "ink": [
+       171,
+       172,
+       172
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "超特大ダメージを与える",
+     "box": [
+      283,
+      667,
+      521,
+      703
+     ],
+     "style": {
+      "ink": [
+       174,
+       174,
+       174
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "4402377",
+     "box": [
+      1067,
+      765,
+      1182,
+      817
+     ],
+     "style": {
+      "ink": [
+       166,
+       195,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "エイガオン"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "フレイブザッパー106年"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "敵1体に物理属性で超特大ダメージを与える"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "決定"
+    }
+   ]
+  },
+  {
+   "name": "speech_bubble_two_lines",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "よし、増援が来る前に",
+     "box": [
+      753,
+      217,
+      964,
+      244
+     ],
+     "style": {
+      "ink": [
+       242,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "そこから離れて。",
+     "box": [
+      753,
+      239,
+      918,
+      268
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "よし、増援が来る前にそこから離れて。"
+    }
+   ]
+  },
+  {
+   "name": "dialogue_box_after_battle",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      34,
+      14
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少年のような声",
+     "box": [
+      384,
+      670,
+      564,
+      745
+     ],
+     "style": {
+      "ink": [
+       248,
+       248,
+       248
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "よし、難なく倒したようだな。",
+     "box": [
+      442,
+      765,
+      753,
+      797
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "区オート",
+     "box": [
+      1154,
+      796,
+      1228,
+      828
+     ],
+     "style": {
+      "ink": [
+       234,
+       234,
+       234
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      1155,
+      767,
+      1229,
+      796
+     ],
+     "style": {
+      "ink": [
+       238,
+       238,
+       238
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ログ",
+     "box": [
+      1189,
+      829,
+      1226,
+      856
+     ],
+     "style": {
+      "ink": [
+       237,
+       237,
+       237
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "少年のような声",
+     "kind": "dialogue",
+     "text": "よし、難なく倒したようだな。"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "区オート"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ログ"
+    }
+   ]
+  },
+  {
+   "name": "log_view_highlighted_entry",
+   "size": [
+    1260,
+    1052
+   ],
+   "lines": [
+    {
+     "text": "120 FPS",
+     "box": [
+      0,
+      0,
+      33,
+      13
+     ],
+     "style": {
+      "ink": [
+       45,
+       156,
+       45
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "音声再生",
+     "box": [
+      161,
+      830,
+      238,
+      867
+     ],
+     "style": {
+      "ink": [
+       11,
+       11,
+       11
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "少年のような声",
+     "box": [
+      300,
+      532,
+      543,
+      604
+     ],
+     "style": {
+      "ink": [
+       246,
+       20,
+       20
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少女の声",
+     "box": [
+      330,
+      408,
+      464,
+      439
+     ],
+     "style": {
+      "ink": [
+       152,
+       100,
+       2
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "少女の声",
+     "box": [
+      338,
+      260,
+      464,
+      291
+     ],
+     "style": {
+      "ink": [
+       155,
+       102,
+       1
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "あそこだ！",
+     "box": [
+      360,
+      171,
+      472,
+      202
+     ],
+     "style": {
+      "ink": [
+       151,
+       150,
+       150
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "よし、難なく倒したようだな。",
+     "box": [
+      361,
+      592,
+      671,
+      622
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ともかく走って！ 逃げて！",
+     "box": [
+      362,
+      297,
+      640,
+      327
+     ],
+     "style": {
+      "ink": [
+       150,
+       150,
+       151
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "やっちゃって、ジョーカー!",
+     "box": [
+      362,
+      444,
+      640,
+      474
+     ],
+     "style": {
+      "ink": [
+       152,
+       151,
+       152
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "あそこだ！"
+    },
+    {
+     "speaker": "少女の声",
+     "kind": "dialogue",
+     "text": "ともかく走って！ 逃げて！"
+    },
+    {
+     "speaker": "少女の声",
+     "kind": "dialogue",
+     "text": "やっちゃって、ジョーカー!"
+    },
+    {
+     "speaker": "少年のような声",
+     "kind": "dialogue",
+     "text": "よし、難なく倒したようだな。"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "音声再生"
+    }
+   ]
+  }
+ ]
+}

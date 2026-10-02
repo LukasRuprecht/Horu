@@ -17,7 +17,7 @@ const settings = $("#settings");
 const tutor = $("#tutor");
 
 const SENSES_SHOWN = 5;
-const KIND_LABEL = { screen: "Screen text" };
+const KIND_LABEL = { other: "Other text" };
 const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjectival" };
 // Used until Python's saved preferences arrive, and by "Reset to defaults".
 const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };

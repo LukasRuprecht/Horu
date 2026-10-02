@@ -1,4 +1,6 @@
-from horu.layout import group_blocks
+import pytest
+
+from horu.layout import group_blocks, is_legend
 from horu.text_sources.base import TextLine
 from horu.text_sources.rapidocr_source import merge_rows
 
@@ -50,3 +52,30 @@ def test_fix_misreads_long_vowel_mark():
     assert fix_misreads("すご一") == "すごー"
     for real in ("この一つ", "もう一度", "その一人", "一番"):
         assert fix_misreads(real) == real
+
+
+@pytest.mark.parametrize(
+    "text, legend",
+    [
+        ("F早送り", True),
+        ("区オート", True),  # boxed X key read as 区
+        ("Tab メニュー", True),
+        ("Tab X=ュ- snit", True),  # garbled, but starts with a key name
+        ("L1 切替", True),
+        ("決定", True),
+        ("Tシャツ", False),  # a letter that's part of a word
+        ("ロボット", False),  # starts with a box-like kana
+        ("あそこだ!", False),
+    ],
+)
+def test_button_legends(text, legend):
+    assert is_legend(text) is legend
+
+
+def test_short_lines_are_dialogue_only_if_they_read_like_sentences():
+    kinds = {b.text: b.kind for b in group_blocks([
+        line("あそこだ", 100, 100, 220, 130),  # ends in the copula
+        line("エイガオン", 100, 400, 260, 430),  # a skill name
+        line("そうか", 100, 700, 200, 730),  # ends in a sentence-final particle
+    ])}
+    assert kinds == {"あそこだ": "dialogue", "エイガオン": "other", "そうか": "dialogue"}

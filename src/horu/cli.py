@@ -49,7 +49,7 @@ def read_screen(cfg: config.Config, source: text_sources.TextSource) -> None:
     if cfg.save_captures:
         print(f"  saved {capture.save(image, cfg.captures_dir)}")
     start = time.perf_counter()
-    blocks = layout.group_blocks(source.read(image))
+    blocks = layout.group_blocks(source.read(image), image)
     elapsed = time.perf_counter() - start
     if not blocks:
         print(f"[{elapsed:.2f}s] No Japanese text found.")
@@ -72,8 +72,10 @@ def cmd_read(cfg: config.Config, path: Path) -> None:
     from PIL import Image
 
     source = load_source(cfg)
-    for block in layout.group_blocks(source.read(Image.open(path))):
-        print(f"{block.speaker}: {block.text}" if block.speaker else block.text)
+    image = Image.open(path).convert("RGB")
+    for block in layout.group_blocks(source.read(image), image):
+        text = f"{block.speaker}: {block.text}" if block.speaker else block.text
+        print(text if block.kind == "dialogue" else f"({block.kind}) {text}")
 
 
 def cmd_setup() -> None:

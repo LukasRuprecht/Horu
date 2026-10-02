@@ -1,23 +1,62 @@
-"""Turning detected lines into readable blocks of Japanese text."""
+"""Turning detected lines into blocks: who is speaking, and what is dialogue.
+
+Each block is either "dialogue" (has a speaker, or reads like a sentence) or "other" (button
+legends, menu labels, HUD). Speakers are found by combining several signals rather than by
+any single rule, because games style name tags very differently:
+
+- the text itself: person names, 〜の声 ("voice of ..."), ？？？
+- a different text style from the line below (colour, or light-on-dark vs dark-on-light)
+- a different size from the line below (name tags are often bigger or slanted)
+
+A speaker must sit directly above (or overlap) a body line, and every speaker starts a new
+block. That keeps log/backlog screens, which stack many speaker + line entries, apart.
+"""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
+import numpy as np
+from PIL import Image
+
 from horu.text_sources.base import TextLine
 
 # Hiragana, katakana, CJK ideographs (kanji), and the halfwidth katakana range.
 _JAPANESE = re.compile(r"[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]")
 _SENTENCE_PUNCTUATION = re.compile(r"[。、！？!?…‥「」『』]")
-_MAX_SPEAKER_CHARS = 8
+_NAME_LIKE = re.compile(r"声$|^[?？]{2,}$")
+_MAX_SPEAKER_CHARS = 10
+# A line wraps onto the next only if it's long (it filled the text box) or ends mid-sentence
+# with punctuation; short labels stacked in a menu are separate items.
+_MIN_WRAPPED_CHARS = 6
+_WRAP_END = re.compile(r"[、。！？!?…‥」』]$")
 _MIN_BLOCK_CHARS = 2
+_LONG_TEXT_CHARS = 12  # longer than any button label or menu item
+_SENTENCE_FINAL_PARTICLES = {"か", "よ", "ね", "な", "ぞ", "ぜ", "わ", "さ", "の", "かな", "よね"}
+
+# Button legends: a key name or key icon followed by a UI command ("F 早送り", "区オート").
+# OCR often reads a boxed key icon as a kanji-like box: 区, 口, ロ, 囗. The label has to be a
+# known command, since a letter or box-like kana also starts ordinary words (Tシャツ, ロボット).
+_KEY = r"(?:(?:Tab|Shift|Space|Esc|Enter|Ctrl|Alt|Back|Start|Select|Home)(?![a-z])|[LR][123]|[A-Z](?![a-z])|[区口ロ囗□■])"
+_KEY_THEN_LABEL = re.compile(rf"^{_KEY}\s*(.+)$")
+# Dialogue never starts with a multi-letter key name, so these are legends however the rest
+# was read ("Tab メニュー Shift ダッシュ" often comes out garbled).
+_KEY_NAME_START = re.compile(r"^(?:Tab|Shift|Space|Esc|Enter|Ctrl|Alt|Back|Start|Select|Home)\b")
+# Common game UI commands, recognised on their own when the key icon wasn't read.
+_UI_WORDS = {
+    "決定", "戻る", "キャンセル", "スキップ", "オート", "早送り", "ログ", "メニュー", "ダッシュ",
+    "音声再生", "閉じる", "選択", "確認", "次へ", "前へ", "切替", "切り替え", "詳細", "ヘルプ",
+    "セーブ", "ロード", "調べる", "話す", "マップ", "カメラ", "移動", "拡大", "縮小", "並び替え",
+    "表示", "非表示", "削除", "変更", "購入", "売却", "装備", "ガード", "ジャンプ", "ページ送り",
+}
 
 
 @dataclass(frozen=True)
 class TextBlock:
     lines: tuple[TextLine, ...]
     speaker: str | None = None
+    kind: str = "dialogue"  # "dialogue" or "other"
 
     @property
     def text(self) -> str:
@@ -34,38 +73,167 @@ class TextBlock:
         )
 
 
+@dataclass(frozen=True)
+class Style:
+    """How a line's text is drawn: its colour, and whether it's lighter than its background."""
+
+    ink: tuple[float, float, float]
+    light_on_dark: bool
+
+    def differs_from(self, other: Style) -> bool:
+        if self.light_on_dark != other.light_on_dark:
+            return True
+        return float(np.linalg.norm(np.subtract(self.ink, other.ink))) > 70
+
+
 def is_japanese(text: str) -> bool:
     return bool(_JAPANESE.search(text))
 
 
-def group_blocks(lines: list[TextLine]) -> list[TextBlock]:
-    """Group Japanese lines into blocks (e.g. one dialogue box), in reading order.
+def is_legend(text: str) -> bool:
+    compact = text.replace(" ", "").replace("　", "")
+    if compact in _UI_WORDS or _KEY_NAME_START.match(text.strip()):
+        return True
+    match = _KEY_THEN_LABEL.match(text.strip()) or _KEY_THEN_LABEL.match(compact)
+    return bool(match) and match.group(1).replace(" ", "") in _UI_WORDS
 
-    Two lines belong together when they have a similar text height, the second starts just
-    below the first, and they overlap horizontally. A short first line without punctuation
-    above longer text (a name tag) becomes the block's speaker.
+
+def line_style(image: Image.Image, box: tuple[int, int, int, int]) -> Style | None:
+    """Measure a line's text colour: split the box into ink and background by brightness,
+    taking the smaller group as ink."""
+    px = np.asarray(image.crop(box).convert("RGB"), dtype=np.float32).reshape(-1, 3)
+    if len(px) < 16:
+        return None
+    lum = px @ np.array([0.299, 0.587, 0.114], dtype=np.float32)
+    light = lum > _otsu(lum)
+    ink_is_light = light.sum() < (~light).sum()
+    ink = px[light if ink_is_light else ~light]
+    if len(ink) == 0:
+        return None
+    return Style(tuple(float(c) for c in ink.mean(0)), bool(ink_is_light))
+
+
+def group_blocks(
+    lines: list[TextLine], image: Image.Image | None = None, styles: list[Style | None] | None = None
+) -> list[TextBlock]:
+    """Group lines into blocks in reading order.
+
+    Text styles are measured from `image`, or given directly as `styles` (one per line, for
+    tests). Without either, speakers are found from text and size alone.
     """
-    groups: list[list[TextLine]] = []
-    for line in sorted((l for l in lines if is_japanese(l.text)), key=lambda l: l.box[1]):
+    if styles is None:
+        styles = [line_style(image, l.box) if image is not None else None for l in lines]
+    kept = [(l, st) for l, st in zip(lines, styles) if is_japanese(l.text)]
+    lines = [l for l, _ in kept]
+    styles = {i: st for i, (_, st) in enumerate(kept) if st is not None}
+    order = sorted(range(len(lines)), key=lambda i: (lines[i].box[1], lines[i].box[0]))
+    legends = {i for i in order if is_legend(lines[i].text)}
+    speakers = {i for i in order if i not in legends and _is_speaker(i, lines, styles, legends)}
+
+    groups: list[dict] = []  # {"speaker": index or None, "lines": [indices]}
+    for i in order:
+        line = lines[i]
+        if i in legends:
+            groups.append({"speaker": None, "lines": [i], "legend": True})
+            continue
+        if i in speakers:
+            groups.append({"speaker": i, "lines": []})
+            continue
         for group in groups:
-            if _continues(group[-1], line):
-                group.append(line)
+            if group.get("legend"):
+                continue
+            if group["lines"]:
+                attaches = _continues(lines[group["lines"][-1]], line)
+            else:  # a speaker still waiting for its first line
+                attaches = _under_speaker(lines[group["speaker"]], line)
+            if attaches:
+                group["lines"].append(i)
                 break
         else:
-            groups.append([line])
-    # Lone characters are almost always icons or decorations misread as kanji.
-    return [_to_block(g) for g in groups if sum(len(l.text) for l in g) >= _MIN_BLOCK_CHARS]
+            groups.append({"speaker": None, "lines": [i]})
+
+    blocks = []
+    for group in groups:
+        if not group["lines"]:  # a speaker whose line wasn't found: show it as text instead
+            group = {"speaker": None, "lines": [group["speaker"]]}
+        block_lines = tuple(lines[i] for i in group["lines"])
+        speaker = lines[group["speaker"]].text if group["speaker"] is not None else None
+        text = "".join(l.text for l in block_lines)
+        # Lone characters are almost always icons or decorations misread as kanji.
+        if len(text) < _MIN_BLOCK_CHARS and speaker is None:
+            continue
+        kind = "other" if group.get("legend") else ("dialogue" if speaker or _reads_like_dialogue(text) else "other")
+        blocks.append(TextBlock(block_lines, speaker, kind))
+    return blocks
 
 
-def _to_block(lines: list[TextLine]) -> TextBlock:
-    first = lines[0]
-    if len(lines) > 1 and _looks_like_name(first.text) and len(lines[1].text) > len(first.text):
-        return TextBlock(tuple(lines[1:]), speaker=first.text)
-    return TextBlock(tuple(lines))
+# --- Speakers --------------------------------------------------------------------------
 
 
-def _looks_like_name(text: str) -> bool:
-    return len(text) <= _MAX_SPEAKER_CHARS and not _SENTENCE_PUNCTUATION.search(text)
+def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends: set[int]) -> bool:
+    candidate = lines[i]
+    text = candidate.text.strip()
+    if len(text) > _MAX_SPEAKER_CHARS or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text)):
+        return False
+    below = [j for j in range(len(lines)) if j != i and j not in legends and _under_speaker(candidate, lines[j])]
+    if not below:
+        return False
+    body = min(below, key=lambda j: lines[j].box[1])
+
+    score = 0
+    if _NAME_LIKE.search(text) or _has_person_name(text):
+        score += 2
+    if i in styles and body in styles and styles[i].differs_from(styles[body]):
+        score += 2
+    ratio = _height(candidate) / max(_height(lines[body]), 1)
+    if ratio >= 1.8 or ratio <= 0.55:
+        score += 2
+    elif ratio >= 1.25 or ratio <= 0.8:
+        score += 1
+    return score >= 2
+
+
+def _under_speaker(speaker: TextLine, line: TextLine) -> bool:
+    """`line` is the first body line of `speaker`: directly below it (or overlapping its
+    lower part, as highlighted log entries do) and starting near it horizontally."""
+    s_left, s_top, s_right, s_bottom = speaker.box
+    left, top, right, bottom = line.box
+    height = bottom - top
+    if top <= s_top:
+        return False
+    gap = top - s_bottom
+    close_below = -0.6 * (s_bottom - s_top) <= gap <= 1.5 * height
+    near = min(s_right, right) > max(s_left, left) or abs(left - s_left) <= 3 * height
+    return close_below and near
+
+
+def _has_person_name(text: str) -> bool:
+    from horu.nlp.words import tokenize
+
+    return any(t.pos2 == "固有名詞" and t.pos3 == "人名" for t in tokenize(text))
+
+
+# --- Dialogue vs other text ------------------------------------------------------------
+
+
+def _reads_like_dialogue(text: str) -> bool:
+    # Count only Japanese characters: digits and stray Latin (HP/SP values, misreads) don't
+    # make a label a sentence.
+    if len(_JAPANESE.findall(text)) >= _LONG_TEXT_CHARS or _SENTENCE_PUNCTUATION.search(text):
+        return True
+    from horu.nlp.words import tokenize
+
+    content = [t for t in tokenize(text) if t.pos1 not in ("補助記号", "記号", "空白")]
+    if not content:
+        return False
+    last = content[-1]
+    # Ends like a sentence: a copula or auxiliary (あそこだ, 行きます) or a sentence-final
+    # particle (そうか, いいよ).
+    # UniDic doesn't always tag these as sentence-final (そうか's か is "adverbial"), so the
+    # common ones count by spelling too.
+    return last.pos1 == "助動詞" or (
+        last.pos1 == "助詞" and (last.pos2 == "終助詞" or last.surface in _SENTENCE_FINAL_PARTICLES)
+    )
 
 
 def _continues(prev: TextLine, line: TextLine) -> bool:
@@ -73,6 +241,26 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
     left, top, right, bottom = line.box
     p_height, height = p_bottom - p_top, bottom - top
     similar_size = max(p_height, height) <= 1.5 * min(p_height, height)
-    close_below = -0.3 * p_height <= top - p_bottom <= 0.9 * p_height
+    # Tightly set lines' boxes can overlap by up to about half a line.
+    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= 0.9 * p_height
     overlaps = min(p_right, right) > max(p_left, left)
-    return similar_size and close_below and overlaps
+    wraps = len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
+    return similar_size and close_below and overlaps and wraps
+
+
+def _height(line: TextLine) -> int:
+    return line.box[3] - line.box[1]
+
+
+def _otsu(values: np.ndarray) -> float:
+    """The brightness threshold that best separates two groups (Otsu's method)."""
+    hist, _ = np.histogram(values, bins=256, range=(0, 256))
+    levels = np.arange(256)
+    weight0 = np.cumsum(hist)
+    weight1 = values.size - weight0
+    sum0 = np.cumsum(hist * levels)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mean0 = sum0 / weight0
+        mean1 = (sum0[-1] - sum0) / weight1
+        between = weight0 * weight1 * (mean0 - mean1) ** 2
+    return float(np.nanargmax(between))

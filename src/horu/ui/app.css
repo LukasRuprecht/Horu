@@ -280,8 +280,8 @@ body.blur-translations .translation:not([data-reveal="true"]) .translation-text:
 }
 .unit { white-space: nowrap; }
 
-.line.screen .text { font-size: calc(var(--text-size) * 0.7); color: var(--muted); }
-body.hide-screen .line.screen { display: none; }
+.line.other .text { font-size: calc(var(--text-size) * 0.7); color: var(--muted); }
+body.hide-screen .line.other { display: none; }
 /* A capture with only screen text disappears entirely when screen text is hidden. */
 body.hide-screen .capture:not(:has(.line.dialogue)) { display: none; }
 

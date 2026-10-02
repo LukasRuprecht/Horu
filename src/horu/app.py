@@ -20,10 +20,6 @@ UI_DIR = Path(__file__).parent / "ui"
 # Blocks already shown recently are skipped, so persistent text (HUD, menus) and repeated
 # hotkey presses on the same dialogue don't flood the history.
 _RECENT_LINES = 20
-# A block is main text (shown large) if it has a speaker, sits in the lower part of the
-# screen where dialogue boxes live, or is long; HUD and menu labels are short.
-_DIALOGUE_ZONE = 0.6
-_MAIN_TEXT_CHARS = 12
 # Earlier dialogue lines sent along with AI requests, so pronouns and names make sense.
 _CONTEXT_LINES = 4
 # Streamed AI text is pushed to the page at most this often.
@@ -328,14 +324,14 @@ class App:
         image = capture.grab(self.cfg.capture)
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
-        blocks = layout.group_blocks(self._source.read(image))
+        blocks = layout.group_blocks(self._source.read(image), image)
 
         lines = []
         for block in blocks:
             if block.text in self.recent:
                 continue
             self.recent.append(block.text)
-            line = self._line(block, image.height)
+            line = self._line(block)
             self.lines[line["id"]] = line
             lines.append(line)
         if lines:
@@ -348,18 +344,12 @@ class App:
         else:
             self._ready("No new Japanese text found.")
 
-    def _line(self, block: layout.TextBlock, frame_height: int) -> dict:
-        top, bottom = block.box[1], block.box[3]
-        is_main = (
-            block.speaker is not None
-            or (top + bottom) / 2 > _DIALOGUE_ZONE * frame_height
-            or len(block.text) >= _MAIN_TEXT_CHARS
-        )
+    def _line(self, block: layout.TextBlock) -> dict:
         return {
             "id": next(self._ids),
             "speaker": block.speaker,
             "text": block.text,
-            "kind": "dialogue" if is_main else "screen",
+            "kind": block.kind,
             "words": [w.to_dict() for w in analyze(block.text)],
         }
 
