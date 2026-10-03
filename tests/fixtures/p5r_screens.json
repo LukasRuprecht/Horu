@@ -1,5 +1,5 @@
 {
- "about": "Persona 5 Royal screens (PC, windowed at 1260x1052 and 1280x649): OCR'd lines with measured text styles, and the expected blocks. Generated from local screenshots, which aren't committed.",
+ "about": "Persona 5 Royal screens (PC, windowed at 1260x1052, 1280x649, and 673x519): OCR'd lines with measured text styles, and the expected blocks. Generated from local screenshots, which aren't committed.",
  "screens": [
   {
    "name": "dialogue_box",
@@ -2577,6 +2577,185 @@
      "speaker": null,
      "kind": "other",
      "text": "HAD变更C民定"
+    }
+   ]
+  },
+  {
+   "name": "battle_skill_menu_small_window",
+   "size": [
+    673,
+    519
+   ],
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "DERSONA",
+     "box": [
+      0,
+      52,
+      230,
+      165
+     ],
+     "style": {
+      "ink": [
+       240,
+       246,
+       247
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "と、エイガオン",
+     "box": [
+      77,
+      172,
+      192,
+      203
+     ],
+     "style": {
+      "ink": [
+       254,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ンブレイブザッパー",
+     "box": [
+      91,
+      192,
+      229,
+      222
+     ],
+     "style": {
+      "ink": [
+       245,
+       205,
+       136
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "敵1体に屈性で",
+     "box": [
+      149,
+      323,
+      253,
+      344
+     ],
+     "style": {
+      "ink": [
+       172,
+       172,
+       172
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "大ダメージを与える",
+     "box": [
+      151,
+      335,
+      256,
+      356
+     ],
+     "style": {
+      "ink": [
+       174,
+       174,
+       174
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "12s",
+     "box": [
+      245,
+      159,
+      313,
+      185
+     ],
+     "style": {
+      "ink": [
+       238,
+       246,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "106",
+     "box": [
+      257,
+      183,
+      314,
+      203
+     ],
+     "style": {
+      "ink": [
+       106,
+       245,
+       214
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "4023737",
+     "box": [
+      573,
+      388,
+      636,
+      418
+     ],
+     "style": {
+      "ink": [
+       179,
+       182,
+       221
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "と、エイガオン"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ンブレイブザッパー"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "敵1体に屈性で大ダメージを与える"
     }
    ]
   }

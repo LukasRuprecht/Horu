@@ -40,6 +40,9 @@ _MAX_WRAP_GAP = 0.35
 # still, so size only counts within this range.
 _NAME_TAG_SIZE = (1.6, 3.2)
 _WRAP_END = re.compile(r"[、。！？!?…‥」』]$")
+# A sentence broken mid-way ends on punctuation or hiragana (a particle or verb ending: に, が,
+# て); a line ending on a katakana or kanji noun is usually a complete label.
+_MID_SENTENCE_END = re.compile(r"[、。！？!?…‥」』\u3041-\u309f]$")
 _MIN_BLOCK_CHARS = 2
 _LONG_TEXT_CHARS = 12  # longer than any button label or menu item
 _SENTENCE_FINAL_PARTICLES = {"か", "よ", "ね", "な", "ぞ", "ぜ", "わ", "さ", "の", "かな", "よね"}
@@ -283,7 +286,13 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
     # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
     # the same left edge (or is centred).
     right_aligned_list = abs(right - p_right) <= 0.5 * p_height and abs(left - p_left) > p_height
-    return similar_size and close_below and overlaps and wraps and not right_aligned_list
+    # Text wraps when a line is full, so the next line doesn't run far past it, unless the
+    # first line broke mid-sentence. A label followed by a longer line is two list items
+    # (e.g. skill names in a battle menu).
+    runs_past = right - p_right > p_height
+    ends_like_label = not _MID_SENTENCE_END.search(prev.text.strip())
+    two_items = runs_past and ends_like_label
+    return similar_size and close_below and overlaps and wraps and not right_aligned_list and not two_items
 
 
 def _height(line: TextLine) -> int:
