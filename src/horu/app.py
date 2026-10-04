@@ -23,6 +23,9 @@ UI_DIR = Path(__file__).parent / "ui"
 _RECENT_LINES = 20
 # Earlier dialogue lines sent along with AI requests, so pronouns and names make sense.
 _CONTEXT_LINES = 4
+# Lines OCR read with less confidence than this (even after voting) are marked as possibly
+# misread, so nobody studies a wrong character without knowing.
+_UNCERTAIN = 0.9
 # Streamed AI text is pushed to the page at most this often.
 _FLUSH_SECONDS = 0.05
 
@@ -478,6 +481,9 @@ class App:
             "repeat": repeat,
             "text": block.text,
             "kind": block.kind,
+            # OCR's confidence in its weakest line (speaker included): below this, the line may
+            # be misread.
+            "uncertain": min(block.speaker_score, *(l.score for l in block.lines)) < _UNCERTAIN,
             "words": [w.to_dict() for w in analyze(block.text)],
         }
 

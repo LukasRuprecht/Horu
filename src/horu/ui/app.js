@@ -140,6 +140,11 @@ function renderLine(line) {
     meta.append(speaker, speakerEnglish(line));
   }
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
+  if (line.uncertain && line.kind === "dialogue") {
+    const flag = el("span", "uncertain-flag", "?");
+    flag.title = "Horu wasn't sure it read this line correctly. Check it against the game, or fix it with Edit.";
+    meta.append(flag);
+  }
   meta.append(
     el("span", "spacer"),
     button("line-btn", "Explain", () => explainLine(line), "Break this line down with AI"),

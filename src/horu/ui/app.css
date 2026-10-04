@@ -187,6 +187,18 @@ body.no-furigana .speaker rt { display: none; }
 .repeats .line { opacity: 0.7; }
 .repeats + .line, .line + .repeats { border-top: 1px solid var(--border); }
 .kind-label { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.uncertain-flag {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+}
 .line-meta .spacer { flex: 1; }
 
 .line-btn {
