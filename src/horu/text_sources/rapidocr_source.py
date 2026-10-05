@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -14,6 +15,12 @@ from horu.text_sources.base import TextLine
 from horu.text_sources.vote import edit_distance, vote
 
 Box = tuple[int, int, int, int]
+# Boxes tilted more than this (degrees) are straightened before reading: the recognizer only
+# reads horizontal text, and slanted UI text (common in stylised menus) read through a
+# straight crop comes out garbled.
+_MAX_STRAIGHT_TILT = 3.0
+# How much less confident a merged row may read than its separate pieces and still be kept.
+_MERGE_TOLERANCE = 0.05
 
 # The long-vowel mark ー and the kanji 一 ("one") look almost identical, and OCR mixes them
 # up. After katakana, 一 is practically always ー (ラ一メン). After hiragana it is ー only
@@ -37,7 +44,9 @@ _VOTE_BELOW = 0.9
 class RapidOcrSource:
     name = "rapidocr"
 
-    def __init__(self, min_score: float = 0.5, upscale: bool = False, vote: bool = True) -> None:
+    def __init__(
+        self, min_score: float = 0.5, upscale: bool = False, vote: bool = True, det_params: dict | None = None
+    ) -> None:
         from rapidocr import LangRec, ModelType, OCRVersion, RapidOCR
 
         self._min_score = min_score
@@ -50,6 +59,7 @@ class RapidOcrSource:
                 # than the Japanese-specific v4 model.
                 "Rec.ocr_version": OCRVersion.PPOCRV5,
                 "Rec.model_type": ModelType.SERVER,
+                **(det_params or {}),
             }
         )
         # Second-opinion readers for uncertain lines: smaller models with different mistakes.
@@ -75,34 +85,64 @@ class RapidOcrSource:
     def read(self, image: Image.Image) -> list[TextLine]:
         image = image.convert("RGB")
         pixels = np.asarray(image)
-        boxes = self._detect(pixels)
+        quads = self._detect(pixels)
         scale = 1.0
-        if self._upscale and boxes:
-            median_height = float(np.median([b[3] - b[1] for b in boxes]))
+        if self._upscale and quads:
+            median_height = float(np.median([_box(q)[3] - _box(q)[1] for q in quads]))
             if median_height < _SMALL_TEXT:
                 scale = min(_MAX_UPSCALE, _TARGET_TEXT / max(median_height, 1))
                 size = (round(image.width * scale), round(image.height * scale))
                 pixels = np.asarray(image.resize(size, Image.LANCZOS))
-                boxes = self._detect(pixels)
+                quads = self._detect(pixels)
 
+        straight = [_box(q) for q in quads if abs(_tilt(q)) <= _MAX_STRAIGHT_TILT]
+        tilted = [q for q in quads if abs(_tilt(q)) > _MAX_STRAIGHT_TILT]
+
+        readings: list[tuple[str, float, Box]] = []
         # The detector sometimes splits one line into overlapping pieces (often at 、),
-        # clipping characters at the seams. Merge pieces on the same row and read each
-        # full line in one pass instead.
+        # clipping characters at the seams, so pieces on the same row are read as one line.
+        # But side-by-side items (tabs, menu entries) also sit on one row: the merged reading
+        # is kept unless it's clearly less confident than reading the pieces separately
+        # (merged tabs read as garbage; a merged split line reads about as well as its halves).
+        for group in group_rows(straight):
+            pieces = [(*self._read_crop(_crop(pixels, b)), b) for b in group]
+            if len(group) > 1:
+                merged_box = _union(group)
+                text, score = self._read_crop(_crop(pixels, merged_box))
+                if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
+                    pieces = [(text, score, merged_box)]
+            readings.extend(pieces)
+        # Slanted lines get the same treatment, with pieces grouped along their own slant.
+        for group in _group_tilted(tilted):
+            pieces = [(*self._read_crop(_straighten(pixels, q)), _box(q)) for q in group]
+            if len(group) > 1:
+                merged = _enclosing_quad(group)
+                text, score = self._read_crop(_straighten(pixels, merged))
+                if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
+                    pieces = [(text, score, _box(merged))]
+            readings.extend(pieces)
+
         lines = []
-        for box in merge_rows(boxes):
-            text, score = self._recognize(_crop(pixels, box))
-            if self._voters and text and score < _VOTE_BELOW:
-                text = self._vote(pixels, box, text)
+        for text, score, box in readings:
             if text and score >= self._min_score:
                 left, top, right, bottom = (round(v / scale) for v in box)
                 lines.append(TextLine(text, (left, top, right, bottom), score))
         return lines
 
-    def _detect(self, pixels: np.ndarray) -> list[Box]:
+    def _detect(self, pixels: np.ndarray) -> list[np.ndarray]:
+        """Text regions as four-corner polygons (clockwise from top-left)."""
         detected = self._engine(pixels, use_det=True, use_cls=False, use_rec=False)
         if detected.boxes is None:
             return []
-        return [(int(b[:, 0].min()), int(b[:, 1].min()), int(b[:, 0].max()), int(b[:, 1].max())) for b in detected.boxes]
+        return [np.asarray(b, dtype=np.float32) for b in detected.boxes]
+
+    def _read_crop(self, crop: np.ndarray) -> tuple[str, float]:
+        """Read a line, correcting an uncertain reading by voting between models."""
+        crop = np.ascontiguousarray(crop)
+        text, score = self._recognize(crop)
+        if self._voters and text and score < _VOTE_BELOW:
+            text = self._vote(crop, text)
+        return text, score
 
     def _recognize(self, crop: np.ndarray, engine=None) -> tuple[str, float]:
         result = (engine or self._engine)(crop, use_det=False, use_cls=False, use_rec=True)
@@ -110,16 +150,10 @@ class RapidOcrSource:
             return "", 0.0
         return fix_misreads("".join(result.txts)), float(min(result.scores))
 
-    def _vote(self, pixels: np.ndarray, box: Box, text: str) -> str:
+    def _vote(self, crop: np.ndarray, text: str) -> str:
         """Correct an uncertain reading where the other models agree on a change."""
-        left, top, right, bottom = box
-        height = bottom - top
-        # A tight crop: extra rows above and below would let the other readers pick up the
-        # neighbouring line.
-        margin = max(2, height // 10)
-        crop = pixels[max(top - margin, 0) : bottom + margin, max(left - height // 3, 0) : right + height // 2]
-        crop = np.ascontiguousarray(crop)
         others = []
+        crop = _voting_crop(crop)
         for engine in self._voters:
             other, _ = self._recognize(crop, engine)
             # A reading far from this one is a different guess, not a correction: it abstains.
@@ -128,23 +162,92 @@ class RapidOcrSource:
         return vote(text, others)
 
 
-def _crop(pixels: np.ndarray, box: Box, pad: int | None = None) -> np.ndarray:
+def _crop(pixels: np.ndarray, box: Box) -> np.ndarray:
     left, top, right, bottom = box
     height = bottom - top
-    pad = max(2, height // 10) if pad is None else pad
+    pad = max(2, height // 10)
     # Extra room on the right: detection boxes tend to stop short of a small 、 or 。 at the
     # end of a line.
     return pixels[max(top - pad, 0) : bottom + pad, max(left - pad, 0) : right + max(pad, height // 2)]
 
 
+def _voting_crop(crop: np.ndarray) -> np.ndarray:
+    """The crop the second-opinion readers see: a little extra room on the left. (The main
+    crop is already tight above and below, so they don't pick up a neighbouring line.)"""
+    margin = crop.shape[0] // 4
+    return np.ascontiguousarray(np.pad(crop, ((0, 0), (margin, 0), (0, 0)), mode="edge"))
+
+
+def _straighten(pixels: np.ndarray, quad: np.ndarray) -> np.ndarray:
+    """Cut a tilted text region out and rotate it level, with a little margin around it."""
+    top_left, top_right, bottom_right, bottom_left = quad
+    width = max(np.linalg.norm(top_right - top_left), np.linalg.norm(bottom_right - bottom_left))
+    height = max(np.linalg.norm(bottom_left - top_left), np.linalg.norm(bottom_right - top_right))
+    # More room at the ends than above and below: the detector's polygon can clip the first
+    # or last character of a slanted line.
+    margin_y = max(2.0, height / 10)
+    margin_x = max(2.0, height / 2)
+    target = np.float32(
+        [[margin_x, margin_y], [width + margin_x, margin_y], [width + margin_x, height + margin_y], [margin_x, height + margin_y]]
+    )
+    size = (int(width + 2 * margin_x), int(height + 2 * margin_y))
+    transform = cv2.getPerspectiveTransform(quad.astype(np.float32), target)
+    return cv2.warpPerspective(pixels, transform, size, borderMode=cv2.BORDER_REPLICATE)
+
+
+def _box(quad: np.ndarray) -> Box:
+    return (int(quad[:, 0].min()), int(quad[:, 1].min()), int(quad[:, 0].max()), int(quad[:, 1].max()))
+
+
+def _tilt(quad: np.ndarray) -> float:
+    """Angle of the region's top edge, in degrees."""
+    (x0, y0), (x1, y1) = quad[0], quad[1]
+    return float(np.degrees(np.arctan2(y1 - y0, x1 - x0)))
+
+
+def _group_tilted(quads: list[np.ndarray]) -> list[list[np.ndarray]]:
+    """Group slanted pieces that lie on the same slanted line: similar tilt, and on the same
+    row once rotated level."""
+    groups: list[list[np.ndarray]] = []
+    for quad in sorted(quads, key=lambda q: float(q[:, 0].min())):
+        for group in groups:
+            angle = _tilt(group[0])
+            if abs(_tilt(quad) - angle) <= 4 and _same_row(_level_box(_enclosing_quad(group), angle), _level_box(quad, angle)):
+                group.append(quad)
+                break
+        else:
+            groups.append([quad])
+    return groups
+
+
+def _level_box(quad: np.ndarray, angle: float) -> Box:
+    """The axis-aligned box of `quad` after rotating everything by -angle degrees."""
+    theta = np.radians(-angle)
+    rotation = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    return _box(quad @ rotation.T)
+
+
+def _enclosing_quad(quads: list[np.ndarray]) -> np.ndarray:
+    """The smallest rotated rectangle around several pieces, as corners clockwise from the
+    top-left (the order _straighten expects)."""
+    corners = cv2.boxPoints(cv2.minAreaRect(np.concatenate(quads).astype(np.float32)))
+    # Order: top-left has the smallest x+y, bottom-right the largest; top-right the smallest y-x.
+    total, diff = corners.sum(axis=1), np.diff(corners, axis=1).ravel()
+    return np.float32([corners[np.argmin(total)], corners[np.argmin(diff)], corners[np.argmax(total)], corners[np.argmax(diff)]])
+
+
+def _union(boxes: list[Box]) -> Box:
+    return (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+
+
 # The recognition model is trained mostly on Chinese, so it sometimes returns the simplified
-# Chinese form of a kanji (黑服 for 黒服, 决定 for 決定). These forms aren't used in Japanese,
-# so mapping them back is safe.
+# (or traditional) Chinese form of a kanji (黑服 for 黒服, 决定 for 決定, 攻擊 for 攻撃). These
+# forms aren't used in modern Japanese, so mapping them back is safe.
 _SIMPLIFIED_TO_JAPANESE = str.maketrans(
     "黑决说读话语门问间闻开关时东车长马鸟鱼见觉发对应实战击损伤气钱买卖过还进远边让识认请谁这样"
-    "们个来动头脸题颜风飞饭馆机杀杂权欢欧尔导将层岁币币师带帮广庆应张强归录彻忆态总恋恶惊惯",
+    "们个来动头脸题颜风飞饭馆机杀杂权欢欧尔导将层岁币币师带帮广庆应张强归录彻忆态总恋恶惊惯擊",
     "黒決説読話語門問間聞開関時東車長馬鳥魚見覚発対応実戦撃損傷気銭買売過還進遠辺譲識認請誰這様"
-    "們個来動頭顔題顔風飛飯館機殺雑権歓欧爾導将層歳幣幣師帯幇広慶応張強帰録徹憶態総恋悪驚慣",
+    "們個来動頭顔題顔風飛飯館機殺雑権歓欧爾導将層歳幣幣師帯幇広慶応張強帰録徹憶態総恋悪驚慣撃",
 )
 
 
@@ -153,21 +256,30 @@ def fix_misreads(text: str) -> str:
     return _HIRAGANA_THEN_ICHI.sub("ー", _KATAKANA_THEN_ICHI.sub("ー", text))
 
 
-def merge_rows(boxes: list[Box]) -> list[Box]:
-    """Merge boxes that sit on the same text row and touch or nearly touch horizontally."""
-    merged: list[Box] = []
+def group_rows(boxes: list[Box]) -> list[list[Box]]:
+    """Group boxes that sit on the same text row and touch or nearly touch horizontally."""
+    groups: list[list[Box]] = []
     for box in sorted(boxes, key=lambda b: b[0]):
-        for i, other in enumerate(merged):
-            if _same_row(other, box):
-                merged[i] = (min(other[0], box[0]), min(other[1], box[1]), max(other[2], box[2]), max(other[3], box[3]))
+        for group in groups:
+            if _same_row(_union(group), box):
+                group.append(box)
                 break
         else:
-            merged.append(box)
-    return merged
+            groups.append([box])
+    return groups
+
+
+def merge_rows(boxes: list[Box]) -> list[Box]:
+    """Boxes on the same text row merged into one."""
+    return [_union(group) for group in group_rows(boxes)]
 
 
 def _same_row(a: Box, b: Box) -> bool:
     height = min(a[3] - a[1], b[3] - b[1])
     vertical_overlap = min(a[3], b[3]) - max(a[1], b[1])
     gap = max(a[0], b[0]) - min(a[2], b[2])  # negative when they overlap
-    return vertical_overlap >= 0.6 * height and gap <= 0.8 * height
+    # Pieces of one line sit side by side; boxes that overlap mostly horizontally are stacked
+    # (a label under a heading), not pieces of the same line.
+    narrower = min(a[2] - a[0], b[2] - b[0])
+    stacked = -gap > 0.5 * narrower
+    return vertical_overlap >= 0.6 * height and gap <= 0.8 * height and not stacked

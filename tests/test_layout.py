@@ -79,3 +79,31 @@ def test_short_lines_are_dialogue_only_if_they_read_like_sentences():
         line("そうか", 100, 700, 200, 730),  # ends in a sentence-final particle
     ])}
     assert kinds == {"あそこだ": "dialogue", "エイガオン": "other", "そうか": "dialogue"}
+
+
+def test_stacked_boxes_are_not_one_row():
+    from horu.text_sources.rapidocr_source import merge_rows
+
+    # "ACTION!" with "ジャンプ" just below, overlapping its lower half: a label, not a split line.
+    assert len(merge_rows([(445, 601, 642, 689), (563, 651, 671, 702)])) == 2
+
+
+def test_tilted_pieces_on_one_slanted_line_are_grouped():
+    import numpy as np
+
+    from horu.text_sources.rapidocr_source import _enclosing_quad, _group_tilted, _tilt
+
+    def tilted(x, y, w, h, angle=-10):
+        theta = np.radians(angle)
+        d = np.array([np.cos(theta), np.sin(theta)])
+        n = np.array([-np.sin(theta), np.cos(theta)])
+        origin = np.array([x, y], dtype=float)
+        return np.float32([origin, origin + w * d, origin + w * d + h * n, origin + h * n])
+
+    left = tilted(100, 300, 60, 20)
+    right = tilted(100 + 62 * np.cos(np.radians(-10)), 300 + 62 * np.sin(np.radians(-10)), 80, 20)
+    other_line = tilted(100, 340, 140, 20)
+    groups = _group_tilted([left, right, other_line])
+    assert sorted(len(g) for g in groups) == [1, 2]
+    merged = _enclosing_quad(next(g for g in groups if len(g) == 2))
+    assert abs(_tilt(merged) - -10) < 1
