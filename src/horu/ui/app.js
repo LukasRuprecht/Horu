@@ -148,6 +148,7 @@ function renderLine(line) {
   meta.append(
     el("span", "spacer"),
     button("line-btn", "Explain", () => explainLine(line), "Break this line down with AI"),
+    button("line-btn", "Cards", () => makeCards(line), "Let AI pick words worth learning and add them to Anki"),
     button("line-btn", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
     button("line-btn", "⋯", (e) => openLineMenu(e.currentTarget, line, row), "Correct how this line was read"),
   );
@@ -358,7 +359,8 @@ function openTutor(title) {
   tutor.hidden = false;
   $("#tutor-title").replaceChildren(...title);
   $("#tutor-log").replaceChildren();
-  state.tutor = { session: null, answer: null, text: "", busy: false };
+  state.tutor = { session: null, answer: null, text: "", busy: false, agent: false };
+  $("#tutor-input").placeholder = "Ask a follow-up, e.g. why は and not が here?";
   if (!state.ai.enabled) {
     $("#tutor-log").append(el("p", "tutor-note", state.ai.error || AI_SETUP_HINT));
     setTutorBusy(true);
@@ -383,8 +385,9 @@ function startAnswer() {
 
 function setTutorBusy(busy) {
   state.tutor.busy = busy;
-  $("#tutor-input").disabled = busy || !state.ai.enabled;
-  $("#tutor-send").disabled = busy || !state.ai.enabled;
+  const closed = busy || !state.ai.enabled || Boolean(state.tutor.agent);
+  $("#tutor-input").disabled = closed;
+  $("#tutor-send").disabled = closed;
   if (!busy && state.ai.enabled) $("#tutor-input").focus();
 }
 
@@ -402,6 +405,15 @@ function explainWord(line, index, part = "text") {
   if (!openTutor([el("strong", "tutor-word", word.surface), " in ", linePreview(line)])) return;
   state.tutor.session = state.nextSession++;
   api().explain_word(line.id, index, state.tutor.session, part);
+}
+
+function makeCards(line) {
+  if (!openTutor(["Making flashcards from ", linePreview(line)])) return;
+  state.tutor.agent = true;
+  state.tutor.answer.replaceChildren(el("p", "tutor-note", "Choosing words..."));
+  $("#tutor-input").placeholder = "Follow-up questions aren't available for flashcard making.";
+  state.tutor.session = state.nextSession++;
+  api().make_cards(line.id, state.tutor.session);
 }
 
 function explainLine(line) {
@@ -960,6 +972,17 @@ window.horu = {
     if (stick) card.scrollIntoView({ block: "end" });
     // Let the highlight fade out.
     setTimeout(() => card.classList.remove("new"), 2500);
+  },
+
+  agentStep(msg) {
+    if (msg.session !== state.tutor.session || !state.tutor.answer) return;
+    // Progress lines sit above the answer, which arrives at the end.
+    if (!state.tutor.steps) {
+      state.tutor.steps = el("ul", "agent-steps");
+      state.tutor.answer.before(state.tutor.steps);
+    }
+    state.tutor.steps.append(el("li", null, `${msg.text}...`));
+    scrollTutor();
   },
 
   aiChunk(msg) {

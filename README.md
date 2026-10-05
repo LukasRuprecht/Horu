@@ -69,6 +69,10 @@ there's no capture region to set up.
   that game.
 - Lines already shown in an earlier capture are collapsed rather than repeated.
 - If OCR gets a character wrong, hover the line and click **Edit** to fix it.
+- **Cards** on a line lets the AI agent make the flashcards: it picks the words worth
+  learning at your level, checks which are already in your Anki deck, looks the rest up in
+  Horu's dictionary, and adds them with a meaning and note that fit the scene. It needs a
+  provider that supports tool use (Claude, OpenAI, or an Ollama model such as qwen3).
 - **Save to Anki** in a word's popup adds a flashcard: the line with the word in bold, its
   reading, meaning, grammar notes, translation, and a screenshot. Needs Anki open with the
   [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on; the deck is set in settings.

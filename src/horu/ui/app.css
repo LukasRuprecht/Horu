@@ -272,6 +272,8 @@ body.blur-translations .translation:not([data-reveal="true"]) .translation-text:
   border: 1px solid var(--border);
 }
 .tutor-note { color: var(--faint); }
+.agent-steps { margin: 4px 0 10px; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.agent-steps li { margin-bottom: 2px; }
 .tutor-note.error { color: var(--error); }
 .tutor-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
 .tutor-form input {

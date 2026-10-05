@@ -117,6 +117,9 @@ class Api:
     def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
         return self._app.save_card(line_id, index, part)
 
+    def make_cards(self, line_id: int, session: int) -> None:
+        self._app.make_cards(line_id, session)
+
     def clear(self) -> None:
         self._app.recent.clear()
         self._app.lines.clear()
@@ -222,6 +225,31 @@ class App:
         except anki.AnkiError as e:
             return {"ok": False, "message": str(e)}
         return {"ok": True, "message": f"Added {card.dictionary_form} to {deck}."}
+
+    def make_cards(self, line_id: int, session: int) -> None:
+        """Let the AI pick words from a line and add them to Anki itself, using tools. Its
+        steps and summary appear in the tutor panel."""
+        if not self._provider or line_id not in self.lines:
+            return
+        meta = {"target": "tutor", "session": session}
+        if self._tutor_chat:
+            self._tutor_chat[1].cancel()
+            self._tutor_chat = None
+
+        def run() -> None:
+            from horu import agent
+
+            try:
+                summary = agent.make_cards(self, line_id, lambda step: self._call("agentStep", {**meta, "text": step}))
+                self._call("aiChunk", {**meta, "text": summary or "Done."})
+                self._call("aiDone", meta)
+            except llm.AIError as e:
+                self._call("aiError", {**meta, "message": str(e)})
+            except Exception as e:
+                traceback.print_exc()
+                self._call("aiError", {**meta, "message": f"Something went wrong: {e}"})
+
+        threading.Thread(target=run, name="horu-agent", daemon=True).start()
 
     def _keep_screenshot(self, line_id: int, image, box: tuple[int, int, int, int]) -> None:
         """A crop around the line (with some surrounding scene) for its flashcards."""

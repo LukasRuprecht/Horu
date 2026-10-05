@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Iterator, Protocol
+from typing import TYPE_CHECKING, Iterator, Protocol
+
+if TYPE_CHECKING:
+    from horu.llm.tools import Tool
 
 
 class AIError(Exception):
@@ -33,4 +36,11 @@ class Provider(Protocol):
         `history` pre-fills earlier turns ({"role", "content"} dicts with text content).
         `effort` and `temperature` are hints; providers that don't support one ignore it.
         """
+        ...
+
+    def run_tools(
+        self, system: str, task: str, tools: list[Tool], effort: str = "low", max_turns: int = 12, follow_up=None
+    ) -> str:
+        """Work on `task`, calling `tools` as the model decides; returns its final answer.
+        `follow_up` (see llm.tools.FollowUp) can send the model back to work once it stops."""
         ...
