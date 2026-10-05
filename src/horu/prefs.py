@@ -29,6 +29,7 @@ DEFAULTS: dict = {
     "aiModel": "",
     "aiBaseUrl": "",
     "translationModel": "",  # "" = same model as explanations
+    "ankiDeck": "Horu",
 }
 
 

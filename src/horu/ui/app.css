@@ -597,6 +597,10 @@ button.link {
   cursor: pointer;
 }
 .pop-action:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pop-action.secondary { margin-left: 6px; border-color: var(--border); color: var(--text); }
+.pop-action.secondary:hover { background: var(--card); }
+.pop-action:disabled { opacity: 0.6; cursor: default; }
+.pop-note.error { color: var(--error); }
 
 .more { margin-top: 8px; color: var(--muted); }
 .more summary { cursor: pointer; font-size: 13px; }

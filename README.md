@@ -34,7 +34,7 @@ Hotkey ─► Capture the game window
 - [x] **Phase 2:** line-history window with furigana, clickable words, and JMdict popups
 - [x] **Phase 3:** AI translations, explanations, and follow-up questions (Claude, OpenAI-compatible APIs, Ollama)
 - [ ] **Phase 4:** auto-capture and more text sources (owocr, text hooking)
-- [ ] **Phase 5:** Anki export
+- [x] **Phase 5:** Anki export (Save to Anki in any word's popup)
 - [ ] **Phase 6:** first release
 
 ## Setup
@@ -69,6 +69,9 @@ there's no capture region to set up.
   that game.
 - Lines already shown in an earlier capture are collapsed rather than repeated.
 - If OCR gets a character wrong, hover the line and click **Edit** to fix it.
+- **Save to Anki** in a word's popup adds a flashcard: the line with the word in bold, its
+  reading, meaning, grammar notes, translation, and a screenshot. Needs Anki open with the
+  [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on; the deck is set in settings.
 - If Horu files something wrongly, use the line's **⋯** menu: treat it as dialogue or other
   text, or mark a speaker name. Corrections are remembered per game.
 - With an AI provider set up (below): click **Translate** under a line (or turn on automatic

@@ -441,6 +441,17 @@ function openPopover(wordEl) {
   body.append(el("p", "pop-note", "Looking up..."));
   const actions = el("div", "pop-actions");
   actions.append(button("pop-action", "Explain in context", () => explainWord(line, index, part)));
+  const save = button("pop-action secondary", "Save to Anki", async () => {
+    save.disabled = true;
+    save.textContent = "Saving...";
+    const result = await api().save_card(line.id, index, part);
+    save.textContent = result.ok ? "Saved" : "Save to Anki";
+    save.disabled = result.ok;
+    if (!result.ok) body.append(el("p", "pop-note error", result.message));
+    else horu.setStatus({ state: "ready", message: result.message });
+    positionPopover(wordEl);
+  });
+  actions.append(save);
   popover.append(body, actions);
   popover.hidden = false;
   positionPopover(wordEl);
@@ -590,6 +601,7 @@ for (const key of Object.keys(TOGGLES)) {
 
 // Settings-panel checkboxes and text fields: [element, preference, default].
 const FIELDS = [
+  ["#anki-deck", "ankiDeck", "Horu"],
   ["#hide-from-capture", "hideFromCapture", true],
   ["#auto-translate", "autoTranslate", false],
   ["#blur-translations", "blurTranslations", true],
@@ -838,7 +850,10 @@ $("#reset-display").addEventListener("click", () => {
 function toggleSettings(open) {
   settings.hidden = !open;
   $("#open-settings").setAttribute("aria-pressed", String(open));
-  if (open) closePopover();
+  if (open) {
+    closePopover();
+    if (api()) checkAnki();
+  }
 }
 $("#open-settings").addEventListener("click", () => toggleSettings(settings.hidden));
 
@@ -874,6 +889,19 @@ linesEl.addEventListener("scroll", () => {
   if (state.selected) positionPopover(state.selected);
 });
 window.addEventListener("resize", closePopover);
+
+async function checkAnki() {
+  const status = $("#anki-status");
+  status.className = "ai-status";
+  status.textContent = "Checking...";
+  const result = await api().anki_status();
+  status.classList.toggle("ok", result.connected);
+  status.classList.toggle("error", !result.connected);
+  status.textContent = result.connected
+    ? `Connected. Cards go to the "${result.deck}" deck (created if needed).`
+    : result.error;
+}
+$("#anki-check").addEventListener("click", checkAnki);
 
 async function loadFromPython() {
   state.prefs = await api().get_prefs();

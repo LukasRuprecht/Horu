@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import io
 import itertools
 import json
 import queue
@@ -10,10 +11,10 @@ import threading
 import time
 import traceback
 import webbrowser
-from collections import deque
+from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
+from horu import ai_setup, anki, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -26,6 +27,9 @@ _CONTEXT_LINES = 4
 # Lines OCR read with less confidence than this (even after voting) are marked as possibly
 # misread, so nobody studies a wrong character without knowing.
 _UNCERTAIN = 0.9
+# Screenshots of recent lines, kept for flashcards.
+_SCREENSHOTS_KEPT = 300
+_SCREENSHOT_MAX_WIDTH = 900
 # Streamed AI text is pushed to the page at most this often.
 _FLUSH_SECONDS = 0.05
 
@@ -107,6 +111,12 @@ class Api:
     def translate_speaker(self, game: str, text: str) -> None:
         self._app.translate_speaker(game, text)
 
+    def anki_status(self) -> dict:
+        return {**self._app.anki.status(), "deck": self._app.prefs.values["ankiDeck"]}
+
+    def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
+        return self._app.save_card(line_id, index, part)
+
     def clear(self) -> None:
         self._app.recent.clear()
         self._app.lines.clear()
@@ -120,6 +130,8 @@ class App:
         self.prefs = prefs.Prefs()
         self.corrections = corrections.Corrections()
         self.speakers = speakers.SpeakerBook()
+        self.anki = anki.AnkiClient()
+        self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
         self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
@@ -174,6 +186,55 @@ class App:
         if part == "text" and label in ("dialogue", "other"):
             line["kind"] = label
         return {"kind": line["kind"], "game": line["game"]}
+
+    # --- Anki ----------------------------------------------------------------------------
+
+    def card_for(self, line_id: int, index: int, part: str = "text") -> anki.Card:
+        """A flashcard for one word of a line, filled in from Horu's own analysis."""
+        line = self.lines[line_id]
+        word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
+        found = self.lookup(word)
+        if found["entries"]:
+            senses = found["entries"][0]["senses"][:2]
+            meaning = "; ".join(", ".join(s["gloss"][:3]) for s in senses)
+        elif found["names"]:
+            meaning = ", ".join(found["names"][0]["names"][0]["det"])
+        else:
+            meaning = ""
+        return anki.Card(
+            sentence=line["text"],
+            word=word["surface"],
+            dictionary_form=word["dictionary_form"],
+            reading=word["dictionary_reading"],
+            meaning=meaning,
+            notes=", ".join(word["grammar"]),
+            translation=line.get("translation", ""),
+            source=" · ".join(filter(None, [line["speaker"] and line["speaker"]["text"], line["game"].removesuffix(".exe"), time.strftime("%Y-%m-%d")])),
+        )
+
+    def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
+        if line_id not in self.lines:
+            return {"ok": False, "message": "That line is no longer available."}
+        card = self.card_for(line_id, index, part)
+        deck = self.prefs.values["ankiDeck"] or "Horu"
+        try:
+            self.anki.add_card(deck, card, self._screenshots.get(line_id))
+        except anki.AnkiError as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, "message": f"Added {card.dictionary_form} to {deck}."}
+
+    def _keep_screenshot(self, line_id: int, image, box: tuple[int, int, int, int]) -> None:
+        """A crop around the line (with some surrounding scene) for its flashcards."""
+        left, top, right, bottom = box
+        margin = max(40, (bottom - top))
+        crop = image.crop((max(left - margin, 0), max(top - margin, 0), min(right + margin, image.width), min(bottom + margin, image.height)))
+        if crop.width > _SCREENSHOT_MAX_WIDTH:
+            crop = crop.resize((_SCREENSHOT_MAX_WIDTH, round(crop.height * _SCREENSHOT_MAX_WIDTH / crop.width)))
+        buffer = io.BytesIO()
+        crop.save(buffer, format="PNG", optimize=True)
+        self._screenshots[line_id] = buffer.getvalue()
+        while len(self._screenshots) > _SCREENSHOTS_KEPT:
+            self._screenshots.popitem(last=False)
 
     def update_line(self, line_id: int, text: str) -> list[dict]:
         words = [w.to_dict() for w in analyze(text)]
@@ -369,16 +430,20 @@ class App:
 
         def run() -> None:
             buffer: list[str] = []
+            full: list[str] = []
             last_flush = time.monotonic()
             try:
                 for chunk in chunks:
                     buffer.append(chunk)
+                    full.append(chunk)
                     if time.monotonic() - last_flush >= _FLUSH_SECONDS:
                         self._call("aiChunk", {**meta, "text": "".join(buffer)})
                         buffer.clear()
                         last_flush = time.monotonic()
                 if buffer:
                     self._call("aiChunk", {**meta, "text": "".join(buffer)})
+                if meta.get("target") == "translation" and meta["lineId"] in self.lines:
+                    self.lines[meta["lineId"]]["translation"] = "".join(full).strip()
                 self._call("aiDone", meta)
             except llm.AIError as e:
                 self._call("aiError", {**meta, "message": str(e)})
@@ -462,8 +527,10 @@ class App:
         if not new:
             self._ready(f"Nothing new: all {len(lines)} line(s) were already shown.")
             return
-        for line in lines:
+        for line, block in zip(lines, blocks):
             self.lines[line["id"]] = line
+            if not line["repeat"]:
+                self._keep_screenshot(line["id"], image, block.box)
         self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
         self._ready()
         if self.prefs.values["autoTranslate"]:
