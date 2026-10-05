@@ -19,3 +19,6 @@ data/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Ground-truth screenshots (game screens aren't committed; their transcriptions in evals/ are)
+groundTruths/

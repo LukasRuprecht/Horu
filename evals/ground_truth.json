@@ -1,0 +1,141 @@
+{
+ "about": "Ground truth for evals/eval_ocr.py. One entry per screenshot in groundTruths/captures. 'blocks' are what Horu should show, in reading order: kind 'dialogue' (speech, narration, help/tutorial sentences) or 'other' (menu items, labels, HUD); 'speaker' only when there's a name tag; 'lines' one string per visual line on screen, as the game wraps it. 'optional' is stylised art text and button labels: reported as found or not, not scored. Width (？ vs ?) and spaces are ignored. Drafted from the screenshots; 'verified' marks screens a person has checked.",
+ "screens": [
+  {
+   "file": "capture (1).png",
+   "name": "dialogue_box_two_lines",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "speaker": "少年のような声", "lines": ["とにかく、こっちの事は心配無用だ。", "逃げ切る事だけ考えてくれ！"]}
+   ],
+   "optional": ["早送り", "オート", "ログ"]
+  },
+  {
+   "file": "capture (2).png",
+   "name": "battle_skill_menu",
+   "verified": false,
+   "blocks": [
+    {"kind": "other", "lines": ["エイガオン"]},
+    {"kind": "other", "lines": ["ブレイブザッパー"]},
+    {"kind": "dialogue", "lines": ["敵1体に呪怨属性で", "大ダメージを与える"]}
+   ],
+   "optional": ["スキルを使う", "戻る", "決定"]
+  },
+  {
+   "file": "capture (3).png",
+   "name": "battle_command_menu",
+   "verified": false,
+   "notes": "Enemy name: first character read as 贄 from the screenshot; please check.",
+   "blocks": [
+    {"kind": "other", "lines": ["贄を焼く牛面鬼"]}
+   ],
+   "optional": ["スキルを使う", "銃を構える", "アイテムを使う", "防御する", "近接武器で攻撃", "ラッシュ"]
+  },
+  {
+   "file": "capture (4).png",
+   "name": "log_view",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "lines": ["アタッシュケースはこっちで回収しとくわ。"]},
+    {"kind": "dialogue", "speaker": "謎の通信", "lines": ["…ル被、現…できず…", "…つづき、現場…機…"]},
+    {"kind": "dialogue", "speaker": "少女の声", "lines": ["ん…？　何だ？"]},
+    {"kind": "dialogue", "speaker": "少年のような声", "lines": ["とにかく、こっちの事は心配無用だ。", "逃げ切る事だけ考えてくれ！"]},
+    {"kind": "dialogue", "speaker": "黒服", "lines": ["あそこだ！"]}
+   ],
+   "optional": ["戻る", "音声再生"]
+  },
+  {
+   "file": "capture (5).png",
+   "name": "synthetic_dialogue_box",
+   "verified": false,
+   "notes": "Not a game screen: a test frame Horu's developer generated (text rendered onto a P5R background).",
+   "blocks": [
+    {"kind": "other", "lines": ["4/7火　放課後"]},
+    {"kind": "dialogue", "speaker": "順平", "lines": ["おいおい、転校初日から遅刻かよ？", "まあ、オレも人のこと言えねーけどな。"]}
+   ],
+   "optional": []
+  },
+  {
+   "file": "capture (6).png",
+   "name": "settings_menu",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "lines": ["どの設定を変更しますか？"]},
+    {"kind": "other", "lines": ["ゲームシステム設定"]},
+    {"kind": "other", "lines": ["サウンド設定"]},
+    {"kind": "other", "lines": ["グラフィック設定"]},
+    {"kind": "other", "lines": ["ディスプレイ設定"]},
+    {"kind": "other", "lines": ["キーコンフィグ設定"]}
+   ],
+   "optional": ["閉じる", "決定"]
+  },
+  {
+   "file": "capture (7).png",
+   "name": "field_action_prompt",
+   "verified": false,
+   "blocks": [
+    {"kind": "other", "lines": ["ジャンプ"]}
+   ],
+   "optional": ["メニュー", "ダッシュ"]
+  },
+  {
+   "file": "capture (8).png",
+   "name": "speech_bubble_and_legends",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "lines": ["大丈夫、誘導できる！"]}
+   ],
+   "optional": ["メニュー", "ダッシュ"]
+  },
+  {
+   "file": "capture (9).png",
+   "name": "settings_list_with_help_text",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "lines": ["日本語音声を有効にします"]},
+    {"kind": "other", "lines": ["日本語音声"]},
+    {"kind": "other", "lines": ["バイブレーション機能"]},
+    {"kind": "other", "lines": ["セリフ音声"]},
+    {"kind": "other", "lines": ["自動ページ送り"]},
+    {"kind": "other", "lines": ["アニメ字幕"]},
+    {"kind": "other", "lines": ["早送り機能の継続"]},
+    {"kind": "other", "lines": ["カーソル位置記憶"]}
+   ],
+   "optional": ["デフォルトに戻す", "変更", "戻る", "決定"]
+  },
+  {
+   "file": "capture (10).png",
+   "name": "key_config_gamepad_battle",
+   "verified": false,
+   "blocks": [
+    {"kind": "other", "lines": ["銃を構える"]},
+    {"kind": "other", "lines": ["対象選択（左）"]},
+    {"kind": "other", "lines": ["対象選択（右）"]},
+    {"kind": "other", "lines": ["戦況確認"]},
+    {"kind": "other", "lines": ["近接攻撃"]},
+    {"kind": "other", "lines": ["防御"]},
+    {"kind": "other", "lines": ["スキル"]}
+   ],
+   "optional": ["キーボード", "マウス", "ゲームパッド", "デフォルトに戻す", "変更", "戻る", "決定"]
+  },
+  {
+   "file": "capture (11).png",
+   "name": "pause_menu",
+   "verified": false,
+   "blocks": [
+    {"kind": "other", "lines": ["チュートリアルの確認"]}
+   ],
+   "optional": ["閉じる", "決定"]
+  },
+  {
+   "file": "capture (12).png",
+   "name": "tutorial_list_empty",
+   "verified": false,
+   "blocks": [
+    {"kind": "dialogue", "lines": ["どのチュートリアルを確認する？"]},
+    {"kind": "dialogue", "lines": ["確認できるチュートリアルがありません"]}
+   ],
+   "optional": ["バトル", "ダンジョン", "日常", "合体", "システム", "戻る", "決定"]
+  }
+ ]
+}
