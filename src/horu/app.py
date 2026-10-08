@@ -134,6 +134,8 @@ class App:
         self.corrections = corrections.Corrections()
         self.speakers = speakers.SpeakerBook()
         self.anki = anki.AnkiClient()
+        self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
+        self._card_worker: threading.Thread | None = None
         self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
         self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
@@ -216,10 +218,21 @@ class App:
         )
 
     def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
+        """Add one word as a card. With an AI provider, its meaning and note are written for
+        this line; otherwise the card uses the dictionary meaning."""
         if line_id not in self.lines:
             return {"ok": False, "message": "That line is no longer available."}
         card = self.card_for(line_id, index, part)
         deck = self.prefs.values["ankiDeck"] or "Horu"
+        if self._provider:
+            line = self.lines[line_id]
+            word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
+            try:
+                meaning, note = self._tutor().card_note(self._line_context(line_id), word)
+            except llm.AIError:
+                meaning, note = "", ""  # the dictionary meaning is still a good card
+            card.meaning = meaning or card.meaning
+            card.notes = "; ".join(filter(None, [note, card.notes]))
         try:
             self.anki.add_card(deck, card, self._screenshots.get(line_id))
         except anki.AnkiError as e:
@@ -240,8 +253,10 @@ class App:
             from horu import agent
 
             try:
-                summary = agent.make_cards(self, line_id, lambda step: self._call("agentStep", {**meta, "text": step}))
-                self._call("aiChunk", {**meta, "text": summary or "Done."})
+                result = agent.make_cards(self, line_id, lambda step: self._call("agentStep", {**meta, "text": step}))
+                if result.added:
+                    self._call("cardsAdded", {"lineId": line_id, "words": result.added})
+                self._call("aiChunk", {**meta, "text": result.summary or "Done."})
                 self._call("aiDone", meta)
             except llm.AIError as e:
                 self._call("aiError", {**meta, "message": str(e)})
@@ -250,6 +265,42 @@ class App:
                 self._call("aiError", {**meta, "message": f"Something went wrong: {e}"})
 
         threading.Thread(target=run, name="horu-agent", daemon=True).start()
+
+    def queue_auto_cards(self, line_ids: list[int]) -> None:
+        """Make cards for these lines in the background, one line at a time."""
+        for line_id in line_ids:
+            self._card_queue.put(line_id)
+        if self._card_worker is None or not self._card_worker.is_alive():
+            self._card_worker = threading.Thread(target=self._auto_cards, name="horu-auto-cards", daemon=True)
+            self._card_worker.start()
+
+    def _auto_cards(self) -> None:
+        from horu import agent
+
+        while True:
+            try:
+                line_id = self._card_queue.get(timeout=1)
+            except queue.Empty:
+                return  # restarted by the next capture
+            if not self._provider or line_id not in self.lines or not self.prefs.values["autoCards"]:
+                continue
+            short = self.lines[line_id]["text"][:12]
+            try:
+                result = agent.make_cards(
+                    self, line_id, lambda step: self._status("busy", f"Cards for 「{short}…」: {step}...")
+                )
+            except llm.AIError as e:
+                self._status("error", f"Automatic cards: {e}")
+                continue
+            except Exception as e:
+                traceback.print_exc()
+                self._status("error", f"Automatic cards failed: {e}")
+                continue
+            if result.added:
+                self._call("cardsAdded", {"lineId": line_id, "words": result.added})
+                self._ready(f"Added {len(result.added)} card(s): {', '.join(result.added)}.")
+            else:
+                self._ready()
 
     def _keep_screenshot(self, line_id: int, image, box: tuple[int, int, int, int]) -> None:
         """A crop around the line (with some surrounding scene) for its flashcards."""
@@ -565,6 +616,8 @@ class App:
             for line in new:
                 if line["kind"] == "dialogue":
                     self.translate(line["id"])
+        if self.prefs.values["autoCards"] and self._provider:
+            self.queue_auto_cards([line["id"] for line in new if line["kind"] == "dialogue"])
 
     def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
         speaker = None

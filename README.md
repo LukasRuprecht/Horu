@@ -73,8 +73,11 @@ there's no capture region to set up.
   learning at your level, checks which are already in your Anki deck, looks the rest up in
   Horu's dictionary, and adds them with a meaning and note that fit the scene. It needs a
   provider that supports tool use (Claude, OpenAI, or an Ollama model such as qwen3).
-- **Save to Anki** in a word's popup adds a flashcard: the line with the word in bold, its
-  reading, meaning, grammar notes, translation, and a screenshot. Needs Anki open with the
+- **Add to Anki** in a word's popup adds a flashcard: the line with the word in bold, its
+  reading, meaning, grammar notes, translation, and a screenshot. With an AI provider, the
+  meaning and a usage note are written for that line.
+- Optionally (off by default), Horu can **add cards automatically** from every capture: the
+  agent runs on each new dialogue line and adds words not already in your deck. Needs Anki open with the
   [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on; the deck is set in settings.
 - If Horu files something wrongly, use the line's **⋯** menu: treat it as dialogue or other
   text, or mark a speaker name. Corrections are remembered per game.

@@ -453,14 +453,17 @@ function openPopover(wordEl) {
   body.append(el("p", "pop-note", "Looking up..."));
   const actions = el("div", "pop-actions");
   actions.append(button("pop-action", "Explain in context", () => explainWord(line, index, part)));
-  const save = button("pop-action secondary", "Save to Anki", async () => {
+  const save = button("pop-action secondary", "Add to Anki", async () => {
     save.disabled = true;
-    save.textContent = "Saving...";
+    save.textContent = state.ai.enabled ? "Writing card..." : "Adding...";
     const result = await api().save_card(line.id, index, part);
-    save.textContent = result.ok ? "Saved" : "Save to Anki";
+    save.textContent = result.ok ? "Added" : "Add to Anki";
     save.disabled = result.ok;
     if (!result.ok) body.append(el("p", "pop-note error", result.message));
-    else horu.setStatus({ state: "ready", message: result.message });
+    else {
+      horu.setStatus({ state: "ready", message: result.message });
+      horu.cardsAdded({ lineId: line.id, words: [word.dictionary_form] });
+    }
     positionPopover(wordEl);
   });
   actions.append(save);
@@ -614,6 +617,7 @@ for (const key of Object.keys(TOGGLES)) {
 // Settings-panel checkboxes and text fields: [element, preference, default].
 const FIELDS = [
   ["#anki-deck", "ankiDeck", "Horu"],
+  ["#auto-cards", "autoCards", false],
   ["#hide-from-capture", "hideFromCapture", true],
   ["#auto-translate", "autoTranslate", false],
   ["#blur-translations", "blurTranslations", true],
@@ -972,6 +976,20 @@ window.horu = {
     if (stick) card.scrollIntoView({ block: "end" });
     // Let the highlight fade out.
     setTimeout(() => card.classList.remove("new"), 2500);
+  },
+
+  cardsAdded({ lineId, words }) {
+    const row = linesEl.querySelector(`.line[data-id="${lineId}"]`);
+    if (!row) return;
+    let tag = row.querySelector(".cards-tag");
+    if (!tag) {
+      tag = el("span", "cards-tag");
+      row.querySelector(".spacer").before(tag);
+    }
+    const all = [...new Set([...(tag.dataset.words ? tag.dataset.words.split("、") : []), ...words])];
+    tag.dataset.words = all.join("、");
+    tag.textContent = all.length === 1 ? "+1 card" : `+${all.length} cards`;
+    tag.title = `Added to Anki: ${tag.dataset.words}`;
   },
 
   agentStep(msg) {

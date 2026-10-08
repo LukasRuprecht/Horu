@@ -9,6 +9,7 @@ tool calling (Claude, OpenAI-compatible APIs, Ollama models with tool support).
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 from horu import anki
@@ -46,12 +47,19 @@ and why."""
 NUDGE = """You haven't added any cards yet. If any words are worth learning, call the add_flashcard tool now, once per word, rather than describing the calls. If none are worth adding, say so in one line."""
 
 
-def make_cards(app: App, line_id: int, on_step: Callable[[str], None]) -> str:
-    """Run the agent on one line; returns its summary. Raises llm.AIError on failure."""
+@dataclass
+class CardResult:
+    summary: str  # the agent's own account of what it did
+    added: list[str]  # dictionary forms of the cards actually added
+
+
+def make_cards(app: App, line_id: int, on_step: Callable[[str], None]) -> CardResult:
+    """Run the agent on one line. Raises llm.AIError on failure."""
     line = app.lines[line_id]
     speaker = line["speaker"]["text"] if line["speaker"] else None
     attempts: list[str] = []  # words the model tried to add, whether or not they went in
-    tools = card_tools(app, line_id, on_step, attempts)
+    added: list[str] = []
+    tools = card_tools(app, line_id, on_step, attempts, added)
     system = SYSTEM.format(level=app.prefs.values["learnerLevel"])
     task = TASK.format(line=line["text"], speaker=f" (spoken by {speaker})" if speaker else "", limit=MAX_CARDS)
     nudged = False
@@ -65,13 +73,20 @@ def make_cards(app: App, line_id: int, on_step: Callable[[str], None]) -> str:
         nudged = True
         return NUDGE
 
-    return app._provider.run_tools(system, task, tools, follow_up=follow_up)
+    summary = app._provider.run_tools(system, task, tools, follow_up=follow_up)
+    return CardResult(summary, added)
 
 
-def card_tools(app: App, line_id: int, on_step: Callable[[str], None], attempts: list[str] | None = None) -> list[Tool]:
+def card_tools(
+    app: App,
+    line_id: int,
+    on_step: Callable[[str], None],
+    attempts: list[str] | None = None,
+    added: list[str] | None = None,
+) -> list[Tool]:
     line = app.lines[line_id]
     deck = app.prefs.values["ankiDeck"] or "Horu"
-    added: list[str] = []
+    added = [] if added is None else added
     attempts = [] if attempts is None else attempts
 
     def lookup_word(args: dict) -> str:

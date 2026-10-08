@@ -65,6 +65,10 @@
       <button id="anki-check" type="button">Check connection</button>
     </div>
     <p id="anki-status" class="ai-status"></p>
+    <label class="check"><input id="auto-cards" type="checkbox"> Automatically add cards from every capture</label>
+    <p class="check-hint">Off by default. For each new dialogue line, the AI picks the words worth
+      learning at your level and adds those not already in your deck (up to 3 per line). Uses one
+      AI task per line and needs a model with tool support.</p>
     <p class="check-hint">Needs Anki open with the AnkiConnect add-on (Tools → Add-ons → Get Add-ons,
       code 2055492159). Cards use a "Horu Sentence" note type: the line with the word in bold, then
       its reading, meaning, grammar, translation, and a screenshot.</p>

@@ -6,6 +6,8 @@ follow-up questions continue the same chat.
 
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass, field
 from typing import Iterator
 
@@ -57,6 +59,14 @@ This is the speaker label shown above a line of video game dialogue: {text}
 It may be a character's name or a description such as 謎の通信 or 少年のような声. Translate it \
 into short, natural English as an English release of the game would show it: names in \
 romaji, descriptions translated. Reply with only the English."""
+
+CARD_NOTE = """\
+{context}Line from the game:
+{line}
+
+Write the back of a flashcard for 「{surface}」 as it's used in this line{analysis}.
+Reply with only this JSON:
+{{"meaning": "<a short English meaning that fits this line>", "note": "<one line on how it's used here>"}}"""
 
 EXPLAIN_WORD = """\
 {context}Current line:
@@ -113,6 +123,20 @@ class Tutor:
         else:
             chunks = self.provider.chat("", temperature=0).send(SPEAKER.format(text=text))
         return _clean_label("".join(chunks))
+
+    def card_note(self, line: Line, word: dict) -> tuple[str, str]:
+        """A meaning and usage note for one word that fit this line, for its flashcard.
+        Returns ("", "") if the reply can't be understood."""
+        prompt = CARD_NOTE.format(
+            context=line.context(), line=line.quoted(), surface=word["surface"], analysis=_word_analysis(word)
+        )
+        reply = "".join(self._chat(temperature=0).send(prompt))
+        match = re.search(r"\{.*\}", reply, re.S)
+        try:
+            data = json.loads(match.group(0)) if match else {}
+        except ValueError:
+            data = {}
+        return str(data.get("meaning", "")).strip(), str(data.get("note", "")).strip()
 
     def explain_word(self, line: Line, word: dict) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()

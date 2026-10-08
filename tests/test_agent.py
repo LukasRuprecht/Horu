@@ -190,3 +190,41 @@ def test_a_word_spanning_several_tokens_keeps_its_whole_form():
     assert add.call({"word": "逃げ切る", "meaning": "to get away", "note": ""})[0] == "Added 逃げ切る to the Horu deck."
     [(_, card, _)] = deck.added
     assert (card.word, card.dictionary_form, card.reading) == ("逃げ切る", "逃げ切る", "にげきる")
+
+
+def test_card_note_reads_the_json_even_with_extra_text():
+    from horu.tutor import Line, Tutor
+
+    class Model:
+        label = "fake"
+
+        def __init__(self, reply):
+            self.reply = reply
+
+        def chat(self, system, effort="low", history=None, temperature=None):
+            return SimpleNamespace(send=lambda text: iter([self.reply]))
+
+    word = {"surface": "心配", "dictionary_form": "心配", "grammar": []}
+    reply = 'Sure!\n{"meaning": "worry (here: no need to worry)", "note": "心配無用 = no need to worry"}'
+    assert Tutor(Model(reply), "Beginner").card_note(Line("心配無用だ。"), word) == (
+        "worry (here: no need to worry)",
+        "心配無用 = no need to worry",
+    )
+    assert Tutor(Model("I can't do JSON"), "Beginner").card_note(Line("心配無用だ。"), word) == ("", "")
+
+
+def test_make_cards_reports_the_cards_actually_added():
+    deck = FakeDeck(existing={"無用"})
+    app = fake_app(deck)
+
+    class Model:
+        def run_tools(self, system, task, tools, effort="low", max_turns=12, follow_up=None):
+            t = {tool.name: tool for tool in tools}
+            t["add_flashcard"].call({"word": "心配", "meaning": "worry", "note": ""})
+            t["add_flashcard"].call({"word": "無用", "meaning": "unnecessary", "note": ""})  # refused: in deck
+            return "Added 心配."
+
+    app._provider = Model()
+    app._line_context = lambda line_id: None
+    result = agent.make_cards(app, 1, lambda step: None)
+    assert result.added == ["心配"] and result.summary == "Added 心配."

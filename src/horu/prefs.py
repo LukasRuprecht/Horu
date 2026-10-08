@@ -30,6 +30,8 @@ DEFAULTS: dict = {
     "aiBaseUrl": "",
     "translationModel": "",  # "" = same model as explanations
     "ankiDeck": "Horu",
+    # Run the flashcard agent on every new dialogue line, adding words not yet in the deck.
+    "autoCards": False,
 }
 
 
