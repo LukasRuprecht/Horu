@@ -88,6 +88,16 @@ def test_stacked_boxes_are_not_one_row():
     assert len(merge_rows([(445, 601, 642, 689), (563, 651, 671, 702)])) == 2
 
 
+def test_spaced_out_pieces_are_read_separately():
+    from horu.text_sources.rapidocr_source import _gapped
+
+    # Zelda's 体力を　回復することができる。: one row, but a full-width space between the
+    # pieces. Reading across the gap invented a kanji there.
+    assert _gapped([(981, 378, 1944, 510), (606, 380, 909, 509)])
+    # A line the detector split into overlapping pieces is still read as one crop.
+    assert not _gapped([(100, 50, 400, 100), (390, 52, 700, 100)])
+
+
 def test_tilted_pieces_on_one_slanted_line_are_grouped():
     import numpy as np
 

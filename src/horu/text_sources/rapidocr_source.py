@@ -110,6 +110,12 @@ class RapidOcrSource:
                 merged_box = _union(group)
                 text, score = self._read_crop(_crop(pixels, merged_box))
                 if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
+                    # Pieces with a clear gap between them (a spaced-out line) lost nothing at
+                    # the seams, and reading across the gap can invent a character there
+                    # (体力を　回復 read as 体力を満回復), so their own readings are joined instead.
+                    if _gapped(group):
+                        text = "".join(p[0] for p in pieces)
+                        score = min(p[1] for p in pieces)
                     pieces = [(text, score, merged_box)]
             readings.extend(pieces)
         # Slanted lines get the same treatment, with pieces grouped along their own slant.
@@ -272,6 +278,14 @@ def group_rows(boxes: list[Box]) -> list[list[Box]]:
 def merge_rows(boxes: list[Box]) -> list[Box]:
     """Boxes on the same text row merged into one."""
     return [_union(group) for group in group_rows(boxes)]
+
+
+def _gapped(group: list[Box]) -> bool:
+    """Every piece is set apart from the next by at least a narrow space."""
+    ordered = sorted(group, key=lambda b: b[0])
+    return all(
+        b[0] - a[2] >= 0.3 * min(a[3] - a[1], b[3] - b[1]) for a, b in zip(ordered, ordered[1:])
+    )
 
 
 def _same_row(a: Box, b: Box) -> bool:
