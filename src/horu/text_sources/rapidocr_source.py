@@ -105,10 +105,10 @@ class RapidOcrSource:
         # is kept unless it's clearly less confident than reading the pieces separately
         # (merged tabs read as garbage; a merged split line reads about as well as its halves).
         for group in group_rows(straight):
-            pieces = [(*self._read_crop(_crop(pixels, b)), b) for b in group]
+            pieces = [(*self._read_box(pixels, b), b) for b in group]
             if len(group) > 1:
                 merged_box = _union(group)
-                text, score = self._read_crop(_crop(pixels, merged_box))
+                text, score = self._read_box(pixels, merged_box)
                 if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
                     # Pieces with a clear gap between them (a spaced-out line) lost nothing at
                     # the seams, and reading across the gap can invent a character there
@@ -142,6 +142,19 @@ class RapidOcrSource:
             return []
         return [np.asarray(b, dtype=np.float32) for b in detected.boxes]
 
+    def _read_box(self, pixels: np.ndarray, box: Box) -> tuple[str, float]:
+        """Read a straight line. The detector sometimes leaves a line's first character
+        outside its box (the も of もし　ニワトリ), so the line is read again with more room
+        on the left; that reading is taken only if it just adds characters at the start.
+        (Always cropping wider garbles other lines: 大ダメージ read as 大ージ.)"""
+        text, score = self._read_crop(_crop(pixels, box))
+        if not text:
+            return text, score
+        wide_text, wide_score = self._recognize(np.ascontiguousarray(_crop(pixels, box, left=0.5)))
+        if len(wide_text) > len(text) and wide_text.endswith(text) and wide_score >= score - _MERGE_TOLERANCE:
+            return wide_text, wide_score
+        return text, score
+
     def _read_crop(self, crop: np.ndarray) -> tuple[str, float]:
         """Read a line, correcting an uncertain reading by voting between models."""
         crop = np.ascontiguousarray(crop)
@@ -168,13 +181,15 @@ class RapidOcrSource:
         return vote(text, others)
 
 
-def _crop(pixels: np.ndarray, box: Box) -> np.ndarray:
-    left, top, right, bottom = box
+def _crop(pixels: np.ndarray, box: Box, left: float = 0.0) -> np.ndarray:
+    """The box with a margin; `left` widens it on the left by that fraction of its height."""
+    left_edge, top, right, bottom = box
     height = bottom - top
     pad = max(2, height // 10)
+    left = left_edge - max(pad, int(height * left))
     # Extra room on the right: detection boxes tend to stop short of a small 、 or 。 at the
     # end of a line.
-    return pixels[max(top - pad, 0) : bottom + pad, max(left - pad, 0) : right + max(pad, height // 2)]
+    return pixels[max(top - pad, 0) : bottom + pad, max(left, 0) : right + max(pad, height // 2)]
 
 
 def _voting_crop(crop: np.ndarray) -> np.ndarray:
