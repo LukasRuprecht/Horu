@@ -43,6 +43,10 @@ _WRAP_END = re.compile(r"[、。！？!?…‥」』]$")
 # A sentence broken mid-way ends on punctuation or hiragana (a particle or verb ending: に, が,
 # て); a line ending on a katakana or kanji noun is usually a complete label.
 _MID_SENTENCE_END = re.compile(r"[、。！？!?…‥」』\u3041-\u309f]$")
+# Furigana printed by the game itself: a short line of kana, much smaller than the line it
+# sits on top of. Horu adds its own readings, so these are dropped.
+_KANA_ONLY = re.compile(r"[\u3041-\u3096\u30a1-\u30faー・]+")
+_FURIGANA_MAX_SIZE = 0.75  # of the annotated line's height
 _MIN_BLOCK_CHARS = 2
 _LONG_TEXT_CHARS = 12  # longer than any button label or menu item
 _SENTENCE_FINAL_PARTICLES = {"か", "よ", "ね", "な", "ぞ", "ぜ", "わ", "さ", "の", "かな", "よね"}
@@ -142,6 +146,8 @@ def group_blocks(
     if styles is None:
         styles = [line_style(image, l.box) if image is not None else None for l in lines]
     kept = [(l, st) for l, st in zip(lines, styles) if is_japanese(l.text)]
+    # Game-drawn furigana would otherwise be read as speakers or lines of their own.
+    kept = [(l, st) for l, st in kept if not _is_furigana(l, [o for o, _ in kept])]
     lines = [l for l, _ in kept]
     styles = {i: st for i, (_, st) in enumerate(kept) if st is not None}
     order = sorted(range(len(lines)), key=lambda i: (lines[i].box[1], lines[i].box[0]))
@@ -286,13 +292,57 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
     # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
     # the same left edge (or is centred).
     right_aligned_list = abs(right - p_right) <= 0.5 * p_height and abs(left - p_left) > p_height
+    # The same goes for indented lines: a wrapped line starts where the one above did, or both
+    # are centred. Choices indented under a question are separate items.
+    aligned = abs(left - p_left) <= p_height or abs((left + right) - (p_left + p_right)) / 2 <= p_height
     # Text wraps when a line is full, so the next line doesn't run far past it, unless the
     # first line broke mid-sentence. A label followed by a longer line is two list items
     # (e.g. skill names in a battle menu).
     runs_past = right - p_right > p_height
     ends_like_label = not _MID_SENTENCE_END.search(prev.text.strip())
     two_items = runs_past and ends_like_label
-    return similar_size and close_below and overlaps and wraps and not right_aligned_list and not two_items
+    return (
+        similar_size
+        and close_below
+        and overlaps
+        and wraps
+        and aligned
+        and not right_aligned_list
+        and not two_items
+        and not _ends_complete_without_punctuation(prev.text)
+    )
+
+
+def _ends_complete_without_punctuation(text: str) -> bool:
+    """A line ending in a plain (dictionary-form) verb or adjective with no punctuation is a
+    finished phrase, typically a menu choice (ヒント映像を見る), not a sentence that wraps."""
+    if _WRAP_END.search(text.strip()):
+        return False
+    from horu.nlp.words import tokenize
+
+    content = [t for t in tokenize(text) if t.pos1 not in ("補助記号", "記号", "空白")]
+    if not content:
+        return False
+    last = content[-1]
+    return last.pos1 in ("動詞", "形容詞") and last.c_form.startswith("終止形")
+
+
+def _is_furigana(line: TextLine, lines: list[TextLine]) -> bool:
+    text = line.text.replace(" ", "").replace("\u3000", "")
+    if not _KANA_ONLY.fullmatch(text):
+        return False
+    left, top, right, bottom = line.box
+    height = bottom - top
+    center = (left + right) / 2
+    for other in lines:
+        if other is line:
+            continue
+        o_left, o_top, o_right, o_bottom = other.box
+        smaller = height <= _FURIGANA_MAX_SIZE * (o_bottom - o_top)
+        just_above = -0.6 * height <= o_top - bottom <= 0.6 * height
+        if smaller and just_above and o_left <= center <= o_right:
+            return True
+    return False
 
 
 def _height(line: TextLine) -> int:

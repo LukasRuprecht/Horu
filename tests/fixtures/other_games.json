@@ -1,0 +1,133 @@
+{
+ "about": "Screens from other games, for rules that must hold beyond Persona: OCR'd lines with measured text styles, and the expected blocks. Screenshots aren't committed.",
+ "screens": [
+  {
+   "name": "zelda_question_with_game_furigana",
+   "size": [
+    2359,
+    1434
+   ],
+   "lines": [
+    {
+     "text": "シーカーストーンに道をたずねますか？",
+     "box": [
+      394,
+      977,
+      2123,
+      1097
+     ],
+     "style": {
+      "ink": [
+       157,
+       158,
+       159
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ヒント映像を見る",
+     "box": [
+      575,
+      1134,
+      1313,
+      1245
+     ],
+     "style": {
+      "ink": [
+       48,
+       167,
+       56
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "自分で考える",
+     "box": [
+      580,
+      1280,
+      1152,
+      1398
+     ],
+     "style": {
+      "ink": [
+       46,
+       160,
+       54
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "じぶんかんか",
+     "box": [
+      592,
+      1225,
+      1003,
+      1301
+     ],
+     "style": {
+      "ink": [
+       33,
+       101,
+       41
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "えいぞう",
+     "box": [
+      829,
+      1079,
+      1040,
+      1146
+     ],
+     "style": {
+      "ink": [
+       33,
+       96,
+       40
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "みち",
+     "box": [
+      1272,
+      930,
+      1388,
+      994
+     ],
+     "style": {
+      "ink": [
+       115,
+       116,
+       121
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "シーカーストーンに道をたずねますか？"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ヒント映像を見る"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "自分で考える"
+    }
+   ]
+  }
+ ]
+}

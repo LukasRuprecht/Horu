@@ -13,11 +13,15 @@ import pytest
 from horu.layout import Style, group_blocks
 from horu.text_sources.base import TextLine
 
-SCREENS = json.loads((Path(__file__).parent / "fixtures" / "p5r_screens.json").read_text(encoding="utf-8"))["screens"]
+SCREENS = [
+    screen
+    for fixture in sorted((Path(__file__).parent / "fixtures").glob("*.json"))
+    for screen in json.loads(fixture.read_text(encoding="utf-8"))["screens"]
+]
 
 
 @pytest.mark.parametrize("screen", SCREENS, ids=[s["name"] for s in SCREENS])
-def test_p5r_screen(screen):
+def test_game_screen(screen):
     lines = [TextLine(l["text"], tuple(l["box"])) for l in screen["lines"]]
     styles = [None if l["style"] is None else Style(tuple(l["style"]["ink"]), l["style"]["light_on_dark"]) for l in screen["lines"]]
     blocks = group_blocks(lines, styles=styles)
