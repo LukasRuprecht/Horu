@@ -117,3 +117,23 @@ def test_tilted_pieces_on_one_slanted_line_are_grouped():
     assert sorted(len(g) for g in groups) == [1, 2]
     merged = _enclosing_quad(next(g for g in groups if len(g) == 2))
     assert abs(_tilt(merged) - -10) < 1
+
+
+def test_centred_dialogue_with_uneven_lines_is_one_block():
+    # Zelda's owl: centred lines of any length, the first short and the last running past.
+    owl = [
+        line("よくきたなLuke", 856, 900, 1596, 1020),
+        line("ここが聖なる山", 934, 1034, 1610, 1155),
+        line("デスマウンテンの山頂じゃ。", 754, 1170, 1745, 1292),
+    ]
+    [block] = group_blocks(owl)
+    assert block.kind == "dialogue" and len(block.lines) == 3
+    # A centred menu doesn't end in sentence punctuation, so its items stay apart.
+    menu = [line("はじめから", 900, 600, 1100, 660), line("つづきから", 900, 670, 1100, 730)]
+    assert len(group_blocks(menu)) == 2
+
+
+def test_a_short_name_after_a_wide_space_is_on_the_same_row():
+    assert merge_rows([(856, 900, 1380, 1020), (1445, 924, 1596, 1000)]) == [(856, 900, 1596, 1020)]
+    # A button beside a small label is not.
+    assert len(merge_rows([(739, 165, 854, 192), (876, 158, 952, 205)])) == 2

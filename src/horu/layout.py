@@ -175,6 +175,7 @@ def group_blocks(
                 break
         else:
             groups.append({"speaker": None, "lines": [i]})
+    _join_centred(groups, lines)
 
     blocks = []
     for group in groups:
@@ -311,6 +312,37 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
         and not two_items
         and not _ends_complete_without_punctuation(prev.text)
     )
+
+
+def _join_centred(groups: list[dict], lines: list[TextLine]) -> None:
+    """Join centred text that wraps unevenly. In a centred dialogue box lines can be any
+    length (よく　きたな　Luke。／ここが　聖なる山／デスマウンテンの山頂じゃ。), which the
+    left-aligned wrap rules read as separate labels. A tight centred stack is one block when it
+    ends in sentence punctuation; centred menus (はじめから／つづきから) don't."""
+    for k in range(len(groups) - 1, 0, -1):
+        later = groups[k]
+        if later.get("legend") or later["speaker"] is not None or not later["lines"]:
+            continue
+        if not _WRAP_END.search(lines[later["lines"][-1]].text.strip()):
+            continue
+        first = lines[later["lines"][0]]
+        for earlier in groups[:k]:
+            if earlier.get("legend") or not earlier["lines"]:
+                continue
+            if _centred_below(lines[earlier["lines"][-1]], first):
+                earlier["lines"].extend(later["lines"])
+                del groups[k]
+                break
+
+
+def _centred_below(prev: TextLine, line: TextLine) -> bool:
+    p_left, p_top, p_right, p_bottom = prev.box
+    left, top, right, bottom = line.box
+    p_height, height = p_bottom - p_top, bottom - top
+    similar_size = max(p_height, height) <= 1.5 * min(p_height, height)
+    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height)
+    centred = abs((left + right) - (p_left + p_right)) / 2 <= 0.5 * p_height
+    return similar_size and close_below and centred
 
 
 def _ends_complete_without_punctuation(text: str) -> bool:

@@ -109,13 +109,17 @@ class RapidOcrSource:
             if len(group) > 1:
                 merged_box = _union(group)
                 text, score = self._read_box(pixels, merged_box)
-                if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
+                confident = score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE
+                if _gapped(group):
                     # Pieces with a clear gap between them (a spaced-out line) lost nothing at
                     # the seams, and reading across the gap can invent a character there
                     # (体力を　回復 read as 体力を満回復), so their own readings are joined instead.
-                    if _gapped(group):
-                        text = "".join(p[0] for p in pieces)
-                        score = min(p[1] for p in pieces)
+                    # A merged reading identical to the joined pieces also confirms they are
+                    # one line, even if a little less confident (よく　きたな　Luke).
+                    joined = "".join(p[0] for p in pieces)
+                    if confident or text.replace(" ", "") == joined.replace(" ", ""):
+                        pieces = [(joined, min(p[1] for p in pieces), merged_box)]
+                elif confident:
                     pieces = [(text, score, merged_box)]
             readings.extend(pieces)
         # Slanted lines get the same treatment, with pieces grouped along their own slant.
@@ -311,4 +315,8 @@ def _same_row(a: Box, b: Box) -> bool:
     # (a label under a heading), not pieces of the same line.
     narrower = min(a[2] - a[0], b[2] - b[0])
     stacked = -gap > 0.5 * narrower
-    return vertical_overlap >= 0.6 * height and gap <= 0.8 * height and not stacked
+    # A space is as wide as the text before it, so the allowed gap is measured against the
+    # left box: a short Latin name set a wide space after large Japanese text (よく　きたな
+    # Luke) is on the same line, a button beside a small label (日本語音声　ON) is not.
+    before = a if a[0] <= b[0] else b
+    return vertical_overlap >= 0.6 * height and gap <= 0.8 * max(height, before[3] - before[1]) and not stacked
