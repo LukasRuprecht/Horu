@@ -61,6 +61,7 @@ _AUXILIARY_NOTES = {
     "う": "volitional 〜う",
     "よう": "volitional 〜よう",
     "ぬ": "negative 〜ん",
+    "ず": "negative 〜ん",  # ならん, せん: UniDic files the 〜ん of old-style negatives under ず
     "ない": "negative 〜ない",
 }
 
@@ -103,7 +104,18 @@ class Word:
         return segments
 
     @property
+    def _prefix(self) -> Token | None:
+        """The prefix of a prefixed word (the お of おやしき), if any."""
+        first = self.tokens[0]
+        return first if first.pos1 == "接頭辞" and len(self.tokens) > 1 else None
+
+    @property
     def dictionary_form(self) -> str:
+        prefix = self._prefix
+        if prefix:
+            head = self.tokens[1]
+            # お + 待ち is the noun お待ち, so a verb stem stays as written.
+            return prefix.surface + (head.surface if head.pos1 == "動詞" else head.base or head.surface)
         head = self.tokens[0]
         if self.pos == "verb" and head.pos1 == "名詞":  # 勉強 + する
             return head.surface + "する"
@@ -113,6 +125,10 @@ class Word:
 
     @property
     def dictionary_reading(self) -> str:
+        prefix = self._prefix
+        if prefix:
+            head = self.tokens[1]
+            return to_hiragana(prefix.reading + (head.reading if head.pos1 == "動詞" else head.base_reading))
         head = self.tokens[0]
         if self.pos == "verb" and head.pos1 == "名詞":
             return to_hiragana(head.reading) + "する"
@@ -121,6 +137,14 @@ class Word:
     @property
     def lookup_forms(self) -> list[str]:
         """Forms to try in the dictionary, best first."""
+        prefix = self._prefix
+        if prefix:
+            # The whole word if the dictionary has it (おいで, お茶), else the word without
+            # its prefix (屋敷 for おやしき).
+            head = self.tokens[1]
+            whole = [self.dictionary_form, prefix.surface + _strip_origin(head.lemma)]
+            alone = [head.base or head.surface, _strip_origin(head.lemma), head.surface]
+            return list(dict.fromkeys(f for f in whole + alone if f))
         head = self.tokens[0]
         forms = [self.dictionary_form, _strip_origin(head.lemma), head.surface]
         return list(dict.fromkeys(f for f in forms if f))
@@ -135,7 +159,7 @@ class Word:
             "dictionary_form": self.dictionary_form,
             "dictionary_reading": self.dictionary_reading,
             "lookup_forms": self.lookup_forms,
-            "lemma": _strip_origin(self.tokens[0].lemma),
+            "lemma": self.dictionary_form if self._prefix else _strip_origin(self.tokens[0].lemma),
         }
 
 
@@ -171,6 +195,12 @@ def analyze(text: str) -> list[Word]:
     words: list[Word] = []
     for token in tokenize(text):
         if words and _attach(words[-1], token):
+            continue
+        if words and _takes_prefix(words[-1], token):
+            # お + やしき, ご + 飯, お + いで: the prefix belongs to the word after it.
+            prefixed = words[-1]
+            prefixed.tokens.append(token)
+            prefixed.pos = "noun" if token.pos1 == "動詞" else _pos_label(token)
             continue
         word = Word([token], _pos_label(token))
         if _is_potential(token):
@@ -236,6 +266,15 @@ def _attach(word: Word, token: Token) -> bool:
         return True
 
     return False
+
+
+def _takes_prefix(word: Word, token: Token) -> bool:
+    """A lone prefix followed by a noun, na-adjective or verb stem (お待ち, おいで)."""
+    if len(word.tokens) != 1 or word.tokens[0].pos1 != "接頭辞":
+        return False
+    if token.pos1 == "動詞":
+        return token.c_form.startswith("連用形")
+    return token.pos1 in ("名詞", "形状詞")
 
 
 def _note_auxiliary(word: Word, token: Token) -> None:

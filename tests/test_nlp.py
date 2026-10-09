@@ -38,6 +38,17 @@ def test_particles_and_copula_after_nouns_stay_separate():
     assert [w.pos for w in analyze("学生です")] == ["noun", "auxiliary"]
 
 
+def test_prefixes_join_the_word_after_them():
+    words = analyze("インパ様のおやしきはここだが今はおいでにはならん。")
+    surfaces = [w.surface for w in words]
+    assert "おやしき" in surfaces and "おいで" in surfaces and "ならん" in surfaces
+    yashiki, oide, naran = (words[surfaces.index(s)].to_dict() for s in ("おやしき", "おいで", "ならん"))
+    # Looked up whole first, then without the prefix (JMdict has お出で but no お屋敷).
+    assert yashiki["lookup_forms"][:2] == ["おやしき", "お屋敷"] and "屋敷" in yashiki["lookup_forms"]
+    assert oide["pos"] == "noun" and oide["dictionary_form"] == "おいで"
+    assert naran["grammar"] == ["negative 〜ん"]
+
+
 def test_furigana_only_over_kanji():
     assert furigana("行った", "イッタ") == [("行", "い"), ("った", None)]
     assert furigana("取り扱い", "とりあつかい") == [("取", "と"), ("り", None), ("扱", "あつか"), ("い", None)]
