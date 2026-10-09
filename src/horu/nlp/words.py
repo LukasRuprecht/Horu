@@ -8,10 +8,11 @@ grammar note ("conditional 〜たら", "polite 〜ます", ...).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from horu.nlp.kana import Segment, furigana, to_hiragana
+from horu.nlp.kana import Segment, furigana, to_hiragana, unstretched
 
 # UniDic part of speech -> simple label used by the UI (and for colouring).
 _POS = {
@@ -87,6 +88,8 @@ class Word:
     tokens: list[Token]
     pos: str
     grammar: list[str] = field(default_factory=list)
+    # The dictionary spelling of pieces joined back into one word (ねー + ちゃん -> ねえちゃん).
+    joined: str = ""
 
     @property
     def surface(self) -> str:
@@ -111,6 +114,8 @@ class Word:
 
     @property
     def dictionary_form(self) -> str:
+        if self.joined:
+            return self.joined
         prefix = self._prefix
         if prefix:
             head = self.tokens[1]
@@ -125,6 +130,8 @@ class Word:
 
     @property
     def dictionary_reading(self) -> str:
+        if self.joined:
+            return self.joined
         prefix = self._prefix
         if prefix:
             head = self.tokens[1]
@@ -137,6 +144,8 @@ class Word:
     @property
     def lookup_forms(self) -> list[str]:
         """Forms to try in the dictionary, best first."""
+        if self.joined:
+            return [self.joined]
         prefix = self._prefix
         if prefix:
             # The whole word if the dictionary has it (おいで, お茶), else the word without
@@ -147,6 +156,8 @@ class Word:
             return list(dict.fromkeys(f for f in whole + alone if f))
         head = self.tokens[0]
         forms = [self.dictionary_form, _strip_origin(head.lemma), head.surface]
+        # Casual stretched spellings: そー is looked up as そう, すごーい as すごい.
+        forms += [v for f in forms for v in unstretched(f)]
         return list(dict.fromkeys(f for f in forms if f))
 
     def to_dict(self) -> dict:
@@ -159,7 +170,7 @@ class Word:
             "dictionary_form": self.dictionary_form,
             "dictionary_reading": self.dictionary_reading,
             "lookup_forms": self.lookup_forms,
-            "lemma": self.dictionary_form if self._prefix else _strip_origin(self.tokens[0].lemma),
+            "lemma": self.dictionary_form if self._prefix or self.joined else _strip_origin(self.tokens[0].lemma),
         }
 
 
@@ -191,7 +202,9 @@ def tokenize(text: str) -> list[Token]:
     return tokens
 
 
-def analyze(text: str) -> list[Word]:
+def analyze(text: str, known: Callable[[str], bool] | None = None) -> list[Word]:
+    """Words of `text`. `known` says whether the dictionary has a spelling; with it, casual
+    stretched words the tokenizer splits up (ねー + ちゃん) are joined back together."""
     words: list[Word] = []
     for token in tokenize(text):
         if words and _attach(words[-1], token):
@@ -210,7 +223,35 @@ def analyze(text: str) -> list[Word]:
         # A bare 〜く adjective (安く in 安くなる) is the adverb form.
         if word.pos == "adjective" and len(word.tokens) == 1 and word.tokens[0].c_form.startswith("連用形"):
             word.grammar.append("adverb form 〜く")
-    return words
+    return _join_stretched(words, known) if known else words
+
+
+def _join_stretched(words: list[Word], known: Callable[[str], bool]) -> list[Word]:
+    """Join a word split at a stretched ー when, spelled out, the two halves make a dictionary
+    word: ねー + ちゃん is ねえちゃん (姉ちゃん), ありがと + ー is ありがとう. Particles and
+    auxiliaries stay separate (そー + だ + ね is そう + だ + ね, not the phrase そうだね)."""
+    out: list[Word] = []
+    i = 0
+    while i < len(words):
+        pair = words[i : i + 2]
+        text = "".join(w.surface for w in pair)
+        joinable = (
+            len(pair) == 2
+            and "ー" in text
+            and pair[0].pos not in ("symbol", "particle", "auxiliary")
+            and pair[1].pos not in ("particle", "auxiliary")
+            and (pair[1].pos != "symbol" or pair[1].surface == "ー")
+        )
+        spelled = next((v for v in unstretched(text) if known(v)), None) if joinable else None
+        if spelled:
+            tokens = pair[0].tokens + pair[1].tokens
+            pos = "noun" if tokens[-1].pos1 in ("名詞", "接尾辞") else pair[0].pos
+            out.append(Word(tokens, pos, pair[0].grammar + pair[1].grammar, joined=spelled))
+            i += 2
+        else:
+            out.append(words[i])
+            i += 1
+    return out
 
 
 def _attach(word: Word, token: Token) -> bool:

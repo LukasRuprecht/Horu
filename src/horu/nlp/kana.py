@@ -35,3 +35,32 @@ def furigana(surface: str, reading: str) -> list[Segment]:
         # Reading and spelling don't line up (irregular or OCR-garbled): annotate the whole word.
         return [(surface, reading)]
     return [(run, part if _KANJI_RUN.fullmatch(run) else None) for run, part in zip(runs, match.groups())]
+
+
+# The vowel each hiragana ends in, for spelling out a stretched ー.
+_VOWEL_ROWS = {
+    "あ": "あかさたなはまやらわがざだばぱぁゃゎ",
+    "い": "いきしちにひみりぎじぢびぴぃ",
+    "う": "うくすつぬふむゆるぐずづぶぷぅゅ",
+    "え": "えけせてねへめれげぜでべぺぇ",
+    "お": "おこそとのほもよろをごぞどぼぽぉょ",
+}
+_VOWEL = {kana: vowel for vowel, row in _VOWEL_ROWS.items() for kana in row}
+# A long o is usually written う (ありがとう, そう), a long e sometimes い (せんせい).
+_LONG = {"お": "うお", "え": "えい"}
+
+
+def unstretched(text: str) -> list[str]:
+    """Dictionary spellings of casual text with ー after hiragana: ねー -> ねえ, そー -> そう,
+    すごーい -> すごい. Empty when there is nothing to undo."""
+    if not re.search(r"[ぁ-ゖ]ー", text):
+        return []  # katakana words (コーヒー) are spelled with ー
+    variants = [""]
+    for i, c in enumerate(text):
+        vowel = _VOWEL.get(text[i - 1]) if c == "ー" and i else None
+        if vowel is None:
+            variants = [v + c for v in variants]
+        else:
+            variants = [v + long for v in variants for long in _LONG.get(vowel, vowel)]
+    dropped = re.sub(r"(?<=[ぁ-ゖ])ー", "", text)
+    return list(dict.fromkeys([*variants, dropped]))

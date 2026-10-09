@@ -315,8 +315,14 @@ class App:
         while len(self._screenshots) > _SCREENSHOTS_KEPT:
             self._screenshots.popitem(last=False)
 
+    def _words(self, text: str) -> list[dict]:
+        """The words of a line, for the UI. With the dictionary loaded, casual spellings the
+        tokenizer splits (ねー + ちゃん) are joined back into words it knows."""
+        known = self._dictionary.has_form if self._dictionary else None
+        return [w.to_dict() for w in analyze(text, known)]
+
     def update_line(self, line_id: int, text: str) -> list[dict]:
-        words = [w.to_dict() for w in analyze(text)]
+        words = self._words(text)
         if line_id in self.lines:
             self.lines[line_id].update(text=text, words=words)
         return words
@@ -622,7 +628,7 @@ class App:
     def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
         speaker = None
         if block.speaker:
-            speaker = {"text": block.speaker, "words": [w.to_dict() for w in analyze(block.speaker)]}
+            speaker = {"text": block.speaker, "words": self._words(block.speaker)}
         return {
             "id": next(self._ids),
             "speaker": speaker,
@@ -632,7 +638,7 @@ class App:
             # OCR's confidence in its weakest line (speaker included): below this, the line may
             # be misread.
             "uncertain": min(block.speaker_score, *(l.score for l in block.lines)) < _UNCERTAIN,
-            "words": [w.to_dict() for w in analyze(block.text)],
+            "words": self._words(block.text),
         }
 
     # --- talking to the page ---------------------------------------------------------

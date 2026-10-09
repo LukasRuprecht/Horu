@@ -209,6 +209,10 @@ class Dictionary:
             for e in best
         ]
 
+    def has_form(self, form: str) -> bool:
+        """Whether some JMdict entry is spelled or read `form`."""
+        return self._db.execute("SELECT 1 FROM forms WHERE form = ? LIMIT 1", (form,)).fetchone() is not None
+
     def lookup(self, word: dict, limit: int = 3) -> list[dict]:
         """Best JMdict entries for a word from `horu.nlp.Word.to_dict()`."""
         scored: dict[int, tuple[float, dict]] = {}
