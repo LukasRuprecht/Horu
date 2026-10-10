@@ -392,7 +392,7 @@
         {
             "file": "capture (13).png",
             "name": "zelda_game_furigana_spaced",
-            "verified": false,
+            "verified": true,
             "notes": "Game furigana over 寝/休/体力/回復 must be dropped; the gap in 体力を　回復 once read as 満.",
             "blocks": [
                 {
@@ -409,7 +409,7 @@
         {
             "file": "capture (14).png",
             "name": "zelda_clipped_first_char",
-            "verified": false,
+            "verified": true,
             "notes": "The detector box starts after も.",
             "blocks": [
                 {
@@ -426,7 +426,7 @@
         {
             "file": "capture (15).png",
             "name": "zelda_centred_owl_name",
-            "verified": false,
+            "verified": true,
             "notes": "Centred lines of uneven length; player name after a wide space.",
             "blocks": [
                 {
@@ -443,7 +443,7 @@
         {
             "file": "capture (16).png",
             "name": "zelda_small_tsu_spaced",
-            "verified": false,
+            "verified": true,
             "notes": "うっかり read alone as うつかり.",
             "blocks": [
                 {
@@ -460,7 +460,7 @@
         {
             "file": "capture (17).png",
             "name": "zelda_small_window_owl",
-            "verified": false,
+            "verified": true,
             "notes": "887x640 window. つかまり once read as つまり.",
             "blocks": [
                 {
@@ -477,7 +477,7 @@
         {
             "file": "capture (18).png",
             "name": "zelda_item_screen_tabs",
-            "verified": false,
+            "verified": true,
             "notes": "720x480 3DS bottom screen; tabs side by side. マップ read as マツプ.",
             "blocks": [
                 {
@@ -506,7 +506,7 @@
         {
             "file": "capture (19).png",
             "name": "zelda_baby_talk",
-            "verified": false,
+            "verified": true,
             "blocks": [
                 {
                     "kind": "dialogue",
@@ -522,7 +522,7 @@
         {
             "file": "capture (20).png",
             "name": "zelda_small_window_small_o",
-            "verified": false,
+            "verified": true,
             "notes": "Small ぉ read as お.",
             "blocks": [
                 {
@@ -539,7 +539,7 @@
         {
             "file": "capture (21).png",
             "name": "zelda_dialect_small_vowels",
-            "verified": false,
+            "verified": true,
             "notes": "Small ぇ and ぃ; ぃ read as い.",
             "blocks": [
                 {
@@ -554,7 +554,7 @@
         {
             "file": "capture (22).png",
             "name": "zelda_small_window_spaced",
-            "verified": false,
+            "verified": true,
             "notes": "Short spaced lines in a small window; 月に… was lost.",
             "blocks": [
                 {
