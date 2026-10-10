@@ -6,6 +6,7 @@ Detection finds every line on screen, so no capture region is needed.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 import cv2
 import numpy as np
@@ -101,7 +102,7 @@ class RapidOcrSource:
         straight = [_box(q) for q in quads if abs(_tilt(q)) <= _MAX_STRAIGHT_TILT]
         tilted = [q for q in quads if abs(_tilt(q)) > _MAX_STRAIGHT_TILT]
 
-        readings: list[tuple[str, float, Box]] = []
+        readings: list[tuple[str, float, list[str], Box]] = []
         # The detector sometimes splits one line into overlapping pieces (often at 、),
         # clipping characters at the seams, so pieces on the same row are read as one line.
         # But side-by-side items (tabs, menu entries) also sit on one row: the merged reading
@@ -111,7 +112,7 @@ class RapidOcrSource:
             pieces = [(*self._read_box(pixels, b), b) for b in group]
             if len(group) > 1:
                 merged_box = _union(group)
-                text, score = self._read_box(pixels, merged_box)
+                text, score, alternatives = self._read_box(pixels, merged_box)
                 confident = score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE
                 if _gapped(group):
                     # Pieces with a clear gap between them (a spaced-out line) lost nothing at
@@ -123,25 +124,27 @@ class RapidOcrSource:
                     if confident or text.replace(" ", "") == joined.replace(" ", ""):
                         # But a kana's size is only clear beside the rest of the line (うっかり
                         # read alone is うつかり), so sizes come from the merged reading.
-                        pieces = [(take_kana_sizes(joined, text), min(p[1] for p in pieces), merged_box)]
+                        sized = take_kana_sizes(joined, text)
+                        pieces = [(sized, min(p[1] for p in pieces), [joined, *_joined_alternatives(pieces)], merged_box)]
                 elif confident:
-                    pieces = [(text, score, merged_box)]
+                    pieces = [(text, score, alternatives, merged_box)]
             readings.extend(pieces)
         # Slanted lines get the same treatment, with pieces grouped along their own slant.
         for group in _group_tilted(tilted):
             pieces = [(*self._read_crop(_straighten(pixels, q)), _box(q)) for q in group]
             if len(group) > 1:
                 merged = _enclosing_quad(group)
-                text, score = self._read_crop(_straighten(pixels, merged))
+                text, score, alternatives = self._read_crop(_straighten(pixels, merged))
                 if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
-                    pieces = [(text, score, _box(merged))]
+                    pieces = [(text, score, alternatives, _box(merged))]
             readings.extend(pieces)
 
         lines = []
-        for text, score, box in readings:
+        for text, score, alternatives, box in readings:
             if text and score >= self._min_score:
                 left, top, right, bottom = (round(v / scale) for v in box)
-                lines.append(TextLine(text, (left, top, right, bottom), score))
+                others = tuple(dict.fromkeys(a for a in alternatives if a and _plain(a) != _plain(text)))
+                lines.append(TextLine(text, (left, top, right, bottom), score, others))
         return lines
 
     def _detect(self, pixels: np.ndarray) -> list[np.ndarray]:
@@ -151,26 +154,29 @@ class RapidOcrSource:
             return []
         return [np.asarray(b, dtype=np.float32) for b in detected.boxes]
 
-    def _read_box(self, pixels: np.ndarray, box: Box) -> tuple[str, float]:
+    def _read_box(self, pixels: np.ndarray, box: Box) -> tuple[str, float, list[str]]:
         """Read a straight line. The detector sometimes leaves a line's first character
         outside its box (the も of もし　ニワトリ), so the line is read again with more room
         on the left; that reading is taken only if it just adds characters at the start.
         (Always cropping wider garbles other lines: 大ダメージ read as 大ージ.)"""
-        text, score = self._read_crop(_crop(pixels, box))
+        text, score, alternatives = self._read_crop(_crop(pixels, box))
         if not text:
-            return text, score
+            return text, score, alternatives
         wide_text, wide_score = self._recognize(np.ascontiguousarray(_crop(pixels, box, left=0.5)))
         if len(wide_text) > len(text) and wide_text.endswith(text) and wide_score >= score - _MERGE_TOLERANCE:
-            return wide_text, wide_score
-        return text, score
+            added = wide_text[: len(wide_text) - len(text)]
+            return wide_text, wide_score, [added + a for a in alternatives]
+        return text, score, alternatives
 
-    def _read_crop(self, crop: np.ndarray) -> tuple[str, float]:
-        """Read a line, correcting an uncertain reading by voting between models."""
+    def _read_crop(self, crop: np.ndarray) -> tuple[str, float, list[str]]:
+        """Read a line, correcting an uncertain reading by voting between models. Also returns
+        the readings that disagreed with the result."""
         crop = np.ascontiguousarray(crop)
         text, score = self._recognize(crop)
         if self._voters and text and (score < _VOTE_BELOW or _SMALL_KANA_DOUBT.search(text)):
-            text = self._vote(crop, text)
-        return text, score
+            voted, others = self._vote(crop, text)
+            return voted, score, [r for r in (text, *others) if r != voted]
+        return text, score, []
 
     def _recognize(self, crop: np.ndarray, engine=None) -> tuple[str, float]:
         result = (engine or self._engine)(crop, use_det=False, use_cls=False, use_rec=True)
@@ -178,8 +184,9 @@ class RapidOcrSource:
             return "", 0.0
         return fix_misreads("".join(result.txts)), float(min(result.scores))
 
-    def _vote(self, crop: np.ndarray, text: str) -> str:
-        """Correct an uncertain reading where the other models agree on a change."""
+    def _vote(self, crop: np.ndarray, text: str) -> tuple[str, list[str]]:
+        """Correct an uncertain reading where the other models agree on a change. Returns the
+        result and the other models' readings (those close enough to count)."""
         others = []
         crop = _voting_crop(crop)
         for engine in self._voters:
@@ -187,7 +194,13 @@ class RapidOcrSource:
             # A reading far from this one is a different guess, not a correction: it abstains.
             close = edit_distance(other, text) <= max(2, len(text) * 0.4)
             others.append(other if close else text)
-        return vote(text, others)
+        return vote(text, others), others
+
+
+def _joined_alternatives(pieces: list[tuple[str, float, list[str], Box]]) -> list[str]:
+    """The joined line with one piece swapped for each of its alternative readings."""
+    texts = [p[0] for p in pieces]
+    return ["".join(texts[:i] + [alt] + texts[i + 1 :]) for i, p in enumerate(pieces) for alt in p[2]]
 
 
 def _crop(pixels: np.ndarray, box: Box, left: float = 0.0) -> np.ndarray:
@@ -325,3 +338,8 @@ def _same_row(a: Box, b: Box) -> bool:
     # Luke) is on the same line, a button beside a small label (日本語音声　ON) is not.
     before = a if a[0] <= b[0] else b
     return vertical_overlap >= 0.6 * height and gap <= 0.8 * max(height, before[3] - before[1]) and not stacked
+
+
+def _plain(text: str) -> str:
+    """Text without spacing or width differences (！ vs !), which don't change what it says."""
+    return re.sub(r"\s", "", unicodedata.normalize("NFKC", text))

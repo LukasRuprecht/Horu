@@ -508,7 +508,7 @@ class App:
         if line["speaker"]:
             earlier = [l for i, l in self.lines.items() if i < line_id and l["speaker"] and not l["repeat"]]
             previous = [Line(l["text"], _speaker_text(l)).quoted() for l in earlier[-_CONTEXT_LINES:]]
-        return Line(line["text"], _speaker_text(line), previous)
+        return Line(line["text"], _speaker_text(line), previous, line.get("alternatives", []))
 
     def _stream(self, meta: dict, chunks) -> None:
         """Push an AI reply to the page as it arrives, on a background thread."""
@@ -636,8 +636,10 @@ class App:
             "text": block.text,
             "kind": block.kind,
             # OCR's confidence in its weakest line (speaker included): below this, the line may
-            # be misread.
-            "uncertain": min(block.speaker_score, *(l.score for l in block.lines)) < _UNCERTAIN,
+            # be misread. Lines the OCR models read differently are flagged too.
+            "uncertain": min(block.speaker_score, *(l.score for l in block.lines)) < _UNCERTAIN
+            or any(l.alternatives for l in block.lines),
+            "alternatives": _block_alternatives(block),
             "words": self._words(block.text),
         }
 
@@ -655,6 +657,15 @@ class App:
 
 
 _PERSON_NAME_TYPES = {"surname", "given name", "female given name", "male given name", "full name", "character", "fictional"}
+
+
+def _block_alternatives(block: layout.TextBlock, limit: int = 3) -> list[str]:
+    """Other OCR readings of a block's text: the block with one line swapped for another
+    model's reading of it. Given to the AI so it can spot a misread line."""
+    texts = [l.text for l in block.lines]
+    return [
+        "".join(texts[:i] + [alt] + texts[i + 1 :]) for i, l in enumerate(block.lines) for alt in l.alternatives
+    ][:limit]
 
 
 def _speaker_text(line: dict) -> str | None:

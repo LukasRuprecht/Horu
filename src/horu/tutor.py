@@ -38,7 +38,7 @@ Reply with only the translation: no quotes, notes, or romaji."""
 # Text without a speaker may be narration, but is often help, menu, or tutorial text, which
 # shouldn't be rewritten as speech.
 TRANSLATE_TEXT = """\
-Translate this text from a video game into natural English. It may be narration, or help, \
+{context}Translate this text from a video game into natural English. It may be narration, or help, \
 menu, or tutorial text; keep its tone, and keep any line breaks and lists.
 
 {text}
@@ -76,6 +76,16 @@ Explain 「{surface}」 as it's used in this line{analysis}. Cover what it means
 the form is built if it's conjugated, and any nuance. Finish with a one-line natural \
 translation of the whole line."""
 
+# The OCR models that disagreed with the main reading. The true text is usually one of these
+# or close to them, so a model can name the likely misread instead of inventing a word.
+OCR_ALTERNATIVES = """\
+OCR note: other OCR models read the current line differently:
+{readings}
+The real text is most likely one of these readings or close to them. If the current line \
+looks misread, say so briefly and work from the reading that makes sense.
+
+"""
+
 EXPLAIN_LINE = """\
 {context}Current line:
 {line}
@@ -89,14 +99,20 @@ class Line:
     text: str
     speaker: str | None = None
     previous: list[str] = field(default_factory=list)  # earlier lines, oldest first, for context
+    # Other OCR models' readings of this line, where they disagreed.
+    alternatives: list[str] = field(default_factory=list)
 
     def quoted(self) -> str:
         return f"{self.speaker}「{self.text}」" if self.speaker else f"「{self.text}」"
 
     def context(self) -> str:
-        if not self.previous:
-            return ""
-        return "Earlier lines, for context:\n" + "\n".join(self.previous) + "\n\n"
+        parts = []
+        if self.previous:
+            parts.append("Earlier lines, for context:\n" + "\n".join(self.previous) + "\n\n")
+        if self.alternatives:
+            readings = "\n".join(f"「{a}」" for a in self.alternatives)
+            parts.append(OCR_ALTERNATIVES.format(readings=readings))
+        return "".join(parts)
 
 
 class Tutor:
@@ -113,7 +129,7 @@ class Tutor:
         if self.translator:
             return self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
         if line.speaker is None and not line.previous:
-            return self._chat(temperature=0).send(TRANSLATE_TEXT.format(text=line.text))
+            return self._chat(temperature=0).send(TRANSLATE_TEXT.format(context=line.context(), text=line.text))
         return self._chat(temperature=0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
 
     def translate_speaker(self, text: str) -> str:

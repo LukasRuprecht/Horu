@@ -143,6 +143,9 @@ function renderLine(line) {
   if (line.uncertain && line.kind === "dialogue") {
     const flag = el("span", "uncertain-flag", "?");
     flag.title = "Horu wasn't sure it read this line correctly. Check it against the game, or fix it with Edit.";
+    if (line.alternatives && line.alternatives.length) {
+      flag.title += "\n\nOther possible readings:\n" + line.alternatives.join("\n");
+    }
     meta.append(flag);
   }
   meta.append(
