@@ -226,6 +226,12 @@ function openLineMenu(anchor, line, row) {
   if (state.ai.enabled && line.kind === "dialogue") {
     items.unshift(["Re-read with AI", () => reread(line, row)]);
   }
+  if (line.box && line.kind === "dialogue") {
+    items.push(["Use as the dialogue box for auto-capture", async () => {
+      const result = await api().set_dialogue_box(line.id);
+      horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
+    }]);
+  }
   lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
     closeLineMenu();
     action();
@@ -711,6 +717,7 @@ const TOGGLES = {
   furigana: ["#toggle-furigana", true, (on) => document.body.classList.toggle("no-furigana", !on)],
   screenText: ["#toggle-screen", true, (on) => document.body.classList.toggle("hide-screen", !on)],
   onTop: ["#toggle-top", false, () => {}], // applied to the window by Python
+  autoCapture: ["#toggle-auto", false, () => {}], // the watching is done by Python
 };
 
 function applyToggle(key) {
@@ -1098,6 +1105,30 @@ window.horu = {
     setLineText(line, row, text, words);
     markCorrected(line, row, was);
     if (retranslate) refreshTranslation(line, row);
+  },
+
+  // A line auto-capture read while it was still typing out, now read in full.
+  lineUpdated({ id, text, words, uncertain }) {
+    const line = state.lines.get(id);
+    const row = rowFor(id);
+    if (!line || !row) return;
+    setLineText(line, row, text, words);
+    if (!uncertain) horu.lineVerified({ id });
+    refreshTranslation(line, row);
+  },
+
+  // The AI read the same text as OCR, so the "?" no longer applies.
+  lineVerified({ id }) {
+    const line = state.lines.get(id);
+    if (line) line.uncertain = false;
+    const flag = rowFor(id)?.querySelector(".uncertain-flag");
+    if (flag) flag.remove();
+  },
+
+  setAutoState({ state: autoState, message }) {
+    const toggle = $("#toggle-auto");
+    toggle.dataset.state = autoState;
+    toggle.title = `Auto-capture: ${message}`;
   },
 
   lineSuggestion({ id, text }) {

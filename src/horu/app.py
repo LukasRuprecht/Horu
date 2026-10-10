@@ -14,7 +14,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
+from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -32,6 +32,16 @@ _SCREENSHOTS_KEPT = 300
 _SCREENSHOT_MAX_WIDTH = 900
 # Streamed AI text is pushed to the page at most this often.
 _FLUSH_SECONDS = 0.05
+# How often auto-capture looks at the dialogue box.
+_WATCH_SECONDS = 0.25
+
+
+@dataclasses.dataclass
+class AutoRead:
+    """A capture asked for by auto-capture: the dialogue box, already grabbed."""
+
+    image: object  # PIL image of the dialogue box region
+    game: str
 
 
 class Api:
@@ -89,6 +99,10 @@ class Api:
         """Read a line again from its screenshot with a vision model."""
         return self._app.reread(line_id)
 
+    def set_dialogue_box(self, line_id: int) -> dict:
+        """Use this line's position as its game's dialogue box for auto-capture."""
+        return self._app.set_dialogue_box(line_id)
+
     def open_url(self, url: str) -> None:
         # Links open in the user's browser; the app window itself never navigates away.
         if url.startswith(("https://", "http://")):
@@ -137,6 +151,10 @@ class App:
         self.prefs = prefs.Prefs()
         self.corrections = corrections.Corrections()
         self.speakers = speakers.SpeakerBook()
+        self.boxes = autocapture.DialogueBoxes()
+        self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
+        self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
+        self._last_auto: tuple[int, str] | None = None  # (line id, text) of the last auto-read line
         self.anki = anki.AnkiClient()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
@@ -149,7 +167,7 @@ class App:
         self._tutor_chat: tuple[int, llm.Chat] | None = None  # (session id, chat) in the tutor panel
         self._source: text_sources.TextSource | None = None
         self._dictionary: dictionary.Dictionary | None = None
-        self._requests: queue.Queue[None] = queue.Queue()
+        self._requests: queue.Queue[AutoRead | None] = queue.Queue()  # None: the hotkey
         self._ids = itertools.count(1)
         self._capture_ids = itertools.count(1)
         self._page_loaded = threading.Event()
@@ -577,10 +595,11 @@ class App:
         self.apply_capture_exclusion()
         if not self._load():
             return
+        threading.Thread(target=self._watch, name="horu-watch", daemon=True).start()
         while True:
-            self._requests.get()
+            request = self._requests.get()
             try:
-                self._capture()
+                self._capture(request)
             except Exception as e:  # keep the app alive; show what went wrong
                 traceback.print_exc()
                 self._status("error", f"Capture failed: {e}")
@@ -608,15 +627,22 @@ class App:
         self._ready()
         return True
 
-    def _capture(self) -> None:
-        if self.cfg.capture.mode == "window" and capture.focused_window_is_own():
-            self._status("error", "Horu has focus. Click your game, then press the hotkey.")
-            return
-        self._status("busy", "Reading...")
-        image = capture.grab(self.cfg.capture)
+    def _capture(self, request: AutoRead | None = None) -> None:
+        auto = request is not None
+        if auto:
+            image, game = request.image, request.game
+        else:
+            if self.cfg.capture.mode == "window" and capture.focused_window_is_own():
+                self._status("error", "Horu has focus. Click your game, then press the hotkey.")
+                return
+            self._status("busy", "Reading...")
+            image = capture.grab(self.cfg.capture)
+            game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
+            window = capture.foreground_window() if self.cfg.capture.mode == "window" else None
+            if window:
+                self._game_window = (window, game)
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
-        game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
         hints = dataclasses.replace(self.corrections.hints(game), known_speakers=self.speakers.known(game))
         blocks = layout.group_blocks(self._source.read(image), image, hints=hints)
         # Correct misread name tags against names already seen in this game.
@@ -624,6 +650,12 @@ class App:
             dataclasses.replace(b, speaker=self.speakers.resolve(game, b.speaker, b.speaker_score)) if b.speaker else b
             for b in blocks
         ]
+
+        if not auto:
+            # Where this game shows dialogue, for auto-capture.
+            for block in blocks:
+                if block.kind == "dialogue":
+                    self.boxes.observe(game, block.box, len(block.lines), image.size)
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -634,22 +666,30 @@ class App:
                 self.recent.append(block.text)
             line = self._line(block, repeat)
             line["game"] = game
+            if not auto:  # where it was, for "Use as the dialogue box"
+                line["box"], line["frame"], line["rows"] = list(block.box), list(image.size), len(block.lines)
             if line["speaker"]:
                 line["speaker"]["english"] = self.speaker_english(game, block.speaker)
             lines.append(line)
         new = [l for l in lines if not l["repeat"]]
+        if auto and not new:
+            return  # an empty box, or text already shown: nothing to say
         if not lines:
             self._ready("No Japanese text found.")
             return
         if not new:
             self._ready(f"Nothing new: all {len(lines)} line(s) were already shown.")
             return
+        if auto and self._extends_last(new, blocks, lines, image):
+            return
         for line, block in zip(lines, blocks):
             self.lines[line["id"]] = line
             if not line["repeat"]:
                 self._keep_screenshot(line["id"], image, block.box)
-        self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
+        self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
         self._ready()
+        dialogue_new = [l for l in new if l["kind"] == "dialogue"]
+        self._last_auto = (dialogue_new[-1]["id"], dialogue_new[-1]["text"]) if auto and dialogue_new else None
         # A vision model checks every dialogue line against its screenshot. Lines Horu may
         # have misread are checked before they're translated, so translations and cards use
         # the fixed text; the rest are translated at once and checked alongside.
@@ -661,6 +701,88 @@ class App:
         self._after_check([i for i in dialogue if i not in first])
         if checkable:
             threading.Thread(target=self._check_lines, args=(checkable, first), name="horu-check", daemon=True).start()
+
+    def _extends_last(self, new: list[dict], blocks, lines: list[dict], image) -> bool:
+        """Text read while it was still typing out (paused at 、 or …) and read again in full:
+        the earlier line is updated in place instead of shown twice."""
+        if self._last_auto is None or len(new) != 1:
+            return False
+        last_id, last_text = self._last_auto
+        text = new[0]["text"]
+        if last_id not in self.lines or text == last_text or not text.startswith(last_text):
+            return False
+        line = self.lines[last_id]
+        words = self.update_line(last_id, text)
+        line.update(uncertain=new[0]["uncertain"], alternatives=new[0]["alternatives"], aiReading=None, suggestion=None)
+        self._keep_screenshot(last_id, image, blocks[lines.index(new[0])].box)
+        self._last_auto = (last_id, text)
+        self._call("lineUpdated", {"id": last_id, "text": text, "words": words, "uncertain": line["uncertain"]})
+        # The full line needs its own check (the partial one was checked before).
+        if self._can_check(last_id):
+            threading.Thread(target=self._check_lines, args=([last_id], []), name="horu-check", daemon=True).start()
+        return True
+
+    # --- auto-capture ------------------------------------------------------------------
+
+    def _watch(self) -> None:
+        """Look at the game's dialogue box a few times a second; read it when new text has
+        settled there."""
+        watcher = autocapture.ChangeWatcher()
+        while True:
+            time.sleep(_WATCH_SECONDS)
+            try:
+                frame = self._watch_frame()
+            except Exception:
+                traceback.print_exc()
+                frame = None
+            if frame is None:
+                watcher.reset()
+                continue
+            image, game = frame
+            if watcher.update(image):
+                self._requests.put(AutoRead(image, game))
+
+    def _watch_frame(self):
+        """(image of the dialogue box, game), or None when there's nothing to watch."""
+        if not self.prefs.values["autoCapture"] or self._source is None:
+            self._set_auto("off", "Auto-capture is off.")
+            return None
+        hotkey_name = _pretty_hotkey(self.cfg.capture_hotkey)
+        if self._game_window is None:
+            self._set_auto("waiting", f"Press {hotkey_name} in your game once, so Horu knows which window to watch.")
+            return None
+        window, game = self._game_window
+        region = self.boxes.region(game)
+        if region is None:
+            seen, needed = self.boxes.progress(game)
+            self._set_auto(
+                "learning",
+                f"Learning where {game} shows dialogue: press {hotkey_name} on {needed - seen} more dialogue "
+                "line(s), or use a line's ⋯ menu to set the box.",
+            )
+            return None
+        box = capture.window_box(window)
+        # Only while the game (or Horu, beside it) is in front: otherwise another window may
+        # be covering the box.
+        foreground = capture.foreground_window()
+        if box is None or (foreground != window and not capture.focused_window_is_own()):
+            self._set_auto("paused", f"Paused: {game} isn't in front.")
+            return None
+        self._set_auto("watching", f"Watching {game}'s dialogue box.")
+        part = autocapture.to_pixels(region, (box["width"], box["height"]))
+        return capture.grab_part(box, part), game
+
+    def _set_auto(self, state: str, message: str) -> None:
+        if self._auto_state != (state, message):
+            self._auto_state = (state, message)
+            self._call("setAutoState", {"state": state, "message": message})
+
+    def set_dialogue_box(self, line_id: int) -> dict:
+        line = self.lines.get(line_id)
+        if not line or "box" not in line:
+            return {"ok": False, "message": "Only lines captured with the hotkey can set the box."}
+        self.boxes.set(line["game"], tuple(line["box"]), line["rows"], tuple(line["frame"]))
+        return {"ok": True, "message": f"Auto-capture will watch this part of {line['game']}."}
 
     # --- fixing misread lines --------------------------------------------------------
 
@@ -709,11 +831,16 @@ class App:
         if source != "vision" and line.get("aiReading"):
             confirmations.append(line["aiReading"])
         outcome = correction.decide(line["text"], text, confirmations)
-        if outcome == correction.APPLY:
+        if outcome == correction.SAME and source == "vision" and line.get("uncertain"):
+            # The AI read what OCR read: two sources agree, so the line isn't in doubt.
+            line["uncertain"] = False
+            self._call("lineVerified", {"id": line_id})
+        elif outcome == correction.APPLY:
             was = line["text"]
             words = self.update_line(line_id, text)
             line["was"] = line.get("was") or was
             line["suggestion"] = None
+            line["uncertain"] = False  # two sources agree on the new text
             self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"], "retranslate": retranslate})
         elif outcome == correction.SUGGEST and text != line.get("suggestion"):
             line["suggestion"] = text

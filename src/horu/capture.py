@@ -62,8 +62,19 @@ def focused_window_box() -> dict | None:
     """Screen box of the foreground window's client area (the game, without its title bar)."""
     if sys.platform != "win32":
         return None
-    hwnd = _user32.GetForegroundWindow()
-    if not hwnd:
+    return window_box(_user32.GetForegroundWindow())
+
+
+def foreground_window() -> int | None:
+    """Handle of the foreground window, to keep watching it after focus moves elsewhere."""
+    if sys.platform != "win32":
+        return None
+    return _user32.GetForegroundWindow() or None
+
+
+def window_box(hwnd: int) -> dict | None:
+    """Screen box of a window's client area; None if it's gone, minimized, or tiny."""
+    if sys.platform != "win32" or not hwnd or not _user32.IsWindow(hwnd) or _user32.IsIconic(hwnd):
         return None
     rect = wintypes.RECT()
     if not _user32.GetClientRect(hwnd, ctypes.byref(rect)):
@@ -74,6 +85,12 @@ def focused_window_box() -> dict | None:
     if width < 50 or height < 50:
         return None
     return {"left": origin.x, "top": origin.y, "width": width, "height": height}
+
+
+def grab_part(box: dict, part: tuple[int, int, int, int]) -> Image.Image:
+    """Capture `part` (left, top, right, bottom, in pixels of the box) of a screen box."""
+    left, top, right, bottom = part
+    return _grab_box({"left": box["left"] + left, "top": box["top"] + top, "width": right - left, "height": bottom - top})
 
 
 def focused_window_is_own() -> bool:
@@ -101,7 +118,13 @@ def focused_process_name() -> str | None:
     per-game settings apart."""
     if sys.platform != "win32":
         return None
-    hwnd = _user32.GetForegroundWindow()
+    return process_name(_user32.GetForegroundWindow())
+
+
+def process_name(hwnd: int) -> str | None:
+    """The executable name of a window's program."""
+    if sys.platform != "win32" or not hwnd:
+        return None
     pid = wintypes.DWORD()
     _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
     PROCESS_QUERY_LIMITED_INFORMATION = 0x1000

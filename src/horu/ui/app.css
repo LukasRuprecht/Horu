@@ -120,6 +120,12 @@ button { font: inherit; color: inherit; }
 .actions button[aria-pressed="true"] { background: var(--card); border-color: var(--border); color: var(--accent); }
 .actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .actions ruby { font-family: var(--jp); font-size: 15px; line-height: 1; }
+/* Auto-capture's state: green while watching, amber while it needs something (learning the
+   box, waiting for a hotkey capture, game not in front). Hover shows what. */
+#toggle-auto { position: relative; }
+.auto-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; display: none; }
+#toggle-auto[aria-pressed="true"] .auto-dot { display: block; background: var(--accent); }
+#toggle-auto[aria-pressed="true"][data-state="watching"] .auto-dot { background: var(--ok); }
 .actions rt { font-size: 7px; }
 
 /* --- Line history ------------------------------------------------------------------- */

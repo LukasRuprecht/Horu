@@ -14,6 +14,10 @@
       <span id="status-text">Starting...</span>
     </div>
     <div class="actions">
+      <button id="toggle-auto" class="toggle" type="button" aria-pressed="false" title="Auto-capture: read the game's dialogue box whenever it changes">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="auto-dot" aria-hidden="true"></span>
+      </button>
       <button id="toggle-furigana" class="toggle" type="button" aria-pressed="true" title="Furigana">
         <ruby>漢<rt>かん</rt></ruby>
       </button>
@@ -55,6 +59,10 @@
     <label class="check"><input id="hide-from-capture" type="checkbox"> Hide Horu from screen capture</label>
     <p class="check-hint">Stops Horu reading itself when it overlaps the game. Turn off to show Horu
       when streaming or sharing your screen.</p>
+    <p class="check-hint">Auto-capture (the eye button) reads the game's dialogue box by itself
+      whenever its text changes, and nothing else on screen. Horu learns where each game's box is
+      from the first few dialogue lines you capture with the hotkey; you can also set it from a
+      line's ⋯ menu.</p>
 
     <h2>Anki</h2>
     <label class="field">

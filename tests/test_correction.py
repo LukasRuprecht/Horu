@@ -64,3 +64,10 @@ def test_near_agreement_on_the_same_fix_counts():
 
 def test_readings_are_dropped_from_a_proposal():
     assert correction.proposed_in("OCR: 太陽（たいよう）は月に…月(つき)は太陽に…\nThe sun...") == "太陽は月に…月は太陽に…"
+
+
+def test_a_vision_reading_that_matches_clears_the_flag():
+    app, line, calls = fake_app("よくきたなLuke。")
+    line["uncertain"] = True
+    assert App.propose(app, 1, "よくきたな Luke。", "vision") == correction.SAME
+    assert line["uncertain"] is False and calls == [("lineVerified", {"id": 1})]

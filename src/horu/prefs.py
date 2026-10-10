@@ -32,6 +32,8 @@ DEFAULTS: dict = {
     "ankiDeck": "Horu",
     # Run the flashcard agent on every new dialogue line, adding words not yet in the deck.
     "autoCards": False,
+    # Read the game's dialogue box by itself whenever its text changes.
+    "autoCapture": False,
 }
 
 
