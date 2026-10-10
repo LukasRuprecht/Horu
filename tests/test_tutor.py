@@ -15,7 +15,7 @@ def test_block_alternatives_swap_in_one_line_at_a_time():
 def test_ocr_alternatives_reach_the_prompt():
     line = Line("近くへ来て足につまりなさい。", alternatives=["近くへ来て足につかまりなさい。"])
     context = line.context()
-    assert "「近くへ来て足につかまりなさい。」" in context and "misread" in context
+    assert "「近くへ来て足につかまりなさい。」" in context and "most likely" in context
     assert Line("そうだね").context() == ""
 
 
@@ -53,3 +53,11 @@ def test_providers_send_the_image():
     assert gemini.read_image("Read it.", b"png") == "マップ"
     text, image = calls[-1]["messages"][0]["content"]
     assert image["image_url"]["url"] == "data:image/png;base64,cG5n"
+
+
+def test_spaces_a_model_adds_between_japanese_words_are_removed():
+    from horu.tutor import clean_reading
+
+    assert clean_reading("じゃが　まだまだ ハイラルの運命を") == "じゃがまだまだハイラルの運命を"
+    assert clean_reading("よくきたな Luke。") == "よくきたなLuke。"
+    assert clean_reading("Speed: 100%") == "Speed: 100%"

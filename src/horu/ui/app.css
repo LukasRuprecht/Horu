@@ -196,6 +196,57 @@ body.no-furigana .speaker rt { display: none; }
   font-weight: 600;
   cursor: default;
 }
+.corrected-tag {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.corrected-tag:hover {
+  color: var(--text);
+}
+
+.fix-chip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--card-new);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.fix-chip .fix-text {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.fix-chip .fix-change {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.fix-chip .fix-use {
+  margin-left: 6px;
+}
+
+.fix-chip .fix-dismiss {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
 .editor-note {
   margin: 0 0 6px;
   font-size: 12px;

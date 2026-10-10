@@ -14,7 +14,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, capture, config, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
+from horu import ai_setup, anki, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.tutor import Line, Tutor
 
@@ -145,6 +145,7 @@ class App:
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
         self._ai = ai_setup.Resolved()
+        self._vision: bool | None = None  # whether the AI model reads images (None: not known yet)
         self._tutor_chat: tuple[int, llm.Chat] | None = None  # (session id, chat) in the tutor panel
         self._source: text_sources.TextSource | None = None
         self._dictionary: dictionary.Dictionary | None = None
@@ -365,6 +366,7 @@ class App:
     def apply_ai(self) -> dict:
         """Rebuild the providers from the current settings and tell the page."""
         self._ai = ai_setup.resolve(self.prefs.values, self.cfg.ai)
+        self._vision = None
         info = self.ai_info()
         self._call("setAI", info)
         return info
@@ -488,7 +490,10 @@ class App:
     def translate(self, line_id: int) -> None:
         if self._provider and line_id in self.lines:
             chunks = self._tutor().translate(self._line_context(line_id))
-            self._stream({"target": "translation", "lineId": line_id}, chunks)
+            # Numbered, so the page and the stored translation keep only the latest one when
+            # a fixed line is translated again while the first translation still streams.
+            generation = self.lines[line_id]["translationGen"] = self.lines[line_id].get("translationGen", 0) + 1
+            self._stream({"target": "translation", "lineId": line_id, "gen": generation}, chunks)
             line = self.lines[line_id]
             if line["speaker"]:
                 self.translate_speaker(line["game"], line["speaker"]["text"])
@@ -498,12 +503,12 @@ class App:
             line = self.lines[line_id]
             word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
             chat, chunks = self._tutor().explain_word(self._line_context(line_id), word)
-            self._start_tutor_session(session, chat, chunks)
+            self._start_tutor_session(session, chat, chunks, line_id)
 
     def explain_line(self, line_id: int, session: int) -> None:
         if self._provider and line_id in self.lines:
             chat, chunks = self._tutor().explain_line(self._line_context(line_id))
-            self._start_tutor_session(session, chat, chunks)
+            self._start_tutor_session(session, chat, chunks, line_id)
 
     def ask(self, session: int, question: str) -> None:
         if self._tutor_chat and self._tutor_chat[0] == session:
@@ -512,12 +517,12 @@ class App:
     def _tutor(self) -> Tutor:
         return Tutor(self._provider, self.prefs.values["learnerLevel"], self._ai.translator)
 
-    def _start_tutor_session(self, session: int, chat: llm.Chat, chunks) -> None:
+    def _start_tutor_session(self, session: int, chat: llm.Chat, chunks, line_id: int) -> None:
         # The tutor panel shows one conversation at a time; stop the previous one.
         if self._tutor_chat:
             self._tutor_chat[1].cancel()
         self._tutor_chat = (session, chat)
-        self._stream({"target": "tutor", "session": session}, chunks)
+        self._stream({"target": "tutor", "session": session, "lineId": line_id}, chunks)
 
     def _line_context(self, line_id: int) -> Line:
         line = self.lines[line_id]
@@ -546,9 +551,17 @@ class App:
                         last_flush = time.monotonic()
                 if buffer:
                     self._call("aiChunk", {**meta, "text": "".join(buffer)})
+                reply = "".join(full).strip()
+                # A reply about a line can start with the model's fix for a misread
+                # ("OCR: ..."); the page hides that line.
+                proposal = correction.proposed_in(reply) if "lineId" in meta else None
                 if meta.get("target") == "translation" and meta["lineId"] in self.lines:
-                    self.lines[meta["lineId"]]["translation"] = "".join(full).strip()
+                    line = self.lines[meta["lineId"]]
+                    if meta["gen"] == line.get("translationGen"):
+                        line["translation"] = correction.without_proposal(reply)
                 self._call("aiDone", meta)
+                if proposal:
+                    self.propose(meta["lineId"], proposal, "explain")
             except llm.AIError as e:
                 self._call("aiError", {**meta, "message": str(e)})
             except Exception as e:
@@ -637,12 +650,75 @@ class App:
                 self._keep_screenshot(line["id"], image, block.box)
         self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines})
         self._ready()
+        # A vision model checks every dialogue line against its screenshot. Lines Horu may
+        # have misread are checked before they're translated, so translations and cards use
+        # the fixed text; the rest are translated at once and checked alongside.
+        # Other text (menus, labels) only when flagged: a menu screen has many short items.
+        dialogue = [line["id"] for line in new if line["kind"] == "dialogue"]
+        flagged_other = [line["id"] for line in new if line["kind"] != "dialogue" and line["uncertain"]]
+        checkable = [i for i in dialogue + flagged_other if self._can_check(i)]
+        first = [i for i in checkable if self.lines[i]["uncertain"] and i in dialogue]
+        self._after_check([i for i in dialogue if i not in first])
+        if checkable:
+            threading.Thread(target=self._check_lines, args=(checkable, first), name="horu-check", daemon=True).start()
+
+    # --- fixing misread lines --------------------------------------------------------
+
+    def _can_check(self, line_id: int) -> bool:
+        return bool(self._provider and line_id in self._screenshots and self._vision is not False)
+
+    def _after_check(self, line_ids: list[int]) -> None:
+        if not line_ids:
+            return
         if self.prefs.values["autoTranslate"]:
-            for line in new:
-                if line["kind"] == "dialogue":
-                    self.translate(line["id"])
+            for line_id in line_ids:
+                self.translate(line_id)
         if self.prefs.values["autoCards"] and self._provider:
-            self.queue_auto_cards([line["id"] for line in new if line["kind"] == "dialogue"])
+            self.queue_auto_cards(line_ids)
+
+    def _check_lines(self, line_ids: list[int], waiting: list[int]) -> None:
+        """Check `line_ids`, flagged lines first. Translation of `waiting` starts once they're
+        checked; the rest were translated already, and are re-translated if fixed."""
+        for line_id in sorted(line_ids, key=lambda i: i not in waiting):
+            try:
+                self._check(line_id, retranslate=line_id not in waiting)
+            except Exception:
+                traceback.print_exc()
+            if line_id in waiting:
+                self._after_check([line_id])
+
+    def _check(self, line_id: int, retranslate: bool) -> None:
+        """Have a vision model read the line from its screenshot, and fix the line if that
+        reading agrees with another OCR model's."""
+        try:
+            reading = self._tutor().reread(self._line_context(line_id), self._screenshots[line_id])
+        except llm.AIError as e:
+            if "can't read images" in str(e):
+                self._vision = False  # a text-only model: stop trying until the AI changes
+            return
+        self.lines[line_id]["aiReading"] = reading
+        self.propose(line_id, reading, "vision", retranslate=retranslate)
+
+    def propose(self, line_id: int, text: str, source: str, retranslate: bool = True) -> str:
+        """Act on a proposed fix for a line: apply it when another source agrees, otherwise
+        offer it to the learner. `source` is "vision" or "explain"."""
+        line = self.lines.get(line_id)
+        if line is None:
+            return correction.SAME
+        confirmations = list(line.get("alternatives", []))
+        if source != "vision" and line.get("aiReading"):
+            confirmations.append(line["aiReading"])
+        outcome = correction.decide(line["text"], text, confirmations)
+        if outcome == correction.APPLY:
+            was = line["text"]
+            words = self.update_line(line_id, text)
+            line["was"] = line.get("was") or was
+            line["suggestion"] = None
+            self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"], "retranslate": retranslate})
+        elif outcome == correction.SUGGEST and text != line.get("suggestion"):
+            line["suggestion"] = text
+            self._call("lineSuggestion", {"id": line_id, "text": text, "source": source})
+        return outcome
 
     def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
         speaker = None

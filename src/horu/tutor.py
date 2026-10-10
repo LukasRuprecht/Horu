@@ -26,8 +26,11 @@ Formatting: plain sentences and short "- " bullet lists; **bold** for the key wo
 form. No headings and no tables. Write Japanese in Japanese script, never romaji; give \
 the reading in parentheses after kanji the learner may not know, e.g. 遅刻（ちこく）.
 
-The game text was captured with OCR and may contain misread characters. If something \
-looks like a misreading, say what the text most likely is and explain that."""
+The game text was captured with OCR and may contain misread characters. If the current \
+line looks misread, make the very first line of your reply "OCR: " followed by the whole \
+line as it most likely reads (plain text, no readings in brackets), then explain that \
+version. Only do this for a likely OCR \
+error, never for dialect, slang, baby talk, or unusual but valid Japanese."""
 
 TRANSLATE = """\
 {context}Translate this line into natural English that fits the scene:
@@ -81,8 +84,7 @@ translation of the whole line."""
 OCR_ALTERNATIVES = """\
 OCR note: other OCR models read the current line differently:
 {readings}
-The real text is most likely one of these readings or close to them. If the current line \
-looks misread, say so briefly and work from the reading that makes sense.
+The real text is most likely one of these readings or close to them.
 
 """
 
@@ -182,6 +184,10 @@ class Tutor:
         return chat, chat.send(EXPLAIN_LINE.format(context=line.context(), line=line.quoted()))
 
 
+_JAPANESE_CHAR = "　-ヿ㐀-鿿！-｠…"
+_SPACE_BY_JAPANESE = re.compile(f"(?<=[{_JAPANESE_CHAR}])[ 　]+|[ 　]+(?=[{_JAPANESE_CHAR}])")
+
+
 def clean_reading(reply: str) -> str:
     """A model's transcription, without quotes, labels, or line breaks around it."""
     lines = [l.strip() for l in reply.strip().splitlines() if l.strip()]
@@ -189,6 +195,9 @@ def clean_reading(reply: str) -> str:
     for prefix in ("Text:", "Transcription:"):
         if text.startswith(prefix):
             text = text[len(prefix):].strip()
+    # Models space out words (じゃが　まだまだ) as the game did; Horu's lines have no spaces
+    # between Japanese text.
+    text = _SPACE_BY_JAPANESE.sub("", text)
     return text.strip("「」『』\"'`")
 
 

@@ -309,12 +309,8 @@ function startEdit(line, row, suggestion = null) {
   save.addEventListener("click", async () => {
     const value = area.value.trim();
     if (value && value !== line.text && api()) {
-      line.words = await api().update_line(line.id, value);
-      line.text = value;
-      renderWords(line, text);
-      // The old translation no longer matches the text.
-      const old = row.querySelector(".translation");
-      if (old) old.replaceWith(translationRow(line, { auto: false }));
+      await setLineText(line, row, value, await api().update_line(line.id, value));
+      refreshTranslation(line, row, { auto: false });
     }
     finish();
   });
@@ -322,6 +318,93 @@ function startEdit(line, row, suggestion = null) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save.click(); }
     if (e.key === "Escape") finish();
   });
+}
+
+// --- Fixing misread lines ----------------------------------------------------------------
+
+function rowFor(lineId) {
+  return linesEl.querySelector(`.line[data-id="${lineId}"]`);
+}
+
+function setLineText(line, row, text, words) {
+  line.text = text;
+  line.words = words;
+  renderWords(line, row.querySelector(".text"));
+  const chip = row.querySelector(".fix-chip");
+  if (chip) chip.remove();
+}
+
+// The old translation no longer matches the text: translate again, or offer to.
+function refreshTranslation(line, row, { auto = state.prefs.autoTranslate } = {}) {
+  const old = row.querySelector(".translation");
+  if (!old) return;
+  const fresh = translationRow(line, { auto });
+  // The new translation is the next one Python numbers; ignore the old one's chunks.
+  fresh.dataset.gen = Number(old.dataset.gen || 0) + 1;
+  old.replaceWith(fresh);
+  if (auto) api().translate(line.id);
+}
+
+// Shows that the AI fixed this line; clicking puts the original back.
+function markCorrected(line, row, was) {
+  let tag = row.querySelector(".corrected-tag");
+  if (!tag) {
+    tag = button("corrected-tag", "corrected", async () => {
+      await setLineText(line, row, was, await api().update_line(line.id, was));
+      tag.remove();
+      refreshTranslation(line, row);
+    });
+    row.querySelector(".spacer").before(tag);
+  }
+  tag.title = `Horu fixed a likely OCR misread. It was:\n${was}\n\nClick to undo.`;
+  const flag = row.querySelector(".uncertain-flag");
+  if (flag) flag.remove();
+}
+
+// `text` with the part that differs from `before` marked, so a one-kana change (のお → のぉ)
+// stands out.
+function highlightChange(before, text) {
+  let start = 0;
+  while (start < before.length && start < text.length && before[start] === text[start]) start++;
+  let end = 0;
+  while (end < before.length - start && end < text.length - start
+         && before[before.length - 1 - end] === text[text.length - 1 - end]) end++;
+  const changed = text.slice(start, text.length - end);
+  if (!changed) return [text];
+  return [text.slice(0, start), el("mark", "fix-change", changed), text.slice(text.length - end)];
+}
+
+function showSuggestion(line, row, text) {
+  const old = row.querySelector(".fix-chip");
+  if (old) old.remove();
+  const chip = el("div", "fix-chip");
+  const quote = el("span", "fix-text");
+  quote.lang = "ja";
+  quote.append("「", ...highlightChange(line.text, text), "」?");
+  chip.append(
+    el("span", null, "Possible misread. Did you mean "),
+    quote,
+    button("fix-use", "Use this", async () => {
+      const was = line.text;
+      await setLineText(line, row, text, await api().update_line(line.id, text));
+      markCorrected(line, row, was);
+      refreshTranslation(line, row);
+    }, "Replace the line with this reading"),
+    button("fix-dismiss", "×", () => chip.remove(), "Keep the line as it is"),
+  );
+  row.querySelector(".text").after(chip);
+}
+
+// A model that suspects a misread starts its reply with "OCR: <fixed line>". Python acts on
+// it; the page shows it as a short note (tutor) or hides it (translations).
+const OCR_LINE = /^\s*OCR:\s*([^\n]*)\n?/;
+
+function withoutOcrLine(text) {
+  return text.replace(OCR_LINE, "");
+}
+
+function withOcrNote(text) {
+  return text.replace(OCR_LINE, (_, fixed) => `*Likely OCR misread. The line probably reads 「${fixed.replace(/^「|」$/g, "")}」.*\n\n`);
 }
 
 function isNearBottom() {
@@ -369,6 +452,12 @@ function translationText(row) {
     row.replaceChildren(text);
   }
   return text;
+}
+
+// A translation of a line's earlier text, still streaming after the line was fixed and
+// translated again.
+function isStale(row, msg) {
+  return msg.gen < Number(row.dataset.gen || 0);
 }
 
 function translationRowFor(lineId) {
@@ -1002,6 +1091,21 @@ window.horu = {
     setTimeout(() => card.classList.remove("new"), 2500);
   },
 
+  lineCorrected({ id, text, words, was, retranslate }) {
+    const line = state.lines.get(id);
+    const row = rowFor(id);
+    if (!line || !row) return;
+    setLineText(line, row, text, words);
+    markCorrected(line, row, was);
+    if (retranslate) refreshTranslation(line, row);
+  },
+
+  lineSuggestion({ id, text }) {
+    const line = state.lines.get(id);
+    const row = rowFor(id);
+    if (line && row) showSuggestion(line, row, text);
+  },
+
   cardsAdded({ lineId, words }) {
     const row = linesEl.querySelector(`.line[data-id="${lineId}"]`);
     if (!row) return;
@@ -1030,16 +1134,18 @@ window.horu = {
   aiChunk(msg) {
     if (msg.target === "translation") {
       const row = translationRowFor(msg.lineId);
-      if (!row) return;
-      if (row.dataset.state !== "streaming") {
+      if (!row || isStale(row, msg)) return;
+      if (row.dataset.state !== "streaming" || msg.gen > Number(row.dataset.gen || 0)) {
         row.dataset.state = "streaming";
-        translationText(row).textContent = "";
+        row.dataset.gen = msg.gen;
+        row.raw = "";
       }
-      translationText(row).textContent += msg.text;
+      row.raw += msg.text;
+      translationText(row).textContent = withoutOcrLine(row.raw);
     } else if (msg.target === "tutor" && msg.session === state.tutor.session && state.tutor.answer) {
       const stick = $("#tutor-log").scrollHeight - $("#tutor-log").scrollTop - $("#tutor-log").clientHeight < 40;
       state.tutor.text += msg.text;
-      state.tutor.answer.innerHTML = renderMarkdown(state.tutor.text);
+      state.tutor.answer.innerHTML = renderMarkdown(withOcrNote(state.tutor.text));
       if (stick) scrollTutor();
     }
   },
@@ -1047,7 +1153,7 @@ window.horu = {
   aiDone(msg) {
     if (msg.target === "translation") {
       const row = translationRowFor(msg.lineId);
-      if (row) row.dataset.state = "done";
+      if (row && !isStale(row, msg)) row.dataset.state = "done";
     } else if (msg.target === "tutor" && msg.session === state.tutor.session) {
       setTutorBusy(false);
     }
@@ -1056,7 +1162,7 @@ window.horu = {
   aiError(msg) {
     if (msg.target === "translation") {
       const row = translationRowFor(msg.lineId);
-      if (row) setTranslationState(row, "error", msg.message);
+      if (row && !isStale(row, msg)) setTranslationState(row, "error", msg.message);
     } else if (msg.target === "tutor" && msg.session === state.tutor.session && state.tutor.answer) {
       state.tutor.answer.replaceChildren(el("p", "tutor-note error", msg.message));
       setTutorBusy(false);
