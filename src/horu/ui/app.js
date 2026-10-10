@@ -223,6 +223,9 @@ function openLineMenu(anchor, line, row) {
   } else if (line.text.length <= 10) {
     items.push([`「${line.text}」 is a speaker name`, () => mark(line, row, "speaker")]);
   }
+  if (state.ai.enabled && line.kind === "dialogue") {
+    items.unshift(["Re-read with AI", () => reread(line, row)]);
+  }
   lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
     closeLineMenu();
     action();
@@ -264,13 +267,31 @@ async function mark(line, row, label, part = "text") {
   }
 }
 
-function startEdit(line, row) {
+// A vision model reads the line again from its screenshot; its reading opens in the editor
+// for the user to check and save.
+async function reread(line, row) {
+  horu.setStatus({ state: "loading", message: "Re-reading the line with AI…" });
+  const result = await api().reread(line.id);
+  if (!result.ok) {
+    horu.setStatus({ state: "error", message: result.message });
+    return;
+  }
+  if (result.text === line.text) {
+    horu.setStatus({ state: "ready", message: "The AI read the same text." });
+    return;
+  }
+  horu.setStatus({ state: "ready", message: "The AI's reading is in the editor: check it against the game, then Save." });
+  startEdit(line, row, result.text);
+}
+
+function startEdit(line, row, suggestion = null) {
   closePopover();
   const text = row.querySelector(".text");
   const editor = el("div", "editor");
   const area = el("textarea");
   area.lang = "ja";
-  area.value = line.text;
+  area.value = suggestion ?? line.text;
+  if (suggestion !== null) editor.append(el("p", "editor-note", `Was: ${line.text}`));
   const actions = el("div", "editor-actions");
   const cancel = el("button", null, "Cancel");
   const save = el("button", "primary", "Save");

@@ -196,6 +196,12 @@ body.no-furigana .speaker rt { display: none; }
   font-weight: 600;
   cursor: default;
 }
+.editor-note {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .uncertain-flag {
   display: inline-grid;
   place-items: center;

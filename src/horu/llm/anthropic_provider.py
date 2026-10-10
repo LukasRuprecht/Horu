@@ -36,6 +36,23 @@ class AnthropicProvider:
         # `temperature` is ignored: current Claude models reject sampling parameters.
         return AnthropicChat(self, system, effort, history)
 
+    def read_image(self, prompt: str, png: bytes) -> str:
+        import base64
+
+        image = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64.b64encode(png).decode()}}
+        request = self._request("", "low")
+        messages = [{"role": "user", "content": [image, {"type": "text", "text": prompt}]}]
+        with _errors(self.model):
+            if self.model in _FALLBACK_MODELS:
+                response = self._client.beta.messages.create(
+                    **request, messages=messages, betas=[_FALLBACK_BETA], fallbacks="default"
+                )
+            else:
+                response = self._client.messages.create(**request, messages=messages)
+        if response.stop_reason == "refusal":
+            raise AIError("Claude declined to read this one.")
+        return "".join(block.text for block in response.content if block.type == "text").strip()
+
     def run_tools(
         self, system: str, task: str, tools: list[Tool], effort: str = "low", max_turns: int = 12, follow_up=None
     ) -> str:

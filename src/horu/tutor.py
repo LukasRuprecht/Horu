@@ -86,6 +86,14 @@ looks misread, say so briefly and work from the reading that makes sense.
 
 """
 
+REREAD = """\
+This image is a line of text from a video game. OCR read it as:
+「{text}」
+{alternatives}Transcribe the Japanese text in the image exactly, character for character. Pay \
+attention to small kana (っ ゃ ゅ ょ ぁ ぃ ぅ ぇ ぉ) and to look-alike characters. Leave out \
+small furigana readings printed above kanji. Join the lines into one, without line breaks \
+or added spaces. Reply with only the text."""
+
 EXPLAIN_LINE = """\
 {context}Current line:
 {line}
@@ -161,9 +169,27 @@ class Tutor:
         )
         return chat, chat.send(prompt)
 
+    def reread(self, line: Line, png: bytes) -> str:
+        """The line's text as a vision model reads it from the screenshot."""
+        alternatives = ""
+        if line.alternatives:
+            alternatives = "Other OCR models read it as: " + " / ".join(f"「{a}」" for a in line.alternatives) + "\n"
+        prompt = REREAD.format(text=line.text, alternatives=alternatives)
+        return clean_reading(self.provider.read_image(prompt, png))
+
     def explain_line(self, line: Line) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()
         return chat, chat.send(EXPLAIN_LINE.format(context=line.context(), line=line.quoted()))
+
+
+def clean_reading(reply: str) -> str:
+    """A model's transcription, without quotes, labels, or line breaks around it."""
+    lines = [l.strip() for l in reply.strip().splitlines() if l.strip()]
+    text = "".join(lines)
+    for prefix in ("Text:", "Transcription:"):
+        if text.startswith(prefix):
+            text = text[len(prefix):].strip()
+    return text.strip("「」『』\"'`")
 
 
 def _clean_label(reply: str) -> str:

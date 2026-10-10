@@ -38,6 +38,11 @@ class Provider(Protocol):
         """
         ...
 
+    def read_image(self, prompt: str, png: bytes) -> str:
+        """Answer `prompt` about a PNG image (for vision models). Raises AIError if the model
+        can't take images."""
+        ...
+
     def run_tools(
         self, system: str, task: str, tools: list[Tool], effort: str = "low", max_turns: int = 12, follow_up=None
     ) -> str:

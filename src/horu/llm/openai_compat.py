@@ -30,6 +30,17 @@ class OpenAICompatProvider:
     ) -> OpenAICompatChat:
         return OpenAICompatChat(self, system, history, temperature)
 
+    def read_image(self, prompt: str, png: bytes) -> str:
+        import base64
+
+        url = "data:image/png;base64," + base64.b64encode(png).decode()
+        content = [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": url}}]
+        with _errors(self, images=True):
+            response = self._client.chat.completions.create(
+                model=self.model, messages=[{"role": "user", "content": content}], temperature=0
+            )
+        return (response.choices[0].message.content or "").strip()
+
     def run_tools(
         self, system: str, task: str, tools: list[Tool], effort: str = "low", max_turns: int = 12, follow_up=None
     ) -> str:
@@ -116,7 +127,7 @@ class OpenAICompatChat:
 
 
 @contextmanager
-def _errors(provider: OpenAICompatProvider):
+def _errors(provider: OpenAICompatProvider, images: bool = False):
     """Turn SDK errors into messages a player can act on."""
     import openai
 
@@ -130,10 +141,15 @@ def _errors(provider: OpenAICompatProvider):
     except openai.RateLimitError as e:
         raise AIError("Rate limit hit. Wait a moment and try again.") from e
     except openai.BadRequestError as e:
+        if images:
+            raise AIError(f"{provider.model} can't read images. Choose a vision model (for Ollama, e.g. gemma3).") from e
         if "tool" in str(e).lower():
             raise AIError(f"{provider.model} can't use tools, which this needs. Choose a model with tool support (for Ollama, e.g. qwen3).") from e
         raise AIError(f"The AI provider rejected the request ({e.status_code}).") from e
     except openai.APIStatusError as e:
+        if images and e.status_code >= 500 and _is_local(provider.base_url):
+            # Ollama answers a text-only model's image request with a server error.
+            raise AIError(f"{provider.model} can't read images. Choose a vision model (for Ollama, e.g. gemma3).") from e
         raise AIError(f"The AI provider returned an error ({e.status_code}).") from e
     except openai.APIConnectionError as e:
         hint = " Is Ollama (or your local server) running?" if _is_local(provider.base_url) else ""

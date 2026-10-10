@@ -85,6 +85,10 @@ class Api:
     def test_ai(self) -> dict:
         return self._app.test_ai()
 
+    def reread(self, line_id: int) -> dict:
+        """Read a line again from its screenshot with a vision model."""
+        return self._app.reread(line_id)
+
     def open_url(self, url: str) -> None:
         # Links open in the user's browser; the app window itself never navigates away.
         if url.startswith(("https://", "http://")):
@@ -238,6 +242,21 @@ class App:
         except anki.AnkiError as e:
             return {"ok": False, "message": str(e)}
         return {"ok": True, "message": f"Added {card.dictionary_form} to {deck}."}
+
+    def reread(self, line_id: int) -> dict:
+        """{"ok", "text"} with a vision model's reading of the line, or {"ok": False, "message"}."""
+        if not self._provider:
+            return {"ok": False, "message": "Set up an AI provider in Settings to re-read lines."}
+        png = self._screenshots.get(line_id)
+        if line_id not in self.lines or png is None:
+            return {"ok": False, "message": "The screenshot for this line is no longer kept."}
+        try:
+            text = self._tutor().reread(self._line_context(line_id), png)
+        except llm.AIError as e:
+            return {"ok": False, "message": str(e)}
+        if not text:
+            return {"ok": False, "message": "The AI didn't return any text."}
+        return {"ok": True, "text": text}
 
     def make_cards(self, line_id: int, session: int) -> None:
         """Let the AI pick words from a line and add them to Anki itself, using tools. Its
