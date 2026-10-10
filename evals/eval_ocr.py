@@ -12,7 +12,7 @@ OCR (was the text read correctly?)
   Each true line is matched to the closest stretch of OCR text, so a line merged with its
   neighbour still counts as read; joining is scored separately below.
 - missed: true lines more than half wrong
-- junk: OCR'd Japanese lines that match nothing on the screen
+- junk: Japanese lines Horu shows that match nothing on the screen (dropped furigana excluded)
 
 Layout (was it organised correctly?), for each true block, using Horu's closest block:
 - found: a block with nearly the same text exists
@@ -82,7 +82,9 @@ def score_screen(screen: dict, image: Image.Image, source) -> dict:
     edits = sum(closest(t, reads) for t in truth_texts)
     missed = sum(closest(t, reads) > len(t) / 2 for t in truth_texts)
     known = truth_texts + optional
-    junk = [r for r in reads if not any(substring_distance(k, r) <= len(k) / 3 or edit_distance(r, k) <= 0.6 * len(r) for k in known)]
+    # Junk is judged on what Horu shows: lines layout drops (game furigana) don't count.
+    shown = [normalize(t) for b in blocks for t in [*(l.text for l in b.lines), b.speaker or ""] if is_japanese(t)]
+    junk = [r for r in shown if not any(substring_distance(k, r) <= len(k) / 3 or edit_distance(r, k) <= 0.6 * len(r) for k in known)]
     optional_found = sum(closest(o, reads) <= len(o) / 3 for o in optional)
 
     # Layout

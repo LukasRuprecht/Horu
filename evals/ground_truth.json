@@ -388,6 +388,184 @@
                 "戻る",
                 "決定"
             ]
+        },
+        {
+            "file": "capture (13).png",
+            "name": "zelda_game_furigana_spaced",
+            "verified": false,
+            "notes": "Game furigana over 寝/休/体力/回復 must be dropped; the gap in 体力を　回復 once read as 満.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "Lukeの寝どこだ…",
+                        "からだを休めて",
+                        "体力を回復することができる。"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (14).png",
+            "name": "zelda_clipped_first_char",
+            "verified": false,
+            "notes": "The detector box starts after も.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "もしニワトリのコトでなんか",
+                        "ねーちゃんにたのまれたら",
+                        "聞いてやれよ。"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (15).png",
+            "name": "zelda_centred_owl_name",
+            "verified": false,
+            "notes": "Centred lines of uneven length; player name after a wide space.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "よくきたなLuke。",
+                        "ここが聖なる山",
+                        "デスマウンテンの山頂じゃ。"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (16).png",
+            "name": "zelda_small_tsu_spaced",
+            "verified": false,
+            "notes": "うっかり read alone as うつかり.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "…ちなみにそこにある火口は",
+                        "とても熱くて危険な場所じゃ。",
+                        "うっかり近づかんようにな。"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (17).png",
+            "name": "zelda_small_window_owl",
+            "verified": false,
+            "notes": "887x640 window. つかまり once read as つまり.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "下界まで行くなら力を貸そう。",
+                        "近くへ来て足につかまりなさい。",
+                        "さあ勇気を出して。ホホ～ッ!"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (18).png",
+            "name": "zelda_item_screen_tabs",
+            "verified": false,
+            "notes": "720x480 3DS bottom screen; tabs side by side. マップ read as マツプ.",
+            "blocks": [
+                {
+                    "kind": "other",
+                    "lines": [
+                        "そうび"
+                    ]
+                },
+                {
+                    "kind": "other",
+                    "lines": [
+                        "マップ"
+                    ]
+                },
+                {
+                    "kind": "other",
+                    "lines": [
+                        "アイテム"
+                    ]
+                }
+            ],
+            "optional": [
+                "カメラ"
+            ]
+        },
+        {
+            "file": "capture (19).png",
+            "name": "zelda_baby_talk",
+            "verified": false,
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "けどボクのカワイイ顔じゃ",
+                        "ドキドキしないでしゅよね…",
+                        "やっぱり。"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (20).png",
+            "name": "zelda_small_window_small_o",
+            "verified": false,
+            "notes": "Small ぉ read as お.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "じゃがまだまだ",
+                        "ハイラルの運命をあずかる男には",
+                        "見えぬがのぉ…"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (21).png",
+            "name": "zelda_dialect_small_vowels",
+            "verified": false,
+            "notes": "Small ぇ and ぃ; ぃ read as い.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "てやんでぇべらぼうめぃ！"
+                    ]
+                }
+            ],
+            "optional": []
+        },
+        {
+            "file": "capture (22).png",
+            "name": "zelda_small_window_spaced",
+            "verified": false,
+            "notes": "Short spaced lines in a small window; 月に… was lost.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "太陽は月に…",
+                        "月は太陽に…"
+                    ]
+                }
+            ],
+            "optional": []
         }
     ]
 }
