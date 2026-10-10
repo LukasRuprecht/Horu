@@ -71,3 +71,16 @@ def edit_distance(a: str, b: str) -> int:
             current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb)))
         previous = current
     return previous[-1]
+
+
+# Full-size kana and their small forms. Whether a kana is small is only clear next to the
+# rest of the line, so a short piece read on its own often gets it wrong.
+_SIZES = dict(zip("あいうえおつやゆよわかけアイウエオツヤユヨワカケ", "ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ"))
+_SIZE_PAIRS = {*_SIZES.items(), *((small, big) for big, small in _SIZES.items())}
+
+
+def take_kana_sizes(base: str, other: str) -> str:
+    """`base` with each kana resized to match `other`, a reading of the same text with more
+    context. Nothing else is taken from `other`."""
+    replaced, _ = align(base, other)
+    return "".join(r if (c, r) in _SIZE_PAIRS else c for c, r in zip(base, replaced))

@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image
 
 from horu.text_sources.base import TextLine
-from horu.text_sources.vote import edit_distance, vote
+from horu.text_sources.vote import edit_distance, take_kana_sizes, vote
 
 Box = tuple[int, int, int, int]
 # Boxes tilted more than this (degrees) are straightened before reading: the recognizer only
@@ -39,6 +39,9 @@ _MAX_UPSCALE = 3.0
 # character-level voting. Measured on real screens (evals/eval_ocr.py): at 0.9 voting fixes
 # misreads without breaking anything; at 0.95 it starts "correcting" lines that were right.
 _VOTE_BELOW = 0.9
+# The main model confidently misses small kana (うっかり read as うつかり), so lines with a
+# full-size つ/や/ゆ/よ after kana, where a small one is plausible, are voted on too.
+_SMALL_KANA_DOUBT = re.compile(r"[ぁ-ゖァ-ヺ][つやゆよツヤユヨ]")
 
 
 class RapidOcrSource:
@@ -118,7 +121,9 @@ class RapidOcrSource:
                     # one line, even if a little less confident (よく　きたな　Luke).
                     joined = "".join(p[0] for p in pieces)
                     if confident or text.replace(" ", "") == joined.replace(" ", ""):
-                        pieces = [(joined, min(p[1] for p in pieces), merged_box)]
+                        # But a kana's size is only clear beside the rest of the line (うっかり
+                        # read alone is うつかり), so sizes come from the merged reading.
+                        pieces = [(take_kana_sizes(joined, text), min(p[1] for p in pieces), merged_box)]
                 elif confident:
                     pieces = [(text, score, merged_box)]
             readings.extend(pieces)
@@ -163,7 +168,7 @@ class RapidOcrSource:
         """Read a line, correcting an uncertain reading by voting between models."""
         crop = np.ascontiguousarray(crop)
         text, score = self._recognize(crop)
-        if self._voters and text and score < _VOTE_BELOW:
+        if self._voters and text and (score < _VOTE_BELOW or _SMALL_KANA_DOUBT.search(text)):
             text = self._vote(crop, text)
         return text, score
 
