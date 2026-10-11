@@ -567,7 +567,7 @@ function openPopover(wordEl) {
   state.selected = wordEl;
   wordEl.classList.add("selected");
 
-  popover.replaceChildren(...popoverHeader(word));
+  popover.replaceChildren(...popoverHeader(word, wordEl));
   const body = el("div", "pop-body");
   body.append(el("p", "pop-note", "Looking up..."));
   const actions = el("div", "pop-actions");
@@ -590,15 +590,31 @@ function openPopover(wordEl) {
   popover.hidden = false;
   positionPopover(wordEl);
 
+  showLookup(word, body, wordEl);
+}
+
+function showLookup(word, body, wordEl) {
   const request = wordEl;
+  const view = popover.dataset.view = String(Number(popover.dataset.view || 0) + 1);
   Promise.resolve(api() ? api().lookup(word) : { entries: [], names: [] }).then((result) => {
-    if (state.selected !== request) return; // another word was clicked meanwhile
+    // Another word (or part) was opened meanwhile.
+    if (state.selected !== request || popover.dataset.view !== view) return;
     body.replaceChildren(...nameEntries(result.names), ...popoverEntries(word, result.entries, result.names.length > 0));
     positionPopover(wordEl);
   });
 }
 
-function popoverHeader(word) {
+// A closer look at one part of a compound (語 in 日本語), with a way back to the whole word.
+function openPart(wordEl, part) {
+  const back = button("pop-back", "← Back", () => openPopover(wordEl));
+  const body = el("div", "pop-body");
+  body.append(el("p", "pop-note", "Looking up..."));
+  popover.replaceChildren(back, ...popoverHeader(part, wordEl), body);
+  positionPopover(wordEl);
+  showLookup(part, body, wordEl);
+}
+
+function popoverHeader(word, wordEl) {
   const head = el("div", "pop-head");
   const surface = el("div", "pop-word");
   surface.lang = "ja";
@@ -619,6 +635,17 @@ function popoverHeader(word) {
   chips.append(el("span", `chip pos pos-${word.pos}`, POS_LABEL[word.pos] || word.pos));
   for (const note of word.grammar) chips.append(el("span", "chip grammar", note));
   nodes.push(chips);
+
+  if (word.parts && word.parts.length) {
+    const parts = el("div", "pop-parts");
+    parts.append(el("span", "pop-parts-label", "Made of"));
+    for (const part of word.parts) {
+      const chip = button("chip part", part.surface, () => openPart(wordEl, part), `Look up ${part.surface}`);
+      chip.lang = "ja";
+      parts.append(chip);
+    }
+    nodes.push(parts);
+  }
   return nodes;
 }
 
