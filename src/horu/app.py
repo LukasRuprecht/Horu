@@ -158,6 +158,7 @@ class App:
         self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
         self._last_auto: tuple[int, str] | None = None  # (line id, text) of the last auto-read line
+        self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
         self.anki = anki.AnkiClient()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
@@ -567,6 +568,8 @@ class App:
             last_flush = time.monotonic()
             try:
                 for chunk in chunks:
+                    if not full and meta.get("target") == "translation":
+                        self._time(meta["lineId"], "translation started")
                     buffer.append(chunk)
                     full.append(chunk)
                     if time.monotonic() - last_flush >= _FLUSH_SECONDS:
@@ -584,6 +587,8 @@ class App:
                     if meta["gen"] == line.get("translationGen"):
                         line["translation"] = correction.without_proposal(reply)
                 self._call("aiDone", meta)
+                if meta.get("target") == "translation":
+                    self._time(meta["lineId"], "translated")
                 if proposal:
                     self.propose(meta["lineId"], proposal, "explain")
             except llm.AIError as e:
@@ -634,6 +639,7 @@ class App:
         return True
 
     def _capture(self, request: AutoRead | None = None) -> None:
+        started = time.monotonic()
         auto = request is not None
         if auto:
             image, game = request.image, request.game
@@ -700,20 +706,27 @@ class App:
             if not line["repeat"]:
                 self._keep_screenshot(line["id"], image, block.box)
         self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
+        for line in new:
+            self._started[line["id"]] = started
+            self._time(line["id"], "shown" + (" (flagged)" if line["uncertain"] else ""))
         self._ready()
         dialogue_new = [l for l in new if l["kind"] == "dialogue"]
         self._last_auto = (dialogue_new[-1]["id"], dialogue_new[-1]["text"]) if auto and dialogue_new else None
-        # A vision model checks every dialogue line against its screenshot. Lines Horu may
-        # have misread are checked before they're translated, so translations and cards use
-        # the fixed text; the rest are translated at once and checked alongside.
-        # Other text (menus, labels) only when flagged: a menu screen has many short items.
+        # A vision model checks every dialogue line against its screenshot, while the line is
+        # translated; a line it fixes is translated again. Cards for lines Horu may have
+        # misread wait for the check, so they never teach a misreading.
+        # Other text (menus, labels) is checked only when flagged: a menu screen has many
+        # short items.
         dialogue = [line["id"] for line in new if line["kind"] == "dialogue"]
         flagged_other = [line["id"] for line in new if line["kind"] != "dialogue" and line["uncertain"]]
         checkable = [i for i in dialogue + flagged_other if self._can_check(i)]
-        first = [i for i in checkable if self.lines[i]["uncertain"] and i in dialogue]
-        self._after_check([i for i in dialogue if i not in first])
+        waiting = [i for i in checkable if self.lines[i]["uncertain"] and i in dialogue]
+        if self.prefs.values["autoTranslate"]:
+            for line_id in dialogue:
+                self.translate(line_id)
+        self._auto_cards([i for i in dialogue if i not in waiting])
         if checkable:
-            threading.Thread(target=self._check_lines, args=(checkable, first), name="horu-check", daemon=True).start()
+            threading.Thread(target=self._check_lines, args=(checkable, waiting), name="horu-check", daemon=True).start()
 
     def _extends_last(self, new: list[dict], blocks, lines: list[dict], image) -> bool:
         """Text read while it was still typing out (paused at 、 or …) and read again in full:
@@ -790,6 +803,11 @@ class App:
         self._set_auto("watching", f"Watching {game}'s dialogue box.")
         return capture.grab_part(box, part), game
 
+    def _time(self, line_id: int, event: str) -> None:
+        """Log how long after its capture began a line reached `event`, to find slow steps."""
+        if line_id in self._started:
+            print(f"[timing] line {line_id}: {event} at {time.monotonic() - self._started[line_id]:.2f}s", flush=True)
+
     def _set_auto(self, state: str, message: str) -> None:
         if self._auto_state != (state, message):
             self._auto_state = (state, message)
@@ -807,39 +825,36 @@ class App:
     def _can_check(self, line_id: int) -> bool:
         return bool(self._provider and line_id in self._screenshots and self._vision is not False)
 
-    def _after_check(self, line_ids: list[int]) -> None:
-        if not line_ids:
-            return
-        if self.prefs.values["autoTranslate"]:
-            for line_id in line_ids:
-                self.translate(line_id)
-        if self.prefs.values["autoCards"] and self._provider:
+    def _auto_cards(self, line_ids: list[int]) -> None:
+        if line_ids and self.prefs.values["autoCards"] and self._provider:
             self.queue_auto_cards(line_ids)
 
     def _check_lines(self, line_ids: list[int], waiting: list[int]) -> None:
-        """Check `line_ids`, flagged lines first. Translation of `waiting` starts once they're
-        checked; the rest were translated already, and are re-translated if fixed."""
+        """Check `line_ids`, flagged lines first; lines fixed are translated again. Cards for
+        `waiting` lines are made once they're checked."""
         for line_id in sorted(line_ids, key=lambda i: i not in waiting):
             try:
-                self._check(line_id, retranslate=line_id not in waiting)
+                self._check(line_id)
             except Exception:
                 traceback.print_exc()
             if line_id in waiting:
-                self._after_check([line_id])
+                self._auto_cards([line_id])
 
-    def _check(self, line_id: int, retranslate: bool) -> None:
+    def _check(self, line_id: int) -> None:
         """Have a vision model read the line from its screenshot, and fix the line if that
         reading agrees with another OCR model's."""
         try:
             reading = self._tutor().reread(self._line_context(line_id), self._screenshots[line_id])
+            self._time(line_id, "checked")
         except llm.AIError as e:
+            self._time(line_id, f"check failed: {e}")
             if "can't read images" in str(e):
                 self._vision = False  # a text-only model: stop trying until the AI changes
             return
         self.lines[line_id]["aiReading"] = reading
-        self.propose(line_id, reading, "vision", retranslate=retranslate)
+        self.propose(line_id, reading, "vision")
 
-    def propose(self, line_id: int, text: str, source: str, retranslate: bool = True) -> str:
+    def propose(self, line_id: int, text: str, source: str) -> str:
         """Act on a proposed fix for a line: apply it when another source agrees, otherwise
         offer it to the learner. `source` is "vision" or "explain"."""
         line = self.lines.get(line_id)
@@ -859,7 +874,7 @@ class App:
             line["was"] = line.get("was") or was
             line["suggestion"] = None
             line["uncertain"] = False  # two sources agree on the new text
-            self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"], "retranslate": retranslate})
+            self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"]})
         elif outcome == correction.SUGGEST and text != line.get("suggestion"):
             line["suggestion"] = text
             self._call("lineSuggestion", {"id": line_id, "text": text, "source": source})

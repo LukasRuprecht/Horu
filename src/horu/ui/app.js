@@ -369,15 +369,33 @@ function markCorrected(line, row, was) {
 
 // `text` with the part that differs from `before` marked, so a one-kana change (のお → のぉ)
 // stands out.
-function highlightChange(before, text) {
-  let start = 0;
-  while (start < before.length && start < text.length && before[start] === text[start]) start++;
-  let end = 0;
-  while (end < before.length - start && end < text.length - start
-         && before[before.length - 1 - end] === text[text.length - 1 - end]) end++;
-  const changed = text.slice(start, text.length - end);
-  if (!changed) return [text];
-  return [text.slice(0, start), el("mark", "fix-change", changed), text.slice(text.length - end)];
+// The suggestion against what was read, character by character: what OCR read that the
+// suggestion drops is struck out in red, what it adds is green. Spacing is ignored.
+function diffNodes(before, text) {
+  const a = [...before.replace(/[\s　]/g, "")];
+  const b = [...text.replace(/[\s　]/g, "")];
+  // Longest common subsequence table, filled from the end.
+  const lcs = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) {
+      lcs[i][j] = a[i] === b[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    }
+  }
+  const nodes = [];
+  const push = (kind, char) => {
+    const last = nodes[nodes.length - 1];
+    if (last && last.kind === kind) last.text += char;
+    else nodes.push({ kind, text: char });
+  };
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    if (i < a.length && j < b.length && a[i] === b[j]) { push("same", a[i]); i++; j++; }
+    else if (j < b.length && (i === a.length || lcs[i][j + 1] >= lcs[i + 1][j])) push("add", b[j++]);
+    else push("drop", a[i++]);
+  }
+  return nodes.map(({ kind, text: chars }) =>
+    kind === "same" ? chars : el(kind === "add" ? "ins" : "del", `fix-${kind}`, chars));
 }
 
 function showSuggestion(line, row, text) {
@@ -386,7 +404,7 @@ function showSuggestion(line, row, text) {
   const chip = el("div", "fix-chip");
   const quote = el("span", "fix-text");
   quote.lang = "ja";
-  quote.append("「", ...highlightChange(line.text, text), "」?");
+  quote.append("「", ...diffNodes(line.text, text), "」?");
   chip.append(
     el("span", null, "Possible misread. Did you mean "),
     quote,
@@ -1125,13 +1143,13 @@ window.horu = {
     setTimeout(() => card.classList.remove("new"), 2500);
   },
 
-  lineCorrected({ id, text, words, was, retranslate }) {
+  lineCorrected({ id, text, words, was }) {
     const line = state.lines.get(id);
     const row = rowFor(id);
     if (!line || !row) return;
     setLineText(line, row, text, words);
     markCorrected(line, row, was);
-    if (retranslate) refreshTranslation(line, row);
+    refreshTranslation(line, row);
   },
 
   // A line auto-capture read while it was still typing out, now read in full.

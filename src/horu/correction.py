@@ -1,16 +1,18 @@
 """Deciding what to do with a proposed fix for a line Horu may have misread.
 
-A fix is applied automatically only when two independent sources agree on it: the AI's
-reading matches what one of the other OCR models read. A single source (a vision model's
-reading nobody else had, or a text-only model's guess while explaining) is only offered to
-the learner as a suggestion, because a wrong "fix" would teach them Japanese that isn't in
-the game.
+A fix is applied automatically when two independent sources agree on it (the AI's reading
+matches what one of the other OCR models read), or when it can't change what the line says:
+it only drops stray marks OCR added (でー for で), adds punctuation, or resizes a kana (つ for
+っ). Any other fix from a single source (a vision model's reading nobody else had, or a
+text-only model's guess while explaining) is only offered to the learner as a suggestion,
+because a wrong "fix" would teach them Japanese that isn't in the game.
 """
 
 from __future__ import annotations
 
 import re
 import unicodedata
+from difflib import SequenceMatcher
 
 from horu.text_sources.vote import edit_distance
 
@@ -24,6 +26,14 @@ _MAX_CHANGE = 0.3
 # A model that suspects a misread starts its explanation with this line (see tutor.SYSTEM).
 _OCR_LINE = re.compile(r"^\s*OCR:\s*(.+?)\s*$", re.M)
 _READING = re.compile(r"[（(][ぁ-ゖァ-ヺー・]+[）)]")
+# Marks OCR adds from gaps and decorations, which don't change what a line says; and
+# punctuation it drops.
+_STRAY = set("ー〜～・…‥-_")
+_PUNCTUATION = set("。、！？!?…」』")
+_KATAKANA = re.compile(r"[ァ-ヺ]")
+# Kana OCR reads at the wrong size (うつかり for うっかり). Small vowels are left out: they're
+# often a spelling choice (てやんでぇ, のぉ).
+_RESIZED = {*zip("つやゆよツヤユヨ", "っゃゅょッャュョ"), *zip("っゃゅょッャュョ", "つやゆよツヤユヨ")}
 
 
 def plain(text: str) -> str:
@@ -44,7 +54,30 @@ def decide(text: str, proposal: str, confirmations: list[str]) -> str:
         return IGNORE
     if any(_agrees(proposal, other, text) for other in confirmations if other):
         return APPLY
+    if is_safe(text, proposal):
+        return APPLY
     return SUGGEST
+
+
+def is_safe(text: str, proposal: str) -> bool:
+    """Whether `proposal` differs from `text` only in ways that can't change its meaning:
+    dropping stray marks (but not a katakana word's long vowel: セーブ is not セブ), adding
+    punctuation, or resizing っ, ゃ, ゅ or ょ."""
+    t, p = plain(text), plain(proposal)
+    if t == p:
+        return False
+    for op, i1, i2, j1, j2 in SequenceMatcher(None, t, p, autojunk=False).get_opcodes():
+        if op == "equal":
+            continue
+        if op == "delete":
+            if not all(c in _STRAY and not (c == "ー" and i > 0 and _KATAKANA.match(t[i - 1])) for i, c in enumerate(t[i1:i2], i1)):
+                return False
+        elif op == "insert":
+            if not all(c in _PUNCTUATION for c in p[j1:j2]):
+                return False
+        elif i2 - i1 != j2 - j1 or not all(pair in _RESIZED for pair in zip(t[i1:i2], p[j1:j2])):
+            return False
+    return True
 
 
 def _agrees(proposal: str, other: str, text: str) -> bool:

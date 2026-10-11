@@ -32,9 +32,9 @@ def fake_app(text, alternatives=(), ai_reading=None):
 
 def test_propose_applies_agreeing_fixes_and_suggests_the_rest():
     app, line, calls = fake_app("マツプ", ["マップ"])
-    assert App.propose(app, 1, "マップ", "vision", retranslate=False) == correction.APPLY
+    assert App.propose(app, 1, "マップ", "vision") == correction.APPLY
     assert line["text"] == "マップ" and line["was"] == "マツプ"
-    assert calls == [("lineCorrected", {"id": 1, "text": "マップ", "words": ["words"], "was": "マツプ", "retranslate": False})]
+    assert calls == [("lineCorrected", {"id": 1, "text": "マップ", "words": ["words"], "was": "マツプ"})]
 
     app, line, calls = fake_app("足につまりなさい。")
     assert App.propose(app, 1, "足にすがりなさい。", "explain") == correction.SUGGEST
@@ -71,3 +71,17 @@ def test_a_vision_reading_that_matches_clears_the_flag():
     line["uncertain"] = True
     assert App.propose(app, 1, "よくきたな Luke。", "vision") == correction.SAME
     assert line["uncertain"] is False and calls == [("lineVerified", {"id": 1})]
+
+
+def test_fixes_that_cannot_change_the_meaning_are_applied():
+    # A stray ー read from the gap before セーブ.
+    text = "もし休憩するならスタートボタンでーセーブしとくのわすれずにネ。"
+    assert correction.decide(text, "もし休憩するならスタートボタンでセーブしとくのわすれずにネ。", []) == correction.APPLY
+    assert correction.decide("うつかり近づかんようにな。", "うっかり近づかんようにな。", []) == correction.APPLY
+    assert correction.decide("行くよ", "行くよ。", []) == correction.APPLY
+
+
+def test_fixes_that_change_words_are_still_suggestions():
+    assert correction.decide("セーブしておこう", "セブしておこう", []) == correction.SUGGEST  # a katakana long vowel
+    assert correction.decide("なかなかいい詩だ", "なかなかいい歌だ", []) == correction.SUGGEST
+    assert correction.decide("てやんでぇ", "てやんでえ", []) == correction.SUGGEST  # small vowels are a spelling choice
