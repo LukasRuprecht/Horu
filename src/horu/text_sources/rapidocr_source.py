@@ -43,6 +43,13 @@ _VOTE_BELOW = 0.9
 # The main model confidently misses small kana (うっかり read as うつかり), so lines with a
 # full-size つ/や/ゆ/よ after kana, where a small one is plausible, are voted on too.
 _SMALL_KANA_DOUBT = re.compile(r"[ぁ-ゖァ-ヺ][つやゆよツヤユヨ]")
+# Games space out phrases (あ　いそがし…, ここは　ハイラル城下。) and the recognizer leaves the
+# spaces out, which can change how the line splits into words (あいそ　が　し). Where the
+# step between two characters is this much longer than the line's usual step, and the image
+# has an empty strip at least this wide (in line heights) there, a space is put back. The
+# empty strip tells a space from a character the recognizer skipped (ふしぎ[な]うでわ).
+_SPACE_STEP = 1.5
+_SPACE_WIDTH = 0.45
 
 
 class RapidOcrSource:
@@ -120,8 +127,8 @@ class RapidOcrSource:
                     # (体力を　回復 read as 体力を満回復), so their own readings are joined instead.
                     # A merged reading identical to the joined pieces also confirms they are
                     # one line, even if a little less confident (よく　きたな　Luke).
-                    joined = "".join(p[0] for p in pieces)
-                    if confident or text.replace(" ", "") == joined.replace(" ", ""):
+                    joined = _join_spaced(pieces)
+                    if confident or _plain(text) == _plain(joined):
                         # But a kana's size is only clear beside the rest of the line (うっかり
                         # read alone is うつかり), so sizes come from the merged reading.
                         sized = take_kana_sizes(joined, text)
@@ -162,9 +169,10 @@ class RapidOcrSource:
         text, score, alternatives = self._read_crop(_crop(pixels, box))
         if not text:
             return text, score, alternatives
-        wide_text, wide_score = self._recognize(np.ascontiguousarray(_crop(pixels, box, left=0.5)))
-        if len(wide_text) > len(text) and wide_text.endswith(text) and wide_score >= score - _MERGE_TOLERANCE:
-            added = wide_text[: len(wide_text) - len(text)]
+        wide_text, wide_score = self._recognize(np.ascontiguousarray(_crop(pixels, box, left=0.5)), spaced=True)
+        plain, wide_plain = _plain(text), _plain(wide_text)
+        if len(wide_plain) > len(plain) and wide_plain.endswith(plain) and wide_score >= score - _MERGE_TOLERANCE:
+            added = wide_plain[: len(wide_plain) - len(plain)]
             return wide_text, wide_score, [added + a for a in alternatives]
         return text, score, alternatives
 
@@ -172,17 +180,26 @@ class RapidOcrSource:
         """Read a line, correcting an uncertain reading by voting between models. Also returns
         the readings that disagreed with the result."""
         crop = np.ascontiguousarray(crop)
-        text, score = self._recognize(crop)
+        text, score = self._recognize(crop, spaced=True)
         if self._voters and text and (score < _VOTE_BELOW or _SMALL_KANA_DOUBT.search(text)):
-            voted, others = self._vote(crop, text)
-            return voted, score, [r for r in (text, *others) if r != voted]
+            # The other models vote on the characters; the spaces stay where they were.
+            plain = text.replace("　", "")
+            voted, others = self._vote(crop, plain)
+            if len(voted) == len(plain):
+                voted = _respace(voted, text)
+            return voted, score, [r for r in (text, *others) if _plain(r) != _plain(voted)]
         return text, score, []
 
-    def _recognize(self, crop: np.ndarray, engine=None) -> tuple[str, float]:
-        result = (engine or self._engine)(crop, use_det=False, use_cls=False, use_rec=True)
+    def _recognize(self, crop: np.ndarray, engine=None, spaced: bool = False) -> tuple[str, float]:
+        result = (engine or self._engine)(
+            crop, use_det=False, use_cls=False, use_rec=True, return_word_box=spaced, return_single_char_box=spaced
+        )
         if not result.txts:
             return "", 0.0
-        return fix_misreads("".join(result.txts)), float(min(result.scores))
+        text = "".join(result.txts)
+        if spaced and len(result.txts) == 1 and result.word_results and result.word_results[0] is not None:
+            text = _with_spaces(crop, text, result.word_results[0])
+        return fix_misreads(text), float(min(result.scores))
 
     def _vote(self, crop: np.ndarray, text: str) -> tuple[str, list[str]]:
         """Correct an uncertain reading where the other models agree on a change. Returns the
@@ -195,6 +212,64 @@ class RapidOcrSource:
             close = edit_distance(other, text) <= max(2, len(text) * 0.4)
             others.append(other if close else text)
         return vote(text, others), others
+
+
+def _with_spaces(crop: np.ndarray, text: str, info) -> str:
+    """`text` with a full-width space wherever there's a clear empty gap between characters.
+    `info` is the recognizer's character positions (output columns across the crop)."""
+    chars = [c for word in info.words for c in word]
+    columns = [c for word in info.word_cols for c in word]
+    if "".join(chars) != text or len(chars) < 3 or not info.line_txt_len:
+        return text
+    steps = np.diff(columns)
+    usual = float(np.median(steps))
+    if usual <= 0:
+        return text
+    per_column = crop.shape[1] / info.line_txt_len
+    ink = _ink_columns(crop)
+    # The crop has a margin of about a tenth of the line height above and below.
+    min_gap = _SPACE_WIDTH * crop.shape[0] / 1.2
+    spaced = [chars[0]]
+    for i, step in enumerate(steps):
+        before, after = chars[i], chars[i + 1]
+        if step >= _SPACE_STEP * usual and not (before.isascii() and after.isascii()) and " " not in (before, after):
+            start = int((columns[i] + 0.5) * per_column)
+            end = int((columns[i + 1] + 0.5) * per_column)
+            if _longest_run(~ink[start:end]) >= min_gap:
+                spaced.append("　")
+        spaced.append(after)
+    return "".join(spaced)
+
+
+def _ink_columns(crop: np.ndarray) -> np.ndarray:
+    """Which columns of a line's crop have text in them. Text is the smaller of the two
+    brightness classes (light text on a dark box, or dark text on a light one)."""
+    value = np.ascontiguousarray(crop.max(axis=2))
+    _, mask = cv2.threshold(value, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ink = mask > 0
+    if ink.mean() > 0.5:
+        ink = ~ink
+    return ink.sum(axis=0) >= 2
+
+
+def _longest_run(flags: np.ndarray) -> int:
+    best = run = 0
+    for flag in flags.tolist():
+        run = run + 1 if flag else 0
+        best = max(best, run)
+    return best
+
+
+def _respace(text: str, spaced: str) -> str:
+    """`text` with spaces where `spaced`, a reading of the same length without them, has them."""
+    chars = iter(text)
+    return "".join(c if c == "　" else next(chars) for c in spaced)
+
+
+def _join_spaced(pieces: list[tuple[str, float, list[str], Box]]) -> str:
+    """Pieces of a spaced-out row joined, with the spaces between them put back."""
+    texts = [p[0].strip("　") for p in pieces]
+    return "　".join(t for t in texts if t)
 
 
 def _joined_alternatives(pieces: list[tuple[str, float, list[str], Box]]) -> list[str]:
