@@ -1,6 +1,6 @@
 import pytest
 
-from horu.layout import group_blocks, is_legend
+from horu.layout import Style, group_blocks, is_legend
 from horu.text_sources.base import TextLine
 from horu.text_sources.rapidocr_source import merge_rows
 
@@ -171,3 +171,19 @@ def test_centred_sign_title_is_not_a_speaker():
     blocks = group_blocks(lines)
     assert all(b.speaker is None for b in blocks)
     assert "急流に注意！トコトン流されます" in [b.text for b in blocks]
+
+
+def test_title_in_its_own_colour_joins_the_text_below():
+    lines = [
+        line("ゾーラ川", 222, 392, 308, 426),
+        line("急流に注意!トコトン流されます", 102, 430, 426, 457),
+    ]
+    blue, white = Style((60, 90, 220), True), Style((235, 235, 235), True)
+    [block] = group_blocks(lines, styles=[blue, white])
+    assert (block.kind, block.speaker, block.text) == ("dialogue", None, "ゾーラ川　急流に注意!トコトン流されます")
+
+
+def test_centred_menu_in_one_colour_stays_apart():
+    lines = [line("はじめから", 200, 300, 330, 330), line("つづきから", 200, 340, 330, 370)]
+    white = Style((235, 235, 235), True)
+    assert len(group_blocks(lines, styles=[white, white])) == 2

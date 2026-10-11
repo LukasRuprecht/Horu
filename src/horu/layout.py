@@ -74,10 +74,14 @@ class TextBlock:
     speaker: str | None = None
     kind: str = "dialogue"  # "dialogue" or "other"
     speaker_score: float = 1.0  # OCR confidence for the speaker line
+    titled: bool = False  # the first line is a heading over the rest (a sign's place name)
 
     @property
     def text(self) -> str:
-        # Japanese has no spaces between words, so wrapped lines join directly.
+        # Japanese has no spaces between words, so wrapped lines join directly. A title is
+        # set apart, so it isn't read as part of the first word.
+        if self.titled and len(self.lines) > 1:
+            return self.lines[0].text + "　" + "".join(line.text for line in self.lines[1:])
         return "".join(line.text for line in self.lines)
 
     @property
@@ -180,6 +184,7 @@ def group_blocks(
         else:
             groups.append({"speaker": None, "lines": [i]})
     _join_centred(groups, lines, ruby)
+    _join_titles(groups, lines, styles, ruby)
 
     blocks = []
     for group in groups:
@@ -197,7 +202,7 @@ def group_blocks(
             kind = "dialogue"
         elif normalize(text) in hints.other:
             kind = "other"
-        blocks.append(TextBlock(block_lines, speaker, kind, speaker_score))
+        blocks.append(TextBlock(block_lines, speaker, kind, speaker_score, bool(group.get("titled"))))
     return blocks
 
 
@@ -343,6 +348,30 @@ def _join_centred(groups: list[dict], lines: list[TextLine], ruby: dict[int, int
                 continue
             if _centred_below(lines[earlier["lines"][-1]], first, (ruby or {}).get(later["lines"][0], 0)):
                 earlier["lines"].extend(later["lines"])
+                del groups[k]
+                break
+
+
+def _join_titles(groups: list[dict], lines: list[TextLine], styles: dict[int, Style], ruby: dict[int, int]) -> None:
+    """Join a title to the text under it: a short line in its own colour, centred just above
+    a block (ゾーラ川 over a sign's 急流に注意！トコトン流されます). The colour keeps centred
+    menus (はじめから／つづきから) apart."""
+    for k in range(len(groups) - 2, -1, -1):
+        title = groups[k]
+        if title.get("legend") or title["speaker"] is not None or len(title["lines"]) != 1:
+            continue
+        t = title["lines"][0]
+        text = lines[t].text.strip()
+        if len(text) > _MAX_SPEAKER_CHARS or _WRAP_END.search(text):
+            continue
+        for body in groups[k + 1:]:
+            if body.get("legend") or body["speaker"] is not None or not body["lines"]:
+                continue
+            first = body["lines"][0]
+            own_colour = t in styles and first in styles and styles[t].differs_from(styles[first])
+            if own_colour and _centred_below(lines[t], lines[first], ruby.get(first, 0)):
+                body["lines"].insert(0, t)
+                body["titled"] = True
                 del groups[k]
                 break
 

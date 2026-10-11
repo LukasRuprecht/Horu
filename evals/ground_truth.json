@@ -566,6 +566,22 @@
                 }
             ],
             "optional": []
+        },
+        {
+            "file": "capture (23).png",
+            "name": "zelda_sign_with_title",
+            "verified": true,
+            "notes": "A sign: the blue place name ゾーラ川 is centred over the text and must join it as one dialogue block, not be a speaker or 'other'.",
+            "blocks": [
+                {
+                    "kind": "dialogue",
+                    "lines": [
+                        "ゾーラ川",
+                        "急流に注意！トコトン流されます"
+                    ]
+                }
+            ],
+            "optional": []
         }
     ]
 }
