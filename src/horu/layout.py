@@ -222,6 +222,14 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if marked:
         return True
     body = min(below, key=lambda j: lines[j].box[1])
+    # Name tags sit at the text's left edge (or left of it). A heading centred over the text,
+    # well in from its edge, is a title: a sign's place name (ゾーラ川 over 急流に注意！).
+    c_left, _, c_right, _ = candidate.box
+    b_left, b_top, b_right, b_bottom = lines[body].box
+    b_height = b_bottom - b_top
+    centred = abs((c_left + c_right) - (b_left + b_right)) / 2 <= 0.5 * b_height
+    if not marked and centred and c_left - b_left > 2 * b_height:
+        return False
     # A speaker says something: the line below must read like dialogue, not be another menu
     # item or label.
     if not _reads_like_dialogue(lines[body].text):

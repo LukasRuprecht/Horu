@@ -160,3 +160,14 @@ def test_misread_furigana_is_not_a_speaker():
     ]
     blocks = group_blocks(lines)
     assert [(b.speaker, b.text) for b in blocks] == [(None, "魔法のツボを手に入れた！魔力のゲージが回復する！")]
+
+
+def test_centred_sign_title_is_not_a_speaker():
+    # Ocarina of Time 3D: a sign's place name, centred over its text.
+    lines = [
+        line("ゾーラ川", 307, 419, 424, 465),
+        line("急流に注意！トコトン流されます", 142, 473, 588, 508),
+    ]
+    blocks = group_blocks(lines)
+    assert all(b.speaker is None for b in blocks)
+    assert "急流に注意！トコトン流されます" in [b.text for b in blocks]
