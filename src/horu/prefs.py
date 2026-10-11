@@ -21,6 +21,9 @@ DEFAULTS: dict = {
     # game. Off for people who stream or share their screen with Horu visible.
     "hideFromCapture": True,
     "autoTranslate": False,  # one AI request per new dialogue line
+    # Use the AI's reading of a possibly misread line (or name tag) straight away, showing
+    # what changed, instead of asking "Did you mean ...?".
+    "applyAiReadings": True,
     "blurTranslations": True,
     "learnerLevel": "Beginner (studying with Genki I)",
     # AI provider chosen in the settings panel ("" = use config.toml). Keys are not stored

@@ -50,6 +50,14 @@ class SpeakerBook:
             self._save()
         return text
 
+    def confirm(self, game: str, text: str) -> None:
+        """A name two sources agree on (OCR and the AI's reading): known from now on, so later
+        misreads of it are matched to it."""
+        with self._lock:
+            entry = self._data.setdefault(game, {}).setdefault(text, {"en": None, "source": None})
+            entry["seen"] = entry.get("seen", 0) + 1
+        self._save()
+
     def known(self, game: str) -> frozenset[str]:
         """Names read confidently at least once in this game."""
         return frozenset(name for name, entry in self._data.get(game, {}).items() if entry.get("seen"))

@@ -59,6 +59,18 @@ def decide(text: str, proposal: str, confirmations: list[str]) -> str:
     return SUGGEST
 
 
+def keep_spaces(text: str, proposal: str) -> str:
+    """`proposal` with the spaces `text` has between phrases (あ　いそがし…), when it has the
+    same number of characters: models leave spaces out."""
+    if "\u3000" not in text or "\u3000" in proposal:
+        return proposal
+    bare = proposal.replace(" ", "")
+    if len(bare) != len(text.replace("\u3000", "")):
+        return proposal
+    chars = iter(bare)
+    return "".join(c if c == "\u3000" else next(chars) for c in text)
+
+
 def is_safe(text: str, proposal: str) -> bool:
     """Whether `proposal` differs from `text` only in ways that can't change its meaning:
     dropping stray marks (but not a katakana word's long vowel: セーブ is not セブ), adding

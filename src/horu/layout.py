@@ -75,6 +75,7 @@ class TextBlock:
     kind: str = "dialogue"  # "dialogue" or "other"
     speaker_score: float = 1.0  # OCR confidence for the speaker line
     titled: bool = False  # the first line is a heading over the rest (a sign's place name)
+    speaker_line: TextLine | None = None  # the name tag as read: its box and other readings
 
     @property
     def text(self) -> str:
@@ -202,7 +203,8 @@ def group_blocks(
             kind = "dialogue"
         elif normalize(text) in hints.other:
             kind = "other"
-        blocks.append(TextBlock(block_lines, speaker, kind, speaker_score, bool(group.get("titled"))))
+        speaker_line = lines[group["speaker"]] if group["speaker"] is not None else None
+        blocks.append(TextBlock(block_lines, speaker, kind, speaker_score, bool(group.get("titled")), speaker_line))
     return blocks
 
 
@@ -244,6 +246,9 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if _NAME_LIKE.search(text) or normalize(text) in hints.known_speakers or _has_person_name(text):
         score += 2
     if i in styles and body in styles and styles[i].differs_from(styles[body]):
+        score += 2
+    elif bool(candidate.slant_height) != bool(lines[body].slant_height):
+        # Set at an angle to the text below: a tag made to stand out (P5R's tilted names).
         score += 2
     ratio = _height(candidate) / max(_height(lines[body]), 1)
     low, high = _NAME_TAG_SIZE
@@ -433,8 +438,9 @@ def _ruby_height(line: TextLine, furigana: list[TextLine]) -> int:
     return max(heights, default=0)
 
 
-def _height(line: TextLine) -> int:
-    return line.box[3] - line.box[1]
+def _height(line: TextLine) -> float:
+    """The text's height: for a slanted line, across its slant, not its box's."""
+    return line.slant_height or line.box[3] - line.box[1]
 
 
 def _otsu(values: np.ndarray) -> float:

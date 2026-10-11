@@ -130,6 +130,10 @@
     <p id="ai-status" class="ai-status"></p>
     <div id="ai-options">
       <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>
+      <label class="check"><input id="apply-ai-readings" type="checkbox"> Fix likely misreads with the AI's reading</label>
+      <p class="check-hint">When OCR may have misread a line or a speaker's name, the AI reads it from the
+        screenshot and Horu uses that reading, marked "corrected" (click to undo). Off: Horu asks
+        "Did you mean …?" instead, unless another OCR model read the same thing.</p>
       <label class="check"><input id="blur-translations" type="checkbox"> Blur translations until clicked</label>
       <label class="setting-text">
         <span>Your level (explanations are pitched to this)</span>

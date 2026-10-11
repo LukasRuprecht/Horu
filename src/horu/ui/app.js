@@ -977,6 +977,7 @@ const FIELDS = [
   ["#auto-cards", "autoCards", false],
   ["#hide-from-capture", "hideFromCapture", true],
   ["#auto-translate", "autoTranslate", false],
+  ["#apply-ai-readings", "applyAiReadings", true],
   ["#blur-translations", "blurTranslations", true],
   ["#learner-level", "learnerLevel", ""],
 ];
@@ -1312,6 +1313,29 @@ window.horu = {
       if (row) row.textContent = pullText(aiSetup.pulls[event.name]);
       else renderSuggestions();
     }
+  },
+
+  // The AI read a doubtful name tag differently (or the learner undid that).
+  speakerCorrected({ id, speaker }) {
+    const line = state.lines.get(id);
+    if (!line) return;
+    line.speaker = speaker;
+    const row = rowFor(id);
+    if (!row) return;
+    renderWords(line, row.querySelector(".speaker"), "speaker");
+    const english = row.querySelector(".speaker-en");
+    english.dataset.speaker = speaker.text;
+    english.textContent = speaker.english || "";
+    let tag = row.querySelector(".speaker-fixed");
+    if (!speaker.was) {
+      if (tag) tag.remove();
+      return;
+    }
+    if (!tag) {
+      tag = button("corrected-tag speaker-fixed", "corrected", () => api().set_speaker(id, line.speaker.was));
+      english.after(tag);
+    }
+    tag.title = `Horu fixed a likely misread of the speaker's name. It was:\n${speaker.was}\n\nClick to undo.`;
   },
 
   speakerEnglish({ game, text, english }) {

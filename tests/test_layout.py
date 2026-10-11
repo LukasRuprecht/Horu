@@ -187,3 +187,18 @@ def test_centred_menu_in_one_colour_stays_apart():
     lines = [line("はじめから", 200, 300, 330, 330), line("つづきから", 200, 340, 330, 370)]
     white = Style((235, 235, 235), True)
     assert len(group_blocks(lines, styles=[white, white])) == 2
+
+
+@pytest.mark.parametrize(
+    "tag, tag_box, body",
+    [
+        # P5R: the name tag is slanted and as tall as the text; its box is much taller.
+        ("愛想のない警察団", (197, 413, 350, 479), [("奥の路地だよ。", 278, 483, 392, 503), ("第三ビルの手前を曲がった先。", 277, 503, 514, 525)]),
+        ("愛想のない番察官", (50, 429, 203, 488), [("まだ何か？", 136, 491, 223, 515)]),
+    ],
+)
+def test_a_slanted_name_tag_is_a_speaker(tag, tag_box, body):
+    white = Style((245, 245, 245), True)
+    lines = [TextLine(tag, tag_box, 0.8, slant_height=30.7), *(line(*b) for b in body)]
+    [block] = group_blocks(lines, styles=[white] * len(lines))
+    assert block.speaker == tag and block.speaker_line.box == tag_box

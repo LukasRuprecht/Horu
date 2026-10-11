@@ -137,6 +137,7 @@ class RapidOcrSource:
                     pieces = [(text, score, alternatives, merged_box)]
             readings.extend(pieces)
         # Slanted lines get the same treatment, with pieces grouped along their own slant.
+        slant_heights: dict[Box, float] = {}
         for group in _group_tilted(tilted):
             pieces = [(*self._read_crop(_straighten(pixels, q)), _box(q)) for q in group]
             if len(group) > 1:
@@ -144,6 +145,9 @@ class RapidOcrSource:
                 text, score, alternatives = self._read_crop(_straighten(pixels, merged))
                 if score >= min(p[1] for p in pieces) - _MERGE_TOLERANCE:
                     pieces = [(text, score, alternatives, _box(merged))]
+                    group = [merged]
+            for quad in group:
+                slant_heights[_box(quad)] = _quad_height(quad)
             readings.extend(pieces)
 
         lines = []
@@ -151,7 +155,8 @@ class RapidOcrSource:
             if text and score >= self._min_score:
                 left, top, right, bottom = (round(v / scale) for v in box)
                 others = tuple(dict.fromkeys(a for a in alternatives if a and _plain(a) != _plain(text)))
-                lines.append(TextLine(text, (left, top, right, bottom), score, others))
+                slant = slant_heights.get(box, 0.0) / scale
+                lines.append(TextLine(text, (left, top, right, bottom), score, others, slant))
         return lines
 
     def _detect(self, pixels: np.ndarray) -> list[np.ndarray]:
@@ -311,6 +316,12 @@ def _straighten(pixels: np.ndarray, quad: np.ndarray) -> np.ndarray:
     size = (int(width + 2 * margin_x), int(height + 2 * margin_y))
     transform = cv2.getPerspectiveTransform(quad.astype(np.float32), target)
     return cv2.warpPerspective(pixels, transform, size, borderMode=cv2.BORDER_REPLICATE)
+
+
+def _quad_height(quad: np.ndarray) -> float:
+    """The height of a (possibly slanted) region, measured across its slant."""
+    top_left, top_right, bottom_right, bottom_left = quad
+    return float(max(np.linalg.norm(bottom_left - top_left), np.linalg.norm(bottom_right - top_right)))
 
 
 def _box(quad: np.ndarray) -> Box:

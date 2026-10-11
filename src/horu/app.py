@@ -106,6 +106,10 @@ class Api:
         """Read a line again from its screenshot with a vision model."""
         return self._app.reread(line_id)
 
+    def set_speaker(self, line_id: int, text: str) -> None:
+        """Replace a line's speaker name (undoing a correction)."""
+        self._app.set_speaker(line_id, text)
+
     def region_editor(self, line_id: int) -> dict:
         """The game picture this line was captured from, with its auto-read regions."""
         return self._app.region_editor(line_id)
@@ -173,6 +177,7 @@ class App:
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
         self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
+        self._speaker_shots: dict[int, bytes] = {}  # line id -> PNG of a doubtful name tag, until checked
         self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
         self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
@@ -357,14 +362,7 @@ class App:
 
     def _keep_screenshot(self, line_id: int, image, box: tuple[int, int, int, int]) -> None:
         """A crop around the line (with some surrounding scene) for its flashcards."""
-        left, top, right, bottom = box
-        margin = max(40, (bottom - top))
-        crop = image.crop((max(left - margin, 0), max(top - margin, 0), min(right + margin, image.width), min(bottom + margin, image.height)))
-        if crop.width > _SCREENSHOT_MAX_WIDTH:
-            crop = crop.resize((_SCREENSHOT_MAX_WIDTH, round(crop.height * _SCREENSHOT_MAX_WIDTH / crop.width)))
-        buffer = io.BytesIO()
-        crop.save(buffer, format="PNG", optimize=True)
-        self._screenshots[line_id] = buffer.getvalue()
+        self._screenshots[line_id] = _png(image, box, margin=max(40, box[3] - box[1]))
         while len(self._screenshots) > _SCREENSHOTS_KEPT:
             self._screenshots.popitem(last=False)
 
@@ -719,6 +717,8 @@ class App:
             self.lines[line["id"]] = line
             if not line["repeat"]:
                 self._keep_screenshot(line["id"], image, block.box)
+                if line["speaker"] and line["speaker"]["uncertain"]:
+                    self._speaker_shots[line["id"]] = _png(image, block.speaker_line.box, margin=8)
         self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
         if suggested:
             line_id = next(l["id"] for l in lines if l["kind"] == "dialogue")
@@ -903,6 +903,41 @@ class App:
                 self._auto_cards([line_id])
 
     def _check(self, line_id: int) -> None:
+        """Have a vision model read the line (and a doubtful name tag) from its screenshot."""
+        self._check_text(line_id)
+        if line_id in self._speaker_shots:
+            try:
+                self._check_speaker(line_id)
+            except llm.AIError as e:
+                self._time(line_id, f"speaker check failed: {e}")
+
+    def _check_speaker(self, line_id: int) -> None:
+        """Read a name tag OCR wasn't sure of again with a vision model, and use that reading
+        when it differs. The name it settles on is remembered, so later misreads of it are
+        matched to it."""
+        png = self._speaker_shots.pop(line_id)
+        line = self.lines[line_id]
+        speaker, game = line["speaker"], line["game"]
+        reading = self._tutor().reread(Line(speaker["text"], alternatives=speaker["alternatives"]), png)
+        self._time(line_id, "speaker checked")
+        outcome = correction.decide(speaker["text"], reading, speaker["alternatives"])
+        if outcome == correction.SAME:
+            self.speakers.confirm(game, speaker["text"])
+        elif outcome == correction.APPLY or (outcome == correction.SUGGEST and self.prefs.values["applyAiReadings"]):
+            self.speakers.confirm(game, reading)
+            self.set_speaker(line_id, reading, was=speaker["text"])
+
+    def set_speaker(self, line_id: int, text: str, was: str | None = None) -> None:
+        line = self.lines.get(line_id)
+        if not line or not line["speaker"]:
+            return
+        game = line["game"]
+        line["speaker"].update(text=text, words=self._words(text), english=self.speaker_english(game, text), was=was)
+        self._call("speakerCorrected", {"id": line_id, "speaker": line["speaker"]})
+        if not line["speaker"]["english"] and self.prefs.values["autoTranslate"]:
+            self.translate_speaker(game, text)
+
+    def _check_text(self, line_id: int) -> None:
         """Have a vision model read the line from its screenshot, and fix the line if that
         reading agrees with another OCR model's."""
         try:
@@ -926,6 +961,9 @@ class App:
         if source != "vision" and line.get("aiReading"):
             confirmations.append(line["aiReading"])
         outcome = correction.decide(line["text"], text, confirmations)
+        if outcome == correction.SUGGEST and self.prefs.values["applyAiReadings"]:
+            outcome = correction.APPLY
+        text = correction.keep_spaces(line["text"], text)
         if outcome == correction.SAME and source == "vision" and line.get("uncertain"):
             # The AI read what OCR read: two sources agree, so the line isn't in doubt.
             line["uncertain"] = False
@@ -945,7 +983,15 @@ class App:
     def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
         speaker = None
         if block.speaker:
-            speaker = {"text": block.speaker, "words": self._words(block.speaker)}
+            read = block.speaker_line
+            speaker = {
+                "text": block.speaker,
+                "words": self._words(block.speaker),
+                # Other OCR models' readings of the name tag, and whether it may be misread
+                # (and wasn't matched to a name already known).
+                "alternatives": list(read.alternatives) if read else [],
+                "uncertain": bool(read and block.speaker == read.text and (read.score < _UNCERTAIN or read.alternatives)),
+            }
         return {
             "id": next(self._ids),
             "speaker": speaker,
@@ -971,6 +1017,17 @@ class App:
     def _call(self, function: str, *args) -> None:
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
+
+
+def _png(image, box: tuple[int, int, int, int], margin: int) -> bytes:
+    """A PNG of `box` in `image` with `margin` pixels around it, no wider than screenshots are kept."""
+    left, top, right, bottom = box
+    crop = image.crop((max(left - margin, 0), max(top - margin, 0), min(right + margin, image.width), min(bottom + margin, image.height)))
+    if crop.width > _SCREENSHOT_MAX_WIDTH:
+        crop = crop.resize((_SCREENSHOT_MAX_WIDTH, round(crop.height * _SCREENSHOT_MAX_WIDTH / crop.width)))
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG", optimize=True)
+    return buffer.getvalue()
 
 
 _PERSON_NAME_TYPES = {"surname", "given name", "female given name", "male given name", "full name", "character", "fictional"}

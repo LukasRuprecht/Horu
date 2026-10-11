@@ -22,10 +22,11 @@ def test_ocr_line_in_a_reply():
     assert correction.without_proposal("Come closer.") == "Come closer."
 
 
-def fake_app(text, alternatives=(), ai_reading=None):
+def fake_app(text, alternatives=(), ai_reading=None, apply_ai_readings=False):
     calls = []
     line = {"text": text, "alternatives": list(alternatives), "aiReading": ai_reading, "suggestion": None}
     app = SimpleNamespace(lines={1: line}, _call=lambda name, payload: calls.append((name, payload)))
+    app.prefs = SimpleNamespace(values={"applyAiReadings": apply_ai_readings})
     app.update_line = lambda line_id, new: line.update(text=new) or ["words"]
     return app, line, calls
 
@@ -85,3 +86,22 @@ def test_fixes_that_change_words_are_still_suggestions():
     assert correction.decide("セーブしておこう", "セブしておこう", []) == correction.SUGGEST  # a katakana long vowel
     assert correction.decide("なかなかいい詩だ", "なかなかいい歌だ", []) == correction.SUGGEST
     assert correction.decide("てやんでぇ", "てやんでえ", []) == correction.SUGGEST  # small vowels are a spelling choice
+
+
+def test_with_the_preference_on_the_ai_reading_is_used_at_once():
+    app, line, calls = fake_app("足につまりなさい。", apply_ai_readings=True)
+    assert App.propose(app, 1, "足にすがりなさい。", "vision") == correction.APPLY
+    assert line["text"] == "足にすがりなさい。" and line["was"] == "足につまりなさい。"
+    assert calls[0][0] == "lineCorrected"
+    # A rewrite is still ignored.
+    app, line, calls = fake_app("てやんでぇべらぼうめい！", apply_ai_readings=True)
+    assert App.propose(app, 1, "ベルがいいね！", "vision") == correction.IGNORE and not calls
+
+
+def test_an_applied_reading_keeps_the_games_spaces():
+    app, line, calls = fake_app("あ\u3000いそがし…", apply_ai_readings=True)
+    App.propose(app, 1, "あ いそがしい", "vision")
+    assert line["text"] == "あ　いそがしい"
+    # A reading of a different length can't be lined up: it's used as it is.
+    assert correction.keep_spaces("あ　いそがし…", "あいそがしい…") == "あいそがしい…"
+    assert correction.keep_spaces("あ\u3000いそがし…", "あいそかし…") == "あ\u3000いそかし…"
