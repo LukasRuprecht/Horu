@@ -85,6 +85,24 @@ def cmd_setup() -> None:
     print(f"Dictionary ready: {count} JMdict entries in {dictionary.DEFAULT_PATH}")
 
 
+def cmd_reset_learned() -> None:
+    """Forget what Horu learned while playing; settings, the dictionary, and API keys stay."""
+    from horu import autocapture, corrections, speakers
+
+    learned = [
+        (speakers.DEFAULT_PATH, "speaker names and their English"),
+        (autocapture.DEFAULT_PATH, "auto-read regions"),
+        (corrections.DEFAULT_PATH, "corrections made from a line's menu"),
+    ]
+    for path, what in learned:
+        if path.exists():
+            path.unlink()
+            print(f"Removed {path} ({what}).")
+        else:
+            print(f"Nothing to remove for {what}.")
+    print("Restart Horu if it's running: it would save what it still remembers when it next learns something.")
+
+
 def cmd_monitors() -> None:
     for i, m in enumerate(capture.list_monitors()):
         label = "all monitors" if i == 0 else f"monitor {i}"
@@ -116,6 +134,10 @@ def main() -> None:
     read.add_argument("image", type=Path)
     sub.add_parser("monitors", help="list monitors and their coordinates")
     sub.add_parser("setup", help="download and index the JMdict dictionary")
+    sub.add_parser(
+        "reset-learned",
+        help="forget speaker names, auto-read regions, and line corrections (keeps settings, dictionary, API keys)",
+    )
     args = parser.parse_args()
 
     if args.command == "monitors":
@@ -123,6 +145,9 @@ def main() -> None:
         return
     if args.command == "setup":
         cmd_setup()
+        return
+    if args.command == "reset-learned":
+        cmd_reset_learned()
         return
 
     try:

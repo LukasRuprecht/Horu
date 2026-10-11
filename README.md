@@ -91,6 +91,8 @@ Other commands:
 - `uv run horu console` prints captured text to the terminal instead of opening a window.
 - `uv run horu read <image>` reads the Japanese text in a screenshot.
 - `uv run horu snap` saves a capture to `captures/`.
+- `uv run horu reset-learned` forgets what Horu learned while you played: speaker names, auto-read
+  regions, and corrections from a line's menu. Settings, the dictionary, and API keys stay.
 - `uv run horu monitors` lists monitors, for the `monitor` and `region` capture modes.
 - `uv run horu setup` re-downloads and rebuilds the dictionary.
 
