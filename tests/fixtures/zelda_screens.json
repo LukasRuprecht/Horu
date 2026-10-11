@@ -1,0 +1,3219 @@
+{
+ "about": "The Legend of Zelda: Ocarina of Time 3D (Azahar, several window sizes): OCR'd lines with measured text styles, and the expected blocks. Mostly screens that once went wrong (see each note); the first eleven are the Zelda screens of evals/ground_truth.json. Generated from local screenshots, which aren't committed.",
+ "screens": [
+  {
+   "name": "zelda_game_furigana_spaced",
+   "note": "Game furigana over 寝/休/体力/回復 must be dropped; the gap in 体力を　回復 once read as 満.",
+   "size": [
+    2560,
+    1440
+   ],
+   "lines": [
+    {
+     "text": "たいりよく",
+     "box": [
+      605,
+      340,
+      818,
+      398
+     ],
+     "score": 0.876,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       98,
+       98,
+       100
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "体力を　回復することができる。",
+     "box": [
+      606,
+      378,
+      1944,
+      510
+     ],
+     "score": 0.926,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       163,
+       163,
+       164
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Lukeの　寝どこだ…",
+     "box": [
+      825,
+      77,
+      1703,
+      208
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       153,
+       154,
+       155
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "からだを　休めて",
+     "box": [
+      877,
+      222,
+      1668,
+      369
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       162,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "Lukeの　寝どこだ…からだを　休めて体力を　回復することができる。"
+    }
+   ]
+  },
+  {
+   "name": "zelda_clipped_first_char",
+   "note": "The detector box starts after も.",
+   "size": [
+    2560,
+    1369
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      11,
+      1348,
+      59,
+      1362
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      9,
+      37,
+      24
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      61,
+      6,
+      127,
+      27
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      78,
+      1348,
+      162,
+      1361
+     ],
+     "score": 0.966,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      154,
+      10,
+      184,
+      24
+     ],
+     "score": 0.988,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      210,
+      9,
+      278,
+      25
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       228,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      308,
+      12,
+      338,
+      22
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       234,
+       215
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      369,
+      10,
+      398,
+      24
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ねーちゃんに　たのまれたら",
+     "box": [
+      716,
+      1038,
+      1824,
+      1157
+     ],
+     "score": 0.929,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       160,
+       161,
+       161
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "もしニワトリのコトで　なんか",
+     "box": [
+      758,
+      889,
+      1872,
+      1026
+     ],
+     "score": 0.951,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       163,
+       163,
+       164
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "聞いてやれよ。",
+     "box": [
+      994,
+      1177,
+      1534,
+      1295
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       167,
+       168,
+       168
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed:100%/ 100% App: 30FPS Frame:1.24s N",
+     "box": [
+      1997,
+      1345,
+      2285,
+      1365
+     ],
+     "score": 0.819,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       186
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "山",
+     "box": [
+      2104,
+      799,
+      2380,
+      999
+     ],
+     "score": 0.781,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       76,
+       44,
+       16
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "もしニワトリのコトで　なんかねーちゃんに　たのまれたら聞いてやれよ。"
+    }
+   ]
+  },
+  {
+   "name": "zelda_centred_owl_name",
+   "note": "Centred lines of uneven length; player name after a wide space.",
+   "size": [
+    2560,
+    1369
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      11,
+      1348,
+      59,
+      1362
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      9,
+      37,
+      24
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      61,
+      6,
+      127,
+      27
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      1346,
+      165,
+      1363
+     ],
+     "score": 0.989,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      7,
+      187,
+      25
+     ],
+     "score": 0.928,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      207,
+      6,
+      281,
+      27
+     ],
+     "score": 0.956,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      304,
+      7,
+      341,
+      25
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      367,
+      10,
+      398,
+      24
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "デスマウンテンの山頂じゃ。",
+     "box": [
+      754,
+      1170,
+      1745,
+      1292
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       156,
+       157,
+       158
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "よく　きたな　Luke",
+     "box": [
+      856,
+      900,
+      1596,
+      1020
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       156,
+       157,
+       158
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ここが　聖なる山",
+     "box": [
+      934,
+      1034,
+      1610,
+      1155
+     ],
+     "score": 0.978,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       155,
+       156,
+       157
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Spee:1",
+     "box": [
+      1996,
+      1341,
+      2531,
+      1367
+     ],
+     "score": 0.675,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       207,
+       221,
+       196
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "よく　きたな　Lukeここが　聖なる山デスマウンテンの山頂じゃ。"
+    }
+   ]
+  },
+  {
+   "name": "zelda_small_tsu_spaced",
+   "note": "うっかり read alone as うつかり.",
+   "size": [
+    2560,
+    1369
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      11,
+      1348,
+      59,
+      1362
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      9,
+      37,
+      24
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      61,
+      6,
+      127,
+      25
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      1346,
+      165,
+      1363
+     ],
+     "score": 0.989,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      7,
+      187,
+      25
+     ],
+     "score": 0.928,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      207,
+      6,
+      281,
+      27
+     ],
+     "score": 0.956,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      304,
+      7,
+      341,
+      25
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      367,
+      10,
+      398,
+      24
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "…ちなみに　そこにある　火口は",
+     "box": [
+      647,
+      925,
+      1908,
+      1034
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       158,
+       159,
+       160
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "とても熱くて　危険な場所じゃ。",
+     "box": [
+      655,
+      1053,
+      1885,
+      1186
+     ],
+     "score": 0.953,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       154,
+       154,
+       156
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "うっかり　近づかんようにな。",
+     "box": [
+      713,
+      1195,
+      1779,
+      1313
+     ],
+     "score": 0.973,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       158,
+       159,
+       160
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "きけん",
+     "box": [
+      1267,
+      1020,
+      1410,
+      1076
+     ],
+     "score": 0.953,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       103,
+       104,
+       107
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "かこう",
+     "box": [
+      1669,
+      885,
+      1796,
+      939
+     ],
+     "score": 0.923,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       102,
+       105,
+       111
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Spe0p",
+     "box": [
+      1996,
+      1343,
+      2530,
+      1366
+     ],
+     "score": 0.726,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       208,
+       222,
+       195
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "…ちなみに　そこにある　火口はとても熱くて　危険な場所じゃ。うっかり　近づかんようにな。"
+    }
+   ]
+  },
+  {
+   "name": "zelda_small_window_owl",
+   "note": "887x640 window. つかまり once read as つまり.",
+   "size": [
+    887,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      617,
+      60,
+      633
+     ],
+     "score": 0.995,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       10,
+       160,
+       170
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      63,
+      9,
+      126,
+      23
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      617,
+      165,
+      635
+     ],
+     "score": 0.951,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "近くへ来て足につかまりなさい。",
+     "box": [
+      143,
+      447,
+      592,
+      489
+     ],
+     "score": 0.942,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       160,
+       160,
+       162
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "下界まで　行くなら　力を貸そう。",
+     "box": [
+      144,
+      401,
+      589,
+      441
+     ],
+     "score": 0.992,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       159,
+       150,
+       152
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "さあ、勇気を出して。ホホ~ッ!",
+     "box": [
+      147,
+      492,
+      579,
+      534
+     ],
+     "score": 0.957,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       153,
+       156,
+       160
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      9,
+      186,
+      24
+     ],
+     "score": 0.963,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      209,
+      8,
+      282,
+      25
+     ],
+     "score": 0.988,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       228,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ゆうき",
+     "box": [
+      244,
+      479,
+      296,
+      500
+     ],
+     "score": 0.585,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       115,
+       115,
+       116
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      305,
+      9,
+      342,
+      24
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/100%",
+     "box": [
+      306,
+      618,
+      418,
+      636
+     ],
+     "score": 0.99,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       200,
+       206,
+       176
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "App: 30 FPS",
+     "box": [
+      423,
+      616,
+      494,
+      636
+     ],
+     "score": 0.974,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       190
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Frame:2.37 mNot Connected. Click here to find a room!",
+     "box": [
+      502,
+      619,
+      815,
+      634
+     ],
+     "score": 0.813,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       210,
+       236,
+       214
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      11,
+      6,
+      39,
+      26
+     ],
+     "score": 0.98,
+     "slant_height": 18.1,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ちか",
+     "box": [
+      146,
+      434,
+      180,
+      456
+     ],
+     "score": 0.754,
+     "slant_height": 20.1,
+     "style": {
+      "ink": [
+       105,
+       106,
+       110
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      365,
+      6,
+      401,
+      27
+     ],
+     "score": 0.971,
+     "slant_height": 19.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "下界まで　行くなら　力を貸そう。近くへ来て足につかまりなさい。さあ、勇気を出して。ホホ~ッ!"
+    }
+   ]
+  },
+  {
+   "name": "zelda_item_screen_tabs",
+   "note": "720x480 3DS bottom screen; tabs side by side. マップ read as マツプ.",
+   "size": [
+    720,
+    480
+   ],
+   "lines": [
+    {
+     "text": "そうび",
+     "box": [
+      190,
+      423,
+      274,
+      460
+     ],
+     "score": 0.899,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       26,
+       27,
+       26
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "マツプ",
+     "box": [
+      321,
+      424,
+      402,
+      458
+     ],
+     "score": 0.845,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       27,
+       26,
+       26
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "アイテム",
+     "box": [
+      436,
+      423,
+      540,
+      459
+     ],
+     "score": 0.985,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       25,
+       25,
+       25
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Ⅱ",
+     "box": [
+      580,
+      382,
+      608,
+      412
+     ],
+     "score": 0.967,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       9,
+       9,
+       4
+      ],
+      "light_on_dark": false
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "そうび"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "アイテム"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "マツプ"
+    }
+   ]
+  },
+  {
+   "name": "zelda_baby_talk",
+   "note": "",
+   "size": [
+    2560,
+    1369
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      11,
+      1348,
+      60,
+      1362
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      9,
+      37,
+      24
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      61,
+      6,
+      129,
+      27
+     ],
+     "score": 0.994,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      1346,
+      165,
+      1363
+     ],
+     "score": 0.989,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      7,
+      185,
+      25
+     ],
+     "score": 0.905,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      209,
+      9,
+      280,
+      25
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       228,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      305,
+      10,
+      340,
+      23
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "けど　ボクの　カワイイ顔じゃ",
+     "box": [
+      676,
+      916,
+      1865,
+      1044
+     ],
+     "score": 0.98,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       162,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ドキドキしないでしゅよね…",
+     "box": [
+      761,
+      1059,
+      1785,
+      1178
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       163,
+       163,
+       164
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "やっぱり。",
+     "box": [
+      1090,
+      1190,
+      1455,
+      1321
+     ],
+     "score": 0.906,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       158,
+       158,
+       159
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      365,
+      5,
+      401,
+      27
+     ],
+     "score": 0.931,
+     "slant_height": 19.5,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "けど　ボクの　カワイイ顔じゃドキドキしないでしゅよね…やっぱり。"
+    }
+   ]
+  },
+  {
+   "name": "zelda_small_window_small_o",
+   "note": "Small ぉ read as お.",
+   "size": [
+    887,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      618,
+      60,
+      633
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      63,
+      7,
+      127,
+      25
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      76,
+      616,
+      165,
+      636
+     ],
+     "score": 0.97,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      153,
+      9,
+      186,
+      24
+     ],
+     "score": 0.948,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ハイラルの運命を　あずかる男には",
+     "box": [
+      159,
+      441,
+      603,
+      479
+     ],
+     "score": 0.991,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       160,
+       161,
+       162
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      208,
+      7,
+      282,
+      26
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "じゃが　まだまだ",
+     "box": [
+      249,
+      391,
+      484,
+      434
+     ],
+     "score": 0.994,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       162,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "見えぬがのお…",
+     "box": [
+      264,
+      483,
+      472,
+      528
+     ],
+     "score": 0.954,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       165,
+       165,
+       166
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "うんめい",
+     "box": [
+      281,
+      427,
+      343,
+      445
+     ],
+     "score": 0.86,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       108,
+       108,
+       109
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      305,
+      9,
+      342,
+      24
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/100%",
+     "box": [
+      305,
+      616,
+      418,
+      636
+     ],
+     "score": 0.96,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       200,
+       206,
+       176
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "App: 30 FPS",
+     "box": [
+      424,
+      616,
+      493,
+      636
+     ],
+     "score": 0.962,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       190
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Frame:2.37 mNot Connected. Click here to find a room!",
+     "box": [
+      502,
+      619,
+      815,
+      634
+     ],
+     "score": 0.813,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       210,
+       236,
+       214
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      11,
+      6,
+      39,
+      26
+     ],
+     "score": 0.98,
+     "slant_height": 18.1,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      365,
+      6,
+      401,
+      27
+     ],
+     "score": 0.971,
+     "slant_height": 19.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "じゃが　まだまだハイラルの運命を　あずかる男には見えぬがのお…"
+    }
+   ]
+  },
+  {
+   "name": "zelda_dialect_small_vowels",
+   "note": "Small ぇ and ぃ; ぃ read as い.",
+   "size": [
+    2560,
+    1369
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      11,
+      1348,
+      60,
+      1362
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       6,
+       183,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      9,
+      37,
+      24
+     ],
+     "score": 0.993,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      61,
+      6,
+      129,
+      27
+     ],
+     "score": 0.994,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      1346,
+      165,
+      1363
+     ],
+     "score": 0.989,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      7,
+      187,
+      25
+     ],
+     "score": 0.928,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      207,
+      6,
+      281,
+      27
+     ],
+     "score": 0.956,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "てやんでぇ　べらぼうめい！",
+     "box": [
+      758,
+      1035,
+      1789,
+      1165
+     ],
+     "score": 0.96,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       163,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed:",
+     "box": [
+      1996,
+      1343,
+      2531,
+      1367
+     ],
+     "score": 0.576,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       207,
+       221,
+       195
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      303,
+      6,
+      343,
+      27
+     ],
+     "score": 0.998,
+     "slant_height": 18.2,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      365,
+      6,
+      401,
+      27
+     ],
+     "score": 0.952,
+     "slant_height": 18.2,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "てやんでぇ　べらぼうめい！"
+    }
+   ]
+  },
+  {
+   "name": "zelda_small_window_spaced",
+   "note": "Short spaced lines in a small window; 月に… was lost.",
+   "size": [
+    887,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      617,
+      60,
+      633
+     ],
+     "score": 0.995,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       10,
+       160,
+       170
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      64,
+      9,
+      126,
+      23
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      77,
+      617,
+      165,
+      635
+     ],
+     "score": 0.951,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      9,
+      185,
+      24
+     ],
+     "score": 0.979,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      209,
+      8,
+      282,
+      25
+     ],
+     "score": 0.988,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       228,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "月は　太陽に…",
+     "box": [
+      257,
+      470,
+      447,
+      512
+     ],
+     "score": 0.984,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       156,
+       157,
+       158
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "太陽はに",
+     "box": [
+      258,
+      424,
+      444,
+      465
+     ],
+     "score": 0.856,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       157,
+       158,
+       158
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "つ",
+     "box": [
+      261,
+      457,
+      296,
+      479
+     ],
+     "score": 0.95,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       106,
+       107,
+       109
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "たいよう",
+     "box": [
+      264,
+      411,
+      324,
+      433
+     ],
+     "score": 0.949,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       100,
+       101,
+       103
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      305,
+      9,
+      342,
+      24
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/100%",
+     "box": [
+      306,
+      618,
+      418,
+      636
+     ],
+     "score": 0.99,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       200,
+       206,
+       176
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "App: 30 FPS",
+     "box": [
+      424,
+      618,
+      494,
+      636
+     ],
+     "score": 0.96,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       190
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Frame: 0.84 ms",
+     "box": [
+      502,
+      619,
+      588,
+      634
+     ],
+     "score": 0.95,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       190,
+       210,
+       194
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Not Connected.Click heretofind aroom!",
+     "box": [
+      588,
+      618,
+      815,
+      633
+     ],
+     "score": 0.908,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       210,
+       238,
+       216
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      6,
+      39,
+      26
+     ],
+     "score": 0.978,
+     "slant_height": 18.1,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "たいよう",
+     "box": [
+      350,
+      456,
+      401,
+      480
+     ],
+     "score": 0.834,
+     "slant_height": 22.0,
+     "style": {
+      "ink": [
+       109,
+       110,
+       112
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      366,
+      6,
+      401,
+      27
+     ],
+     "score": 0.984,
+     "slant_height": 19.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "太陽はに月は　太陽に…"
+    }
+   ]
+  },
+  {
+   "name": "zelda_sign_with_title",
+   "note": "A sign: the blue place name ゾーラ川 is centred over the text and must join it as one dialogue block, not be a speaker or 'other'.",
+   "size": [
+    638,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      617,
+      60,
+      633
+     ],
+     "score": 0.995,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       10,
+       160,
+       170
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      8,
+      38,
+      25
+     ],
+     "score": 0.934,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      64,
+      9,
+      127,
+      23
+     ],
+     "score": 0.998,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      78,
+      618,
+      164,
+      633
+     ],
+     "score": 0.972,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "きゆうりゆう　ちゆうい",
+     "box": [
+      98,
+      419,
+      215,
+      434
+     ],
+     "score": 0.691,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       108,
+       101,
+       95
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "急流に注意!　トコトン流されます",
+     "box": [
+      102,
+      430,
+      426,
+      457
+     ],
+     "score": 0.94,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       155,
+       153,
+       150
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "view",
+     "box": [
+      153,
+      8,
+      186,
+      24
+     ],
+     "score": 0.923,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/10(",
+     "box": [
+      191,
+      616,
+      291,
+      636
+     ],
+     "score": 0.936,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       208,
+       178
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "App: 30 FPS",
+     "box": [
+      296,
+      616,
+      367,
+      637
+     ],
+     "score": 0.985,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       190
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Frame:1.24ms Not Connected.CI",
+     "box": [
+      374,
+      617,
+      567,
+      635
+     ],
+     "score": 0.92,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       210,
+       234,
+       212
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      208,
+      6,
+      282,
+      26
+     ],
+     "score": 0.997,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ゾーラ川",
+     "box": [
+      222,
+      392,
+      308,
+      426
+     ],
+     "score": 0.916,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       15,
+       74,
+       176
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      304,
+      7,
+      342,
+      25
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "なが",
+     "box": [
+      315,
+      419,
+      342,
+      435
+     ],
+     "score": 0.761,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       120,
+       115,
+       109
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      367,
+      7,
+      401,
+      26
+     ],
+     "score": 0.994,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "ゾーラ川　急流に注意!　トコトン流されます"
+    }
+   ]
+  },
+  {
+   "name": "zelda_spaced_phrases_box_at_top",
+   "note": "あ　いそがし…: the gaps between phrases are kept (without them it splits as あいそ　が　し); the box is at the top of the screen.",
+   "size": [
+    720,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      617,
+      60,
+      633
+     ],
+     "score": 0.995,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       10,
+       160,
+       170
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      12,
+      8,
+      39,
+      25
+     ],
+     "score": 0.94,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      63,
+      9,
+      126,
+      23
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      78,
+      618,
+      164,
+      633
+     ],
+     "score": 0.972,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "あ　いそがし…　あ　いそがし…",
+     "box": [
+      120,
+      191,
+      475,
+      225
+     ],
+     "score": 0.96,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       162,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "View",
+     "box": [
+      152,
+      8,
+      186,
+      24
+     ],
+     "score": 0.938,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/100%　App: 30 FPS　Frame:1.59NotConcd.Cke",
+     "box": [
+      191,
+      616,
+      651,
+      636
+     ],
+     "score": 0.714,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       219,
+       191
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      207,
+      4,
+      283,
+      28
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "-",
+     "box": [
+      263,
+      446,
+      276,
+      458
+     ],
+     "score": 0.832,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       107,
+       112,
+       88
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      304,
+      7,
+      344,
+      25
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      366,
+      6,
+      402,
+      27
+     ],
+     "score": 0.995,
+     "slant_height": 19.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "あ　いそがし…　あ　いそがし…"
+    }
+   ]
+  },
+  {
+   "name": "zelda_game_furigana_town",
+   "note": "Game furigana over 城下, 平和, 豊, 町 is dropped; the two spaced-out rows are one dialogue block.",
+   "size": [
+    720,
+    640
+   ],
+   "lines": [
+    {
+     "text": "OPENGL",
+     "box": [
+      10,
+      618,
+      61,
+      634
+     ],
+     "score": 0.995,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       10,
+       160,
+       170
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "File",
+     "box": [
+      13,
+      8,
+      38,
+      24
+     ],
+     "score": 0.965,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       206,
+       241,
+       218
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Emulation",
+     "box": [
+      63,
+      9,
+      125,
+      23
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       205,
+       241,
+       221
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "VOLUME: 100%",
+     "box": [
+      78,
+      618,
+      164,
+      633
+     ],
+     "score": 0.972,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       12,
+       210,
+       10
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "view",
+     "box": [
+      153,
+      8,
+      186,
+      24
+     ],
+     "score": 0.923,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       191,
+       205,
+       181
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ここは　ハイラル城下。",
+     "box": [
+      176,
+      407,
+      420,
+      439
+     ],
+     "score": 0.978,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       162,
+       162,
+       163
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "平和で　豊かな町だ。",
+     "box": [
+      182,
+      441,
+      417,
+      479
+     ],
+     "score": 0.981,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       159,
+       160,
+       161
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Speed: 100%/100%",
+     "box": [
+      192,
+      618,
+      304,
+      636
+     ],
+     "score": 0.99,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       200,
+       206,
+       176
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "App: 30 FPS",
+     "box": [
+      310,
+      616,
+      380,
+      637
+     ],
+     "score": 0.963,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       203,
+       214,
+       190
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Frame:1.12NotConcd.Cke",
+     "box": [
+      386,
+      617,
+      651,
+      635
+     ],
+     "score": 0.736,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       210,
+       237,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Multiplayer",
+     "box": [
+      208,
+      5,
+      281,
+      27
+     ],
+     "score": 0.996,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       197,
+       226,
+       206
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Tools",
+     "box": [
+      305,
+      7,
+      344,
+      25
+     ],
+     "score": 0.965,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       202,
+       233,
+       213
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "ち",
+     "box": [
+      350,
+      433,
+      381,
+      449
+     ],
+     "score": 0.936,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       122,
+       123,
+       124
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "じようか",
+     "box": [
+      355,
+      394,
+      407,
+      415
+     ],
+     "score": 0.866,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       128,
+       129,
+       131
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "Help",
+     "box": [
+      366,
+      6,
+      401,
+      27
+     ],
+     "score": 0.984,
+     "slant_height": 19.0,
+     "style": {
+      "ink": [
+       204,
+       242,
+       220
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "ここは　ハイラル城下。平和で　豊かな町だ。"
+    }
+   ]
+  }
+ ]
+}
