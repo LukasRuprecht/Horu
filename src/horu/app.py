@@ -20,6 +20,7 @@ from pathlib import Path
 
 from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
+from horu.text_sources import rapidocr_source
 from horu.text_sources.vote import edit_distance
 from horu.tutor import Line, Tutor
 
@@ -49,11 +50,11 @@ _PICTURE_MAX_WIDTH = 1280
 
 @dataclasses.dataclass
 class AutoRead:
-    """A capture asked for by auto-capture: the dialogue box, already grabbed."""
+    """A capture asked for by auto-capture: the game picture, already grabbed."""
 
-    image: object  # PIL image of the region
+    image: object  # PIL image of the game window, as the hotkey would capture it
     game: str
-    region: str  # which of the game's regions, e.g. "Dialogue"
+    region: str = "picture"  # where it was watched, for joining a line read while still typing
 
 
 class Api:
@@ -172,6 +173,7 @@ class App:
         self.corrections = corrections.Corrections()
         self.speakers = speakers.SpeakerBook()
         self.boxes = autocapture.DialogueBoxes()
+        self._find_text = None  # text detector for auto-capture, loaded when first needed
         self._pictures = autocapture.PictureFinder()
         self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
@@ -677,17 +679,10 @@ class App:
         ]
 
         picture = autocapture.picture_box(image) if not auto else None
-        suggested = None
         if auto:
-            # Only dialogue: location names and other popups that show up inside the watched
-            # area some of the time would be read some of the time. The hotkey reads those.
+            # Only dialogue: a sign the camera stopped on, a location name, or a menu would be
+            # read some of the time. The hotkey reads those.
             blocks = [b for b in blocks if b.kind == "dialogue"]
-        else:
-            # Where this game shows dialogue, to suggest an auto-read region once it's clear.
-            for block in blocks:
-                if block.kind == "dialogue":
-                    box, size = autocapture.in_picture(block.box, picture)
-                    suggested = self.boxes.observe(game, box, len(block.lines), size) or suggested
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -727,9 +722,6 @@ class App:
                 if line["speaker"] and line["speaker"]["uncertain"]:
                     self._speaker_shots[line["id"]] = _png(image, block.speaker_line.box, margin=8)
         self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
-        if suggested:
-            line_id = next(l["id"] for l in lines if l["kind"] == "dialogue")
-            self._call("suggestRegion", {"lineId": line_id, "game": game})
         for line in new:
             self._started[line["id"]] = started
             self._time(line["id"], "shown" + (" (flagged)" if line["uncertain"] else ""))
@@ -779,61 +771,61 @@ class App:
     # --- auto-capture ------------------------------------------------------------------
 
     def _watch(self) -> None:
-        """Look at the game's auto-read regions a few times a second; read one when new text
-        has settled there."""
-        watchers: dict[tuple, autocapture.ChangeWatcher] = {}
+        """Look at the game picture a few times a second; read it when new text has settled
+        on it."""
+        watcher, watching = None, None
         while True:
             time.sleep(_WATCH_SECONDS)
             try:
-                frames = self._watch_frames()
+                frame = self._watch_frame()
+                if frame is None:
+                    watching = None
+                    continue
+                key, image, picture, game, regions = frame
+                # Another game, window size, or set of regions starts afresh.
+                if key != watching:
+                    if self._find_text is None:
+                        self._find_text = rapidocr_source.text_finder(autocapture.MAP_WIDTH)
+                    watcher, watching = autocapture.TextWatcher(self._find_text), key
+                if watcher.update(image.crop(picture), regions):
+                    # Read like a hotkey capture: the whole window, so it reads the same.
+                    self._requests.put(AutoRead(image, game))
             except Exception:
                 traceback.print_exc()
-                frames = []
-            # A region not watched this time (covered, removed, another game) starts afresh.
-            watchers = {key: watchers.get(key) or autocapture.ChangeWatcher() for key, _, _ in frames}
-            for key, image, game in frames:
-                if watchers[key].update(image):
-                    self._requests.put(AutoRead(image, game, key[1].name))
 
-    def _watch_frames(self) -> list[tuple[tuple, object, str]]:
-        """(key, image of the region, game) for each region to watch now."""
+    def _watch_frame(self) -> tuple[tuple, object, autocapture.Pixels, str, list[autocapture.Box]] | None:
+        """(key, image of the game window, where the game picture is in it, game, the regions to
+        limit watching to) when there is something to watch now."""
         if not self.prefs.values["autoCapture"] or self._source is None:
             self._set_auto("off", "Auto-capture is off.")
-            return []
+            return None
         hotkey_name = _pretty_hotkey(self.cfg.capture_hotkey)
         if self._game_window is None:
             self._set_auto("waiting", f"Press {hotkey_name} in your game once, so Horu knows which window to watch.")
-            return []
+            return None
         window, game = self._game_window
         box = capture.window_box(window)
         # Only while the game (or Horu, beside it) is in front: otherwise another window may
-        # be covering the regions.
+        # be covering it.
         foreground = capture.foreground_window()
         if box is None or (foreground != window and not capture.focused_window_is_own()):
             self._set_auto("paused", f"Paused: {game} isn't in front.")
-            return []
+            return None
         size = (box["width"], box["height"])
         picture = self._pictures.find(size, lambda: capture.grab_part(box, (0, 0, *size)))
         picture_size = (picture[2] - picture[0], picture[3] - picture[1])
         regions = self.boxes.regions(game, picture_size)
-        if not regions:
-            self._set_auto(
-                "learning",
-                f"Nothing to watch in {game} yet: capture a dialogue line with {hotkey_name}, then choose "
-                "\"Set auto-read regions\" in its ⋯ menu.",
-            )
-            return []
-        frames = []
-        for region in regions:
-            part = autocapture.to_pixels(region.box, picture)
-            if capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]):
-                frames.append(((game, region, picture), capture.grab_part(box, part), game))
-        if not frames:
-            self._set_auto("paused", f"Paused: something is covering {game}'s auto-read regions.")
+        # With regions, only they need to be uncovered.
+        parts = [autocapture.to_pixels(r.box, picture) for r in regions] or [picture]
+        if not all(capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]) for part in parts):
+            self._set_auto("paused", f"Paused: something is covering {game}.")
+            return None
+        if regions:
+            self._set_auto("watching", f"Watching {game}: {', '.join(r.name for r in regions)}.")
         else:
-            names = ", ".join(key[1].name for key, _, _ in frames)
-            self._set_auto("watching", f"Watching {game}: {names}.")
-        return frames
+            self._set_auto("watching", f"Watching {game} for new dialogue.")
+        boxes = [r.box for r in regions]
+        return (game, picture, tuple(boxes)), capture.grab_part(box, (0, 0, *size)), picture, game, boxes
 
     def _time(self, line_id: int, event: str) -> None:
         """Log how long after its capture began a line reached `event`, to find slow steps."""

@@ -1,26 +1,13 @@
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+import pytest
+from PIL import Image, ImageDraw
 
 from horu import autocapture
-from horu.autocapture import ChangeWatcher, DialogueBoxes, Region
+from horu.autocapture import DialogueBoxes, Region, TextWatcher
+from horu.text_sources.rapidocr_source import text_finder
 
-SIZE = (2560, 1369)
 FIXTURES = Path(__file__).parent / "fixtures"
-
-
-def test_a_region_is_suggested_once_captures_agree(tmp_path):
-    boxes = DialogueBoxes(tmp_path / "boxes.json")
-    assert boxes.observe("zelda", (633, 986, 1914, 1249), 3, SIZE) is None
-    assert boxes.observe("zelda", (900, 300, 1200, 340), 1, SIZE) is None  # a one-off elsewhere (a sign)
-    assert boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE) is None
-    suggested = boxes.observe("zelda", (727, 923, 1789, 1315), 3, SIZE)
-    left, top, right, bottom = autocapture.to_pixels(suggested, (0, 0, *SIZE))
-    # Covers every agreeing block, with room above for a name tag; the sign is left out.
-    assert left < 633 and top < 923 and right > 1914 and bottom >= 1315 and top > 340
-    # Only suggested: nothing is watched until the player saves a region, and it's suggested once.
-    assert boxes.regions("zelda", SIZE) == []
-    assert boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE) is None
 
 
 def test_regions_are_kept_per_game_and_screen_layout(tmp_path):
@@ -34,41 +21,57 @@ def test_regions_are_kept_per_game_and_screen_layout(tmp_path):
     assert boxes.regions("zelda", one_screen) == []
     # Remembered across restarts.
     assert DialogueBoxes(tmp_path / "boxes.json").regions("p5r", one_screen) == regions
-    # A layout with regions isn't suggested more.
-    for _ in range(3):
-        assert boxes.observe("p5r", (40, 150, 360, 220), 2, one_screen) is None
 
 
-def frame(text: str, background: int = 40) -> Image.Image:
-    image = Image.new("RGB", (900, 200), (background, background, background + 10))
-    draw = ImageDraw.Draw(image)
-    draw.text((40, 70), text, fill=(240, 240, 240), font=ImageFont.load_default(size=48))
-    return image
+@pytest.fixture(scope="module")
+def find_text():
+    return text_finder(autocapture.MAP_WIDTH)
 
 
-def test_new_text_is_read_once_it_stops_changing():
-    watcher = ChangeWatcher()
-    # Typing out: still changing, so not read yet.
-    assert not watcher.update(frame("Hel"))
-    assert not watcher.update(frame("Hello th"))
-    assert not watcher.update(frame("Hello there"))
-    assert not watcher.update(frame("Hello there"))  # still for one frame
-    assert watcher.update(frame("Hello there"))  # still for two: read it
-    # The same text afterwards is not read again, even over a slightly different background.
-    assert not any(watcher.update(frame("Hello there", background=44)) for _ in range(4))
-    # The next line is.
-    watcher.update(frame("General Kenobi"))
-    watcher.update(frame("General Kenobi"))
-    assert watcher.update(frame("General Kenobi"))
+def screen(name: str) -> Image.Image:
+    return Image.open(FIXTURES / f"{name}.png").convert("RGB")
 
 
-def test_scenery_moving_behind_the_box_is_not_new_text():
+def fired(watcher: TextWatcher, frames: list[Image.Image], regions=None) -> list[int]:
+    return [i for i, frame in enumerate(frames) if watcher.update(frame, regions)]
+
+
+def test_new_text_is_read_once_it_has_stayed_put(find_text):
+    # P5R: a line, then choices appear under it. Each is read once, after two still frames.
+    line, choices = screen("p5r_watch_line"), screen("p5r_watch_choices")
+    assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6) == [2, 5]
+    # A thought bubble popping up over the street is new text too.
+    street, bubble = screen("p5r_watch_street"), screen("p5r_watch_thought_bubble")
+    assert fired(TextWatcher(find_text), [street] * 3 + [bubble] * 6) == [2, 5]
+
+
+def test_text_that_stays_the_same_is_not_read_again(find_text):
+    assert fired(TextWatcher(find_text), [screen("p5r_watch_sign")] * 20) == [2]
+
+
+def shifted(image: Image.Image, dx: int) -> Image.Image:
+    out = Image.new("RGB", image.size)
+    out.paste(image, (dx, 0))
+    return out
+
+
+def test_a_sign_moving_with_the_camera_is_not_read_until_it_stops(find_text):
+    sign = screen("p5r_watch_sign")
+    panning = [shifted(sign, 3 * i) for i in range(10)]
+    assert fired(TextWatcher(find_text), panning + [panning[-1]] * 5) == [11]
+
+
+def test_scenery_moving_behind_the_box_is_not_new_text(find_text):
     # Ocarina of Time 3D: the owl flaps its wings behind a see-through box while the text
-    # stays put. Watching the whole picture, the box never looked still and nothing was read.
+    # stays put.
     frames = [Image.open(FIXTURES / f"owl_box_{i:02d}.png") for i in range(4)]
-    watcher = ChangeWatcher()
-    reads = [watcher.update(frame) for frame in frames]
-    assert reads == [False, False, True, False]
+    assert fired(TextWatcher(find_text), frames + frames[-1:] * 3) == [2]
+
+
+def test_with_regions_only_text_inside_them_counts(find_text):
+    line, choices = screen("p5r_watch_line"), screen("p5r_watch_choices")
+    dialogue_box = [(0.1, 0.7, 0.75, 1.0)]  # the choices appear outside it
+    assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6, dialogue_box) == [2]
 
 
 def emulator_window(width, height, picture):

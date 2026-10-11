@@ -120,8 +120,8 @@ button { font: inherit; color: inherit; }
 .actions button[aria-pressed="true"] { background: var(--card); border-color: var(--border); color: var(--accent); }
 .actions svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .actions ruby { font-family: var(--jp); font-size: 15px; line-height: 1; }
-/* Auto-capture's state: green while watching, amber while it needs something (learning the
-   box, waiting for a hotkey capture, game not in front). Hover shows what. */
+/* Auto-capture's state: green while watching, amber while it needs something (waiting for
+   a hotkey capture, game not in front). Hover shows what. */
 #toggle-auto { position: relative; }
 .auto-dot { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; display: none; }
 #toggle-auto[aria-pressed="true"] .auto-dot { display: block; background: var(--accent); }
@@ -717,20 +717,6 @@ button.link {
 body.no-furigana .settings .preview rt { display: revert; }
 
 /* Auto-read regions: drawn on a capture's game picture. */
-.region-suggest {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  margin-top: 8px;
-  padding: 8px 10px;
-  border: 1px dashed var(--accent);
-  border-radius: 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.region-suggest span { flex: 1 1 200px; }
-
 .modal {
   position: fixed;
   inset: 0;
@@ -821,5 +807,5 @@ body.no-furigana .settings .preview rt { display: revert; }
   color: var(--text);
   font-size: 13px;
 }
-.modal .line-btn, .region-suggest .line-btn { opacity: 1; padding: 5px 12px; border: 1px solid var(--border); color: var(--text); }
+.modal .line-btn { opacity: 1; padding: 5px 12px; border: 1px solid var(--border); color: var(--text); }
 .modal .line-btn.primary { border-color: var(--accent); color: var(--accent); }

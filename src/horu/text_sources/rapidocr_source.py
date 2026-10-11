@@ -52,6 +52,25 @@ _SPACE_STEP = 1.5
 _SPACE_WIDTH = 0.45
 
 
+def text_finder(width: int):
+    """A text detector for pictures at most `width` wide, returning boxes (left, top, right,
+    bottom) of the lines it finds: the cheap half of OCR, for noticing new text."""
+    from rapidocr import RapidOCR
+
+    engine = RapidOCR(
+        params={"Global.log_level": "error", "Global.use_cls": False, "Det.limit_side_len": width, "Det.limit_type": "max"}
+    )
+
+    def find(pixels: np.ndarray) -> list[Box]:
+        detected = engine(pixels, use_det=True, use_cls=False, use_rec=False)
+        if detected.boxes is None:
+            return []
+        boxes = [_box(np.asarray(b, dtype=np.float32)) for b in detected.boxes]
+        return [tuple(int(v) for v in b) for b in merge_rows(boxes)]
+
+    return find
+
+
 class RapidOcrSource:
     name = "rapidocr"
 

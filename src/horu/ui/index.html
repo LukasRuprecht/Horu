@@ -59,10 +59,10 @@
     <label class="check"><input id="hide-from-capture" type="checkbox"> Hide Horu from screen capture</label>
     <p class="check-hint">Stops Horu reading itself when it overlaps the game. Turn off to show Horu
       when streaming or sharing your screen.</p>
-    <p class="check-hint">Auto-capture (the eye button) reads parts of the game's picture by
-      itself whenever their text changes, and nothing else on screen. Choose the parts on any
-      capture: open a line's ⋯ menu and pick "Set auto-read regions". A game can have several
-      (a dialogue box and chat bubbles, say), and each screen layout has its own.</p>
+    <p class="check-hint">Auto-capture (the eye button) reads the game by itself whenever new text
+      settles on screen, and shows the dialogue it finds: lines, choices, thought bubbles. Text that
+      stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's HUD keeps
+      changing, limit it to parts of the picture: open a line's ⋯ menu and pick "Set auto-read regions".</p>
 
     <h2>Anki</h2>
     <label class="field">
@@ -171,11 +171,11 @@
         <h2 id="region-title">Auto-read regions · <span id="region-game"></span></h2>
         <button id="region-close" class="pop-close" type="button" title="Close">×</button>
       </header>
-      <p class="modal-hint">Auto-capture reads a region whenever the text in it changes. Cover each box
-        where text you want read appears, with room for the name tag and longer lines. Drag a region to
-        move it, its corners to resize it, or drag on the picture to add one.</p>
+      <p class="modal-hint">Optional: with regions, auto-capture only notices new text inside them.
+        Cover each box where text you want read appears, with room for the name tag and longer lines.
+        Drag a region to move it, its corners to resize it, or drag on the picture to add one.</p>
       <div id="region-stage" class="region-stage"></div>
-      <p id="region-empty" class="modal-hint">No regions: auto-capture won't read this game (in this screen layout).</p>
+      <p id="region-empty" class="modal-hint">No regions: auto-capture watches the whole picture.</p>
       <ul id="region-list" class="region-list"></ul>
       <footer class="modal-actions">
         <button id="region-add" class="line-btn" type="button">Add region</button>

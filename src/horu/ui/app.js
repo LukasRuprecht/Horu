@@ -1393,19 +1393,6 @@ window.horu = {
   },
 
   // Hotkey captures keep finding dialogue in the same place: offer to auto-read it.
-  suggestRegion({ lineId, game }) {
-    const line = state.lines.get(lineId);
-    const row = rowFor(lineId);
-    if (!line || !row) return;
-    const note = el("div", "region-suggest");
-    note.append(
-      el("span", null, `Dialogue in ${game} keeps showing up here. Read it automatically?`),
-      button("line-btn", "Set auto-read region", () => { note.remove(); openRegionEditor(line); }),
-      button("line-btn", "Not now", () => note.remove()),
-    );
-    row.append(note);
-  },
-
   setAutoState({ state: autoState, message }) {
     const toggle = $("#toggle-auto");
     toggle.dataset.state = autoState;

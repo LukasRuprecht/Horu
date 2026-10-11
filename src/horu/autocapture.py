@@ -1,18 +1,18 @@
-"""Auto-capture: read the game's dialogue box by itself whenever its text changes.
+"""Auto-capture: read the game picture by itself whenever new text settles on it.
 
-The player marks the parts of the game picture to watch ("auto-read regions"), per game and
-per screen layout: a game can have several (P5R's dialogue box and its chat bubbles; OoT's box
-at the bottom and the one it moves to the top), and an emulator showing one screen or two side
-by side has different regions for each. Menus, battle UI, and popups outside the regions are
-never read. Horu suggests a region once the player's hotkey captures keep finding dialogue in
-the same place, but never starts watching one by itself. Positions are kept relative to the
+A few times a second the game picture is shrunk and a text detector finds where text is (not
+what it says: that's cheap). Each piece of text is followed on its own; when one is new or
+has changed, and has stayed put for a moment (finished typing out), the whole picture is read
+like a hotkey capture. Only dialogue from that read is shown, so a sign the camera stops on
+costs a read but shows nothing. See TextWatcher.
+
+Dialogue isn't told apart by size: P5R's lines are the same height as its button hints. What
+sets it apart is that it changes, while HUD text doesn't.
+
+The player can limit watching to parts of the picture ("auto-read regions"), per game and per
+screen layout, for a game whose HUD keeps changing text. Positions are kept relative to the
 game picture, not the window: emulators centre the picture between black bars that change
 with the window's size.
-
-Watching is cheap: a few times a second each region is shrunk and turned into a map of the
-pixels that stand out sharply (text strokes). Comparing those rather than all pixels means
-moving scenery behind a see-through box doesn't count as a change. A change is read once
-the text stops changing (it has finished typing out).
 """
 
 from __future__ import annotations
@@ -31,10 +31,6 @@ from PIL import Image
 DEFAULT_PATH = Path("data/dialogue_boxes.json")
 _VERSION = 2  # earlier files held one learned box per game, from mixed layouts: dropped
 
-# Captures that must agree on where dialogue is before a region is suggested, and how many
-# are remembered.
-_AGREE = 3
-_KEEP = 12
 # Room around text when suggesting a region from it, in line heights: the name tag sits above
 # the text, and longer lines can reach further than the ones seen so far.
 _PAD_TOP, _PAD_BOTTOM, _PAD_SIDES = 1.8, 0.6, 1.5
@@ -47,16 +43,6 @@ Pixels = tuple[int, int, int, int]
 class Observation:
     box: Box
     line_height: float  # as a fraction of the picture height
-
-    def overlaps(self, other: Observation) -> bool:
-        """Most of the smaller box lies inside the other: the same dialogue box, holding
-        text of different lengths."""
-        left, top = max(self.box[0], other.box[0]), max(self.box[1], other.box[1])
-        right, bottom = min(self.box[2], other.box[2]), min(self.box[3], other.box[3])
-        if right <= left or bottom <= top:
-            return False
-        area = lambda b: (b[2] - b[0]) * (b[3] - b[1])
-        return (right - left) * (bottom - top) >= 0.5 * min(area(self.box), area(other.box))
 
 
 @dataclass(frozen=True)
@@ -73,7 +59,7 @@ def layout(size: tuple[int, int]) -> str:
 
 
 class DialogueBoxes:
-    """Each game's auto-read regions, per screen layout, and where its dialogue has been seen."""
+    """Each game's auto-read regions, per screen layout."""
 
     def __init__(self, path: Path = DEFAULT_PATH) -> None:
         self.path = path
@@ -82,7 +68,7 @@ class DialogueBoxes:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             data = {}
-        # game -> layout -> {"regions": [{"name", "box"}], "seen": [{"box", "line"}], "suggested": bool}
+        # game -> layout -> {"regions": [{"name", "box"}]}
         self._games: dict[str, dict[str, dict]] = data.get("games", {}) if data.get("version") == _VERSION else {}
 
     def regions(self, game: str, size: tuple[int, int]) -> list[Region]:
@@ -91,28 +77,11 @@ class DialogueBoxes:
         return [Region(r["name"], tuple(r["box"])) for r in entry.get("regions", [])]
 
     def set_regions(self, game: str, size: tuple[int, int], regions: list[Region]) -> None:
-        """Replace the regions for this game and layout (none: stop auto-reading it)."""
+        """Replace the regions for this game and layout (none: watch the whole picture)."""
         with self._lock:
             entry = self._games.setdefault(game, {}).setdefault(layout(size), {})
             entry["regions"] = [{"name": r.name, "box": [round(v, 4) for v in r.box]} for r in regions]
         self._save()
-
-    def observe(self, game: str, box: Pixels, lines: int, size: tuple[int, int]) -> Box | None:
-        """Remember a dialogue block found in a game picture of `size`. Returns a region to
-        suggest watching when captures have now agreed on one, once per layout, and only while
-        the layout has no regions."""
-        entry = {"box": _fractions(box, size), "line": (box[3] - box[1]) / max(lines, 1) / size[1]}
-        with self._lock:
-            data = self._games.setdefault(game, {}).setdefault(layout(size), {})
-            seen = data.setdefault("seen", [])
-            seen.append(entry)
-            del seen[:-_KEEP]
-            group = _largest_group([_observation(e) for e in seen])
-            suggest = len(group) >= _AGREE and not data.get("regions") and not data.get("suggested")
-            if suggest:
-                data["suggested"] = True
-        self._save()
-        return _padded(group) if suggest else None
 
     def suggestion(self, box: Pixels, lines: int, size: tuple[int, int]) -> Box:
         """A region around one block of text, with room for its name tag and longer lines."""
@@ -138,20 +107,6 @@ def _padded(group: list[Observation]) -> Box:
     right = max(o.box[2] for o in group) + _PAD_SIDES * line
     bottom = max(o.box[3] for o in group) + _PAD_BOTTOM * line
     return (max(left, 0.0), max(top, 0.0), min(right, 1.0), min(bottom, 1.0))
-
-
-def _observation(entry: dict) -> Observation:
-    return Observation(tuple(entry["box"]), entry["line"])
-
-
-def _largest_group(observations: list[Observation]) -> list[Observation]:
-    """The observations around the one that overlaps the most others (ties: the latest)."""
-    best: list[Observation] = []
-    for candidate in reversed(observations):
-        group = [o for o in observations if o is candidate or o.overlaps(candidate)]
-        if len(group) > len(best):
-            best = group
-    return best
 
 
 def to_pixels(region: Box, picture: Pixels) -> Pixels:
@@ -242,33 +197,43 @@ class PictureFinder:
 
 # --- Noticing new text -------------------------------------------------------------------
 
-# Text maps are compared at this width.
-_MAP_WIDTH = 320
-# How much brighter (or darker) than its surroundings a pixel must be to count as text.
+# The picture is shrunk to this width to look for text in it.
+MAP_WIDTH = 320
+# How much brighter (or darker) than its surroundings a pixel must be to count as a stroke.
 _TEXT_CONTRAST = 100
-# Share of text pixels that must differ between frames for text to count as changed, and
-# below which consecutive frames count as the same (the text has finished typing). Scenery
-# moving behind a see-through box changes about 3% (up to 6%) of a still line's map.
+# Share of a piece of text's strokes that must differ for it to count as changed, and below
+# which consecutive frames count as the same (it has finished typing). Scenery moving behind
+# a see-through box changes about 3% (up to 6%) of a still line's strokes.
 _CHANGED = 0.12
 _STILL = 0.07
-# Frames in a row that must be still before a change is read.
+# Frames in a row a piece of text must stay put before it's read.
 _STILL_FRAMES = 2
+# How much two boxes must overlap (intersection over union) to be the same piece of text.
+_SAME_PLACE = 0.6
+# Frames after which text no longer on screen is forgotten: shown again later, it's new.
+_FORGET_FRAMES = 40
+
+Detector = Callable[[np.ndarray], list[Pixels]]
 
 
-def edge_map(image: Image.Image) -> np.ndarray:
-    """A small map of the pixels in `image` that stand out sharply from their surroundings:
-    text strokes, not scenery. Game text is drawn to be read over anything; scenery behind
-    a see-through box is dimmed, and its outlines (an owl's wings against the sky) are softer.
-    Brightness is each pixel's brightest channel, so blue or red text counts too."""
+def shrink(image: Image.Image) -> np.ndarray:
+    """The picture `MAP_WIDTH` wide, as RGB pixels: what text is looked for in."""
     rgb = np.asarray(image.convert("RGB"))
-    height = max(1, round(rgb.shape[0] * _MAP_WIDTH / max(rgb.shape[1], 1)))
-    small = cv2.resize(rgb, (_MAP_WIDTH, height), interpolation=cv2.INTER_AREA).astype(np.float32)
-    value = small.max(axis=2)
+    height = max(1, round(rgb.shape[0] * MAP_WIDTH / max(rgb.shape[1], 1)))
+    return np.ascontiguousarray(cv2.resize(rgb, (MAP_WIDTH, height), interpolation=cv2.INTER_AREA))
+
+
+def strokes(small: np.ndarray) -> np.ndarray:
+    """The pixels that stand out sharply from their surroundings: text strokes, not scenery.
+    Game text is drawn to be read over anything; scenery behind a see-through box is dimmed,
+    and its outlines (an owl's wings against the sky) are softer. Brightness is each pixel's
+    brightest channel, so blue or red text counts too."""
+    value = small.astype(np.float32).max(axis=2)
     return np.abs(value - cv2.blur(value, (9, 9))) > _TEXT_CONTRAST
 
 
 def difference(a: np.ndarray, b: np.ndarray) -> float:
-    """Share of the edge pixels in either map that differ between them."""
+    """Share of the stroke pixels in either map that differ between them."""
     if a.shape != b.shape:
         return 1.0
     either = np.count_nonzero(a | b)
@@ -277,27 +242,88 @@ def difference(a: np.ndarray, b: np.ndarray) -> float:
     return np.count_nonzero(a ^ b) / either
 
 
-class ChangeWatcher:
-    """Feed it frames of the dialogue box; it says when new text has settled and should be
-    read."""
+def overlap(a: Pixels, b: Pixels) -> float:
+    """Intersection over union."""
+    width = min(a[2], b[2]) - max(a[0], b[0])
+    height = min(a[3], b[3]) - max(a[1], b[1])
+    if width <= 0 or height <= 0:
+        return 0.0
+    area = lambda r: (r[2] - r[0]) * (r[3] - r[1])
+    shared = width * height
+    return shared / (area(a) + area(b) - shared)
 
-    def __init__(self) -> None:
-        self._previous: np.ndarray | None = None
-        self._read: np.ndarray | None = None  # the frame last read
-        self._still = 0
 
-    def update(self, image: Image.Image) -> bool:
-        current = edge_map(image)
-        moving = self._previous is None or difference(current, self._previous) > _STILL
-        self._previous = current
-        self._still = 0 if moving else self._still + 1
-        if self._still < _STILL_FRAMES:
-            return False
-        if self._read is not None and difference(current, self._read) <= _CHANGED:
-            return False
-        self._read = current
+@dataclass
+class _Text:
+    box: Pixels  # in the shrunk picture
+    strokes: np.ndarray
+    still: int = 0  # frames it has stayed put
+    seen: int = 0  # frame it was last on screen (known text)
+
+
+class TextWatcher:
+    """Feed it frames of the game picture; it says when new text has settled and the picture
+    should be read.
+
+    Text is found with a text detector on a small copy of the picture, and each piece is
+    followed on its own: one that is new, or whose strokes changed, is read once it has stayed
+    put for a couple of frames. Text that never changes (a HUD, the date) is never new; a sign
+    drifting past as the camera turns never stays put; scenery moving elsewhere on screen
+    doesn't hold up the dialogue box. A choice appearing under a line, or a thought bubble
+    popping up, is new text like any other.
+    """
+
+    def __init__(self, detect: Detector) -> None:
+        self._detect = detect
+        self._frame = 0
+        self._current: list[_Text] = []
+        self._known: list[_Text] = []  # text that has settled: read, or there all along
+
+    def update(self, image: Image.Image, regions: list[Box] | None = None) -> bool:
+        """`regions`: only text inside these parts of the picture counts (all of it if none)."""
+        self._frame += 1
+        small = shrink(image)
+        stroke_map = strokes(small)
+        height, width = stroke_map.shape
+        boxes = [b for b in self._detect(small) if _inside(b, (width, height), regions)]
+        current = []
+        for box in boxes:
+            piece = _Text(box, _crop(stroke_map, box))
+            before = max(self._current, key=lambda t: overlap(t.box, box), default=None)
+            if before is not None and overlap(before.box, box) >= _SAME_PLACE:
+                # Compared where it was, so a box found a pixel wider isn't a change.
+                if difference(_crop(stroke_map, before.box), before.strokes) <= _STILL:
+                    piece.still = before.still + 1
+            current.append(piece)
+        self._current = current
+
+        new = False
+        for piece in current:
+            if piece.still < _STILL_FRAMES:
+                continue
+            known = max(self._known, key=lambda t: overlap(t.box, piece.box), default=None)
+            if (
+                known is not None
+                and overlap(known.box, piece.box) >= _SAME_PLACE
+                and difference(_crop(stroke_map, known.box), known.strokes) <= _CHANGED
+            ):
+                known.seen = self._frame
+                continue
+            new = True
+            self._known = [t for t in self._known if overlap(t.box, piece.box) < _SAME_PLACE]
+            self._known.append(_Text(piece.box, piece.strokes, seen=self._frame))
+        self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES]
+        return new
+
+
+def _crop(stroke_map: np.ndarray, box: Pixels) -> np.ndarray:
+    left, top, right, bottom = box
+    return stroke_map[max(top, 0) : max(bottom, 0), max(left, 0) : max(right, 0)]
+
+
+def _inside(box: Pixels, size: tuple[int, int], regions: list[Box] | None) -> bool:
+    if not regions:
         return True
-
-    def reset(self) -> None:
-        self._previous = self._read = None
-        self._still = 0
+    x = (box[0] + box[2]) / 2 / size[0]
+    y = (box[1] + box[3]) / 2 / size[1]
+    return any(r[0] <= x <= r[2] and r[1] <= y <= r[3] for r in regions)
