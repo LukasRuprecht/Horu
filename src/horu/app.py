@@ -692,7 +692,7 @@ class App:
             repeat = block.text in self.recent
             if not repeat:
                 self.recent.append(block.text)
-            line = self._line(block, repeat)
+            line = self._line(block, repeat, game)
             line["game"] = game
             if not auto:  # where it was, for drawing auto-read regions
                 box, size = autocapture.in_picture(block.box, picture)
@@ -924,7 +924,7 @@ class App:
         if outcome == correction.SAME:
             self.speakers.confirm(game, speaker["text"])
         elif outcome == correction.APPLY or (outcome == correction.SUGGEST and self.prefs.values["applyAiReadings"]):
-            self.speakers.confirm(game, reading)
+            self.speakers.confirm(game, reading, was=speaker["text"])
             self.set_speaker(line_id, reading, was=speaker["text"])
 
     def set_speaker(self, line_id: int, text: str, was: str | None = None) -> None:
@@ -980,17 +980,18 @@ class App:
             self._call("lineSuggestion", {"id": line_id, "text": text, "source": source})
         return outcome
 
-    def _line(self, block: layout.TextBlock, repeat: bool = False) -> dict:
+    def _line(self, block: layout.TextBlock, repeat: bool = False, game: str = "") -> dict:
         speaker = None
         if block.speaker:
             read = block.speaker_line
             speaker = {
                 "text": block.speaker,
                 "words": self._words(block.speaker),
-                # Other OCR models' readings of the name tag, and whether it may be misread
-                # (and wasn't matched to a name already known).
+                # Other OCR models' readings of the name tag, and whether to read it again
+                # with the AI: a name it hasn't confirmed yet. Decorated name tags are misread
+                # even when OCR is sure (初の男性客 for 初老の男性客, at 0.92).
                 "alternatives": list(read.alternatives) if read else [],
-                "uncertain": bool(read and block.speaker == read.text and (read.score < _UNCERTAIN or read.alternatives)),
+                "uncertain": bool(read) and not self.speakers.confirmed(game, block.speaker),
             }
         return {
             "id": next(self._ids),

@@ -10,6 +10,10 @@ character off a remembered name is corrected to it, but only when that's safe:
 - a replaced character is corrected only when OCR itself was unsure, since names one
   character apart can be different people (少年の声 and 少女の声).
 
+With an AI that reads images, each new name is read again from the screenshot once, and the
+name it settles on is "confirmed": confirmed names are matched first, and a misread the AI
+corrected (初の男性客 for 初老の男性客) maps straight to the right name from then on.
+
 Each speaker's English is worked out once and cached, so repeats cost nothing.
 """
 
@@ -39,8 +43,12 @@ class SpeakerBook:
         """The speaker name to use for an OCR read: a remembered name if this read is a
         misread of one, otherwise the read itself (remembered if it was confident)."""
         known = self._data.get(game, {})
-        if text not in known:
-            match = self._misread_of(text, score, known)
+        if known.get(text, {}).get("misread_of"):
+            return known[text]["misread_of"]
+        if not known.get(text, {}).get("confirmed"):
+            # A confirmed name beats an unconfirmed read that's one character off it.
+            confirmed = {name: entry for name, entry in known.items() if entry.get("confirmed")}
+            match = self._misread_of(text, score, confirmed) or (None if text in known else self._misread_of(text, score, known))
             if match:
                 return match
         if score >= CONFIDENT:
@@ -50,17 +58,27 @@ class SpeakerBook:
             self._save()
         return text
 
-    def confirm(self, game: str, text: str) -> None:
-        """A name two sources agree on (OCR and the AI's reading): known from now on, so later
-        misreads of it are matched to it."""
+    def confirm(self, game: str, text: str, was: str | None = None) -> None:
+        """The AI read the name tag as `text`: known from now on, so later misreads of it are
+        matched to it. `was` is what OCR read, when that was a misread."""
         with self._lock:
-            entry = self._data.setdefault(game, {}).setdefault(text, {"en": None, "source": None})
+            names = self._data.setdefault(game, {})
+            entry = names.setdefault(text, {"en": None, "source": None})
             entry["seen"] = entry.get("seen", 0) + 1
+            entry["confirmed"] = entry.get("confirmed", 0) + 1
+            entry.pop("misread_of", None)
+            if was and was != text:
+                names.setdefault(was, {"en": None, "source": None, "seen": 0})["misread_of"] = text
         self._save()
+
+    def confirmed(self, game: str, text: str) -> bool:
+        return bool(self._data.get(game, {}).get(text, {}).get("confirmed"))
 
     def known(self, game: str) -> frozenset[str]:
         """Names read confidently at least once in this game."""
-        return frozenset(name for name, entry in self._data.get(game, {}).items() if entry.get("seen"))
+        return frozenset(
+            name for name, entry in self._data.get(game, {}).items() if entry.get("seen") and not entry.get("misread_of")
+        )
 
     def english(self, game: str, text: str) -> str | None:
         return self._data.get(game, {}).get(text, {}).get("en")
@@ -74,7 +92,7 @@ class SpeakerBook:
     def _misread_of(self, text: str, score: float, known: dict) -> str | None:
         matches = set()
         for name, entry in known.items():
-            if not entry.get("seen"):  # only names read confidently at least once
+            if not entry.get("seen") or entry.get("misread_of"):  # only names read confidently at least once
                 continue
             if len(name) == len(text) + 1 and _drops_one(name, text):
                 matches.add(name)

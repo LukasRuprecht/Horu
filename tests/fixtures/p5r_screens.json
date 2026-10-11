@@ -4053,6 +4053,287 @@
      "text": "この先の住所ではなさそうだ…"
     }
    ]
+  },
+  {
+   "name": "name_tag_with_dropped_character",
+   "note": "the slanted name tag (初老の男性客, read as 初の男性客) is the speaker; the speaker book maps the misread",
+   "size": null,
+   "lines": [
+    {
+     "text": "57FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "score": 0.9,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       36,
+       126,
+       36
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "へんな暴走事故、続いてるじゃない。",
+     "box": [
+      279,
+      484,
+      559,
+      504
+     ],
+     "score": 0.96,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       241,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "この辺でも起きなきゃいいなってね。",
+     "box": [
+      279,
+      505,
+      561,
+      525
+     ],
+     "score": 0.962,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      825,
+      490,
+      882,
+      515
+     ],
+     "score": 0.918,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "初の男性客",
+     "box": [
+      199,
+      418,
+      319,
+      479
+     ],
+     "score": 0.917,
+     "slant_height": 29.1,
+     "style": {
+      "ink": [
+       248,
+       248,
+       248
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "初の男性客",
+     "kind": "dialogue",
+     "text": "へんな暴走事故、続いてるじゃない。この辺でも起きなきゃいいなってね。"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    }
+   ]
+  },
+  {
+   "name": "choices_beside_a_speaker",
+   "note": "two stacked choices (one highlighted) are dialogue, not a name tag over the other",
+   "size": null,
+   "lines": [
+    {
+     "text": "56 FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "score": 0.948,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       37,
+       128,
+       37
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "お前が、パント？",
+     "box": [
+      177,
+      492,
+      312,
+      513
+     ],
+     "score": 0.99,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       64,
+       64,
+       64
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送",
+     "box": [
+      825,
+      489,
+      885,
+      517
+     ],
+     "score": 0.97,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "午後",
+     "box": [
+      11,
+      142,
+      108,
+      223
+     ],
+     "score": 0.959,
+     "slant_height": 53.3,
+     "style": {
+      "ink": [
+       96,
+       107,
+       107
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "SATURDaV",
+     "box": [
+      61,
+      93,
+      208,
+      180
+     ],
+     "score": 0.744,
+     "slant_height": 51.0,
+     "style": {
+      "ink": [
+       75,
+       108,
+       106
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "世話になりたい",
+     "box": [
+      476,
+      328,
+      603,
+      375
+     ],
+     "score": 0.99,
+     "slant_height": 24.5,
+     "style": {
+      "ink": [
+       9,
+       8,
+       8
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "佐倉さんという人は？",
+     "box": [
+      476,
+      408,
+      649,
+      448
+     ],
+     "score": 0.936,
+     "slant_height": 24.2,
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "世話になりたい"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "佐倉さんという人は？"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "お前が、パント？"
+    }
+   ]
   }
  ]
 }

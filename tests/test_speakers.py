@@ -49,3 +49,22 @@ def test_translations_alone_do_not_make_a_name_known(tmp_path):
     book = SpeakerBook(tmp_path / "speakers.json")
     book.set_english("P5R.exe", "少女の声", "Girl's voice", "ai")  # read unsure, never remembered
     assert book.resolve("P5R.exe", "少の声", score=0.96) == "少の声"
+
+
+def test_a_name_the_ai_corrected_maps_its_misreads_to_it(tmp_path):
+    book = SpeakerBook(tmp_path / "speakers.json")
+    # OCR read the tag confidently but wrongly; the AI read it again.
+    assert book.resolve("P5R.exe", "初言の男性客", score=0.92) == "初言の男性客"
+    assert not book.confirmed("P5R.exe", "初言の男性客")
+    book.confirm("P5R.exe", "初老の男性客", was="初言の男性客")
+    assert book.confirmed("P5R.exe", "初老の男性客")
+    # The same misread maps straight to the name; a dropped character, read confidently, too.
+    assert book.resolve("P5R.exe", "初言の男性客", score=0.92) == "初老の男性客"
+    assert book.resolve("P5R.exe", "初の男性客", score=0.92) == "初老の男性客"
+    assert "初言の男性客" not in book.known("P5R.exe")
+
+
+def test_a_confirmed_name_beats_a_remembered_misread(tmp_path):
+    book = book_with(tmp_path, "顔色悪い男性")  # a confident misread, remembered before the AI checked
+    book.confirm("P5R.exe", "顔色の悪い男性")
+    assert book.resolve("P5R.exe", "顔色悪い男性", score=0.93) == "顔色の悪い男性"

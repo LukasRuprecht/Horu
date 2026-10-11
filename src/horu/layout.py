@@ -266,7 +266,8 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if normalize(text) in hints.not_speaker:
         return False
     if not marked and (
-        len(_JAPANESE.findall(text)) < 2 and not _NAME_LIKE.search(text)
+        _reads_like_dialogue(text) and not _NAME_LIKE.search(text)
+        or len(_JAPANESE.findall(text)) < 2 and not _NAME_LIKE.search(text)
         or len(text) > _MAX_SPEAKER_CHARS
         or (_has_sentence_punctuation(text) and not _NAME_LIKE.search(text))
     ):
