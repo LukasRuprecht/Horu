@@ -6,7 +6,9 @@ import dataclasses
 import io
 import itertools
 import json
+import os
 import queue
+import sys
 import threading
 import time
 import traceback
@@ -187,6 +189,7 @@ class App:
             background_color="#15171d",
         )
         self.window.events.loaded += self._page_loaded.set
+        _quit_on_ctrl_c()
         # webview.start blocks on the main thread; _worker runs on a background thread.
         webview.start(self._worker, debug=self.debug)
         if self._stop_hotkey:
@@ -899,6 +902,25 @@ def _block_alternatives(block: layout.TextBlock, limit: int = 3) -> list[str]:
 
 def _speaker_text(line: dict) -> str | None:
     return line["speaker"]["text"] if line["speaker"] else None
+
+
+_console_handler = None  # kept alive: Windows calls it after run() has returned
+
+
+def _quit_on_ctrl_c() -> None:
+    """Quit on Ctrl+C in the terminal. Python's own handler never runs while the window's
+    event loop holds the main thread; Windows calls this one on a thread of its own."""
+    global _console_handler
+    if sys.platform != "win32":
+        return
+    import ctypes
+
+    @ctypes.WINFUNCTYPE(ctypes.c_int, ctypes.c_uint)
+    def handler(event: int) -> int:
+        os._exit(0)
+
+    _console_handler = handler
+    ctypes.windll.kernel32.SetConsoleCtrlHandler(handler, True)
 
 
 def _pretty_hotkey(spec: str) -> str:
