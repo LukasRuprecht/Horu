@@ -133,26 +133,29 @@ def to_pixels(region: Box, size: tuple[int, int]) -> tuple[int, int, int, int]:
 
 # --- Noticing new text -------------------------------------------------------------------
 
-# Edge maps are compared at this width.
+# Text maps are compared at this width.
 _MAP_WIDTH = 320
-# Share of edge pixels that must differ between frames for text to count as changed, and
-# below which consecutive frames count as the same (the text has finished typing).
+# How much brighter (or darker) than its surroundings a pixel must be to count as text.
+_TEXT_CONTRAST = 100
+# Share of text pixels that must differ between frames for text to count as changed, and
+# below which consecutive frames count as the same (the text has finished typing). Scenery
+# moving behind a see-through box changes about 3% (up to 6%) of a still line's map.
 _CHANGED = 0.12
-_STILL = 0.04
+_STILL = 0.07
 # Frames in a row that must be still before a change is read.
 _STILL_FRAMES = 2
 
 
 def edge_map(image: Image.Image) -> np.ndarray:
-    """A small map of the sharp edges in `image`: the outlines of text, not soft scenery."""
-    gray = np.asarray(image.convert("L"))
-    height = max(1, round(gray.shape[0] * _MAP_WIDTH / max(gray.shape[1], 1)))
-    small = cv2.resize(gray, (_MAP_WIDTH, height), interpolation=cv2.INTER_AREA)
-    gx = cv2.Sobel(small, cv2.CV_32F, 1, 0)
-    gy = cv2.Sobel(small, cv2.CV_32F, 0, 1)
-    edges = np.hypot(gx, gy) > 120
-    # Thicken slightly so a one-pixel shimmer doesn't count as a change.
-    return cv2.dilate(edges.astype(np.uint8), np.ones((2, 2), np.uint8)).astype(bool)
+    """A small map of the pixels in `image` that stand out sharply from their surroundings:
+    text strokes, not scenery. Game text is drawn to be read over anything; scenery behind
+    a see-through box is dimmed, and its outlines (an owl's wings against the sky) are softer.
+    Brightness is each pixel's brightest channel, so blue or red text counts too."""
+    rgb = np.asarray(image.convert("RGB"))
+    height = max(1, round(rgb.shape[0] * _MAP_WIDTH / max(rgb.shape[1], 1)))
+    small = cv2.resize(rgb, (_MAP_WIDTH, height), interpolation=cv2.INTER_AREA).astype(np.float32)
+    value = small.max(axis=2)
+    return np.abs(value - cv2.blur(value, (9, 9))) > _TEXT_CONTRAST
 
 
 def difference(a: np.ndarray, b: np.ndarray) -> float:

@@ -1,9 +1,12 @@
+from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 
 from horu import autocapture
 from horu.autocapture import ChangeWatcher, DialogueBoxes
 
 SIZE = (2560, 1369)
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_the_dialogue_box_is_learned_once_captures_agree(tmp_path):
@@ -47,3 +50,12 @@ def test_new_text_is_read_once_it_stops_changing():
     watcher.update(frame("General Kenobi"))
     watcher.update(frame("General Kenobi"))
     assert watcher.update(frame("General Kenobi"))
+
+
+def test_scenery_moving_behind_the_box_is_not_new_text():
+    # Ocarina of Time 3D: the owl flaps its wings behind a see-through box while the text
+    # stays put. Watching the whole picture, the box never looked still and nothing was read.
+    frames = [Image.open(FIXTURES / f"owl_box_{i:02d}.png") for i in range(4)]
+    watcher = ChangeWatcher()
+    reads = [watcher.update(frame) for frame in frames]
+    assert reads == [False, False, True, False]
