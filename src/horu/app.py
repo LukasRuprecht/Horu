@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import dataclasses
 import io
 import itertools
@@ -36,14 +37,18 @@ _SCREENSHOT_MAX_WIDTH = 900
 _FLUSH_SECONDS = 0.05
 # How often auto-capture looks at the dialogue box.
 _WATCH_SECONDS = 0.25
+# Hotkey captures whose game picture is kept, for drawing auto-read regions on.
+_PICTURES_KEPT = 10
+_PICTURE_MAX_WIDTH = 1280
 
 
 @dataclasses.dataclass
 class AutoRead:
     """A capture asked for by auto-capture: the dialogue box, already grabbed."""
 
-    image: object  # PIL image of the dialogue box region
+    image: object  # PIL image of the region
     game: str
+    region: str  # which of the game's regions, e.g. "Dialogue"
 
 
 class Api:
@@ -101,9 +106,13 @@ class Api:
         """Read a line again from its screenshot with a vision model."""
         return self._app.reread(line_id)
 
-    def set_dialogue_box(self, line_id: int) -> dict:
-        """Use this line's position as its game's dialogue box for auto-capture."""
-        return self._app.set_dialogue_box(line_id)
+    def region_editor(self, line_id: int) -> dict:
+        """The game picture this line was captured from, with its auto-read regions."""
+        return self._app.region_editor(line_id)
+
+    def save_regions(self, line_id: int, regions: list[dict]) -> dict:
+        """Replace the auto-read regions for the game and layout of this line's capture."""
+        return self._app.save_regions(line_id, regions)
 
     def open_url(self, url: str) -> None:
         # Links open in the user's browser; the app window itself never navigates away.
@@ -157,7 +166,8 @@ class App:
         self._pictures = autocapture.PictureFinder()
         self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
-        self._last_auto: tuple[int, str] | None = None  # (line id, text) of the last auto-read line
+        self._last_auto: dict[str, tuple[int, str]] = {}  # region -> (line id, text) of the last line read there
+        self._captured_pictures: OrderedDict[int, tuple[bytes, tuple[int, int], str]] = OrderedDict()  # capture id -> (JPEG, picture size, game)
         self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
         self.anki = anki.AnkiClient()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
@@ -664,19 +674,21 @@ class App:
         ]
 
         picture = autocapture.picture_box(image) if not auto else None
+        suggested = None
         if auto:
             # Only dialogue: location names and other popups that show up inside the watched
             # area some of the time would be read some of the time. The hotkey reads those.
             blocks = [b for b in blocks if b.kind == "dialogue"]
         else:
-            # Where this game shows dialogue, for auto-capture.
+            # Where this game shows dialogue, to suggest an auto-read region once it's clear.
             for block in blocks:
                 if block.kind == "dialogue":
                     box, size = autocapture.in_picture(block.box, picture)
-                    self.boxes.observe(game, box, len(block.lines), size)
+                    suggested = self.boxes.observe(game, box, len(block.lines), size) or suggested
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
+        capture_id = next(self._capture_ids)
         lines = []
         for block in blocks:
             repeat = block.text in self.recent
@@ -684,9 +696,9 @@ class App:
                 self.recent.append(block.text)
             line = self._line(block, repeat)
             line["game"] = game
-            if not auto:  # where it was, for "Use as the dialogue box"
+            if not auto:  # where it was, for drawing auto-read regions
                 box, size = autocapture.in_picture(block.box, picture)
-                line["box"], line["frame"], line["rows"] = list(box), list(size), len(block.lines)
+                line["capture"], line["box"], line["frame"], line["rows"] = capture_id, list(box), list(size), len(block.lines)
             if line["speaker"]:
                 line["speaker"]["english"] = self.speaker_english(game, block.speaker)
             lines.append(line)
@@ -699,19 +711,28 @@ class App:
         if not new:
             self._ready(f"Nothing new: all {len(lines)} line(s) were already shown.")
             return
-        if auto and self._extends_last(new, blocks, lines, image):
+        if auto and self._extends_last(request.region, new, blocks, lines, image):
             return
+        if not auto:
+            self._keep_picture(capture_id, image, picture, game)
         for line, block in zip(lines, blocks):
             self.lines[line["id"]] = line
             if not line["repeat"]:
                 self._keep_screenshot(line["id"], image, block.box)
-        self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
+        self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
+        if suggested:
+            line_id = next(l["id"] for l in lines if l["kind"] == "dialogue")
+            self._call("suggestRegion", {"lineId": line_id, "game": game})
         for line in new:
             self._started[line["id"]] = started
             self._time(line["id"], "shown" + (" (flagged)" if line["uncertain"] else ""))
         self._ready()
         dialogue_new = [l for l in new if l["kind"] == "dialogue"]
-        self._last_auto = (dialogue_new[-1]["id"], dialogue_new[-1]["text"]) if auto and dialogue_new else None
+        if auto:
+            if dialogue_new:
+                self._last_auto[request.region] = (dialogue_new[-1]["id"], dialogue_new[-1]["text"])
+            else:
+                self._last_auto.pop(request.region, None)
         # A vision model checks every dialogue line against its screenshot, while the line is
         # translated; a line it fixes is translated again. Cards for lines Horu may have
         # misread wait for the check, so they never teach a misreading.
@@ -728,12 +749,12 @@ class App:
         if checkable:
             threading.Thread(target=self._check_lines, args=(checkable, waiting), name="horu-check", daemon=True).start()
 
-    def _extends_last(self, new: list[dict], blocks, lines: list[dict], image) -> bool:
+    def _extends_last(self, region: str, new: list[dict], blocks, lines: list[dict], image) -> bool:
         """Text read while it was still typing out (paused at 、 or …) and read again in full:
         the earlier line is updated in place instead of shown twice."""
-        if self._last_auto is None or len(new) != 1:
+        if region not in self._last_auto or len(new) != 1:
             return False
-        last_id, last_text = self._last_auto
+        last_id, last_text = self._last_auto[region]
         text = new[0]["text"]
         if last_id not in self.lines or text == last_text or not text.startswith(last_text):
             return False
@@ -741,7 +762,7 @@ class App:
         words = self.update_line(last_id, text)
         line.update(uncertain=new[0]["uncertain"], alternatives=new[0]["alternatives"], aiReading=None, suggestion=None)
         self._keep_screenshot(last_id, image, blocks[lines.index(new[0])].box)
-        self._last_auto = (last_id, text)
+        self._last_auto[region] = (last_id, text)
         self._call("lineUpdated", {"id": last_id, "text": text, "words": words, "uncertain": line["uncertain"]})
         # The full line needs its own check (the partial one was checked before).
         if self._can_check(last_id):
@@ -751,57 +772,61 @@ class App:
     # --- auto-capture ------------------------------------------------------------------
 
     def _watch(self) -> None:
-        """Look at the game's dialogue box a few times a second; read it when new text has
-        settled there."""
-        watcher = autocapture.ChangeWatcher()
+        """Look at the game's auto-read regions a few times a second; read one when new text
+        has settled there."""
+        watchers: dict[tuple, autocapture.ChangeWatcher] = {}
         while True:
             time.sleep(_WATCH_SECONDS)
             try:
-                frame = self._watch_frame()
+                frames = self._watch_frames()
             except Exception:
                 traceback.print_exc()
-                frame = None
-            if frame is None:
-                watcher.reset()
-                continue
-            image, game = frame
-            if watcher.update(image):
-                self._requests.put(AutoRead(image, game))
+                frames = []
+            # A region not watched this time (covered, removed, another game) starts afresh.
+            watchers = {key: watchers.get(key) or autocapture.ChangeWatcher() for key, _, _ in frames}
+            for key, image, game in frames:
+                if watchers[key].update(image):
+                    self._requests.put(AutoRead(image, game, key[1].name))
 
-    def _watch_frame(self):
-        """(image of the dialogue box, game), or None when there's nothing to watch."""
+    def _watch_frames(self) -> list[tuple[tuple, object, str]]:
+        """(key, image of the region, game) for each region to watch now."""
         if not self.prefs.values["autoCapture"] or self._source is None:
             self._set_auto("off", "Auto-capture is off.")
-            return None
+            return []
         hotkey_name = _pretty_hotkey(self.cfg.capture_hotkey)
         if self._game_window is None:
             self._set_auto("waiting", f"Press {hotkey_name} in your game once, so Horu knows which window to watch.")
-            return None
+            return []
         window, game = self._game_window
-        region = self.boxes.region(game)
-        if region is None:
-            seen, needed = self.boxes.progress(game)
-            self._set_auto(
-                "learning",
-                f"Learning where {game} shows dialogue: press {hotkey_name} on {needed - seen} more dialogue "
-                "line(s), or use a line's ⋯ menu to set the box.",
-            )
-            return None
         box = capture.window_box(window)
         # Only while the game (or Horu, beside it) is in front: otherwise another window may
-        # be covering the box.
+        # be covering the regions.
         foreground = capture.foreground_window()
         if box is None or (foreground != window and not capture.focused_window_is_own()):
             self._set_auto("paused", f"Paused: {game} isn't in front.")
-            return None
+            return []
         size = (box["width"], box["height"])
         picture = self._pictures.find(size, lambda: capture.grab_part(box, (0, 0, *size)))
-        part = autocapture.to_pixels(region, picture)
-        if not capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]):
-            self._set_auto("paused", f"Paused: something is covering {game}'s dialogue box.")
-            return None
-        self._set_auto("watching", f"Watching {game}'s dialogue box.")
-        return capture.grab_part(box, part), game
+        picture_size = (picture[2] - picture[0], picture[3] - picture[1])
+        regions = self.boxes.regions(game, picture_size)
+        if not regions:
+            self._set_auto(
+                "learning",
+                f"Nothing to watch in {game} yet: capture a dialogue line with {hotkey_name}, then choose "
+                "\"Set auto-read regions\" in its ⋯ menu.",
+            )
+            return []
+        frames = []
+        for region in regions:
+            part = autocapture.to_pixels(region.box, picture)
+            if capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]):
+                frames.append(((game, region, picture), capture.grab_part(box, part), game))
+        if not frames:
+            self._set_auto("paused", f"Paused: something is covering {game}'s auto-read regions.")
+        else:
+            names = ", ".join(key[1].name for key, _, _ in frames)
+            self._set_auto("watching", f"Watching {game}: {names}.")
+        return frames
 
     def _time(self, line_id: int, event: str) -> None:
         """Log how long after its capture began a line reached `event`, to find slow steps."""
@@ -813,12 +838,49 @@ class App:
             self._auto_state = (state, message)
             self._call("setAutoState", {"state": state, "message": message})
 
-    def set_dialogue_box(self, line_id: int) -> dict:
+    def _keep_picture(self, capture_id: int, image, picture: autocapture.Pixels, game: str) -> None:
+        """The game picture of a hotkey capture, for drawing auto-read regions on."""
+        crop = image.crop(picture).convert("RGB")
+        size = crop.size
+        if crop.width > _PICTURE_MAX_WIDTH:
+            crop = crop.resize((_PICTURE_MAX_WIDTH, round(crop.height * _PICTURE_MAX_WIDTH / crop.width)))
+        buffer = io.BytesIO()
+        crop.save(buffer, format="JPEG", quality=85)
+        self._captured_pictures[capture_id] = (buffer.getvalue(), size, game)
+        while len(self._captured_pictures) > _PICTURES_KEPT:
+            self._captured_pictures.popitem(last=False)
+
+    def region_editor(self, line_id: int) -> dict:
         line = self.lines.get(line_id)
-        if not line or "box" not in line:
-            return {"ok": False, "message": "Only lines captured with the hotkey can set the box."}
-        self.boxes.set(line["game"], tuple(line["box"]), line["rows"], tuple(line["frame"]))
-        return {"ok": True, "message": f"Auto-capture will watch this part of {line['game']}."}
+        if not line or line.get("capture") not in self._captured_pictures:
+            return {"ok": False, "message": "Regions are drawn on one of your last few hotkey captures. Capture a dialogue line and try again."}
+        jpeg, size, game = self._captured_pictures[line["capture"]]
+        return {
+            "ok": True,
+            "game": game,
+            "image": "data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii"),
+            "aspect": size[0] / size[1],
+            "regions": [{"name": r.name, "box": list(r.box)} for r in self.boxes.regions(game, size)],
+            "proposed": list(self.boxes.suggestion(tuple(line["box"]), line["rows"], tuple(line["frame"]))),
+        }
+
+    def save_regions(self, line_id: int, regions: list[dict]) -> dict:
+        line = self.lines.get(line_id)
+        if not line or line.get("capture") not in self._captured_pictures:
+            return {"ok": False, "message": "That capture is too old to edit regions on. Capture again and retry."}
+        _, size, game = self._captured_pictures[line["capture"]]
+        cleaned = []
+        for i, region in enumerate(regions):
+            left, top, right, bottom = (min(max(float(v), 0.0), 1.0) for v in region["box"])
+            if right - left > 0.01 and bottom - top > 0.01:
+                name = str(region.get("name") or "").strip() or f"Region {i + 1}"
+                cleaned.append(autocapture.Region(name, (left, top, right, bottom)))
+        self.boxes.set_regions(game, size, cleaned)
+        if not cleaned:
+            return {"ok": True, "message": f"Auto-capture won't read anything in {game} (in this screen layout)."}
+        if not self.prefs.values["autoCapture"]:
+            return {"ok": True, "message": f"Saved. Turn on auto-capture (the eye button) to read {game} by itself."}
+        return {"ok": True, "message": f"Auto-capture is watching {len(cleaned)} region(s) in {game}."}
 
     # --- fixing misread lines --------------------------------------------------------
 

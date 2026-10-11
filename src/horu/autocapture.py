@@ -1,12 +1,15 @@
-"""Auto-capture: read the dialogue box by itself whenever its text changes.
+"""Auto-capture: read the game's dialogue box by itself whenever its text changes.
 
-Each game draws dialogue in one place. Horu learns where from the captures the player makes
-with the hotkey (the dialogue blocks it found), per game, and once a few agree, watches only
-that region: menus, battle UI, and popups elsewhere on screen are never read. Positions are
-kept relative to the game picture, not the window: emulators centre the picture between
-black bars that change with the window's size.
+The player marks the parts of the game picture to watch ("auto-read regions"), per game and
+per screen layout: a game can have several (P5R's dialogue box and its chat bubbles; OoT's box
+at the bottom and the one it moves to the top), and an emulator showing one screen or two side
+by side has different regions for each. Menus, battle UI, and popups outside the regions are
+never read. Horu suggests a region once the player's hotkey captures keep finding dialogue in
+the same place, but never starts watching one by itself. Positions are kept relative to the
+game picture, not the window: emulators centre the picture between black bars that change
+with the window's size.
 
-Watching is cheap: a few times a second the region is shrunk and turned into a map of the
+Watching is cheap: a few times a second each region is shrunk and turned into a map of the
 pixels that stand out sharply (text strokes). Comparing those rather than all pixels means
 moving scenery behind a see-through box doesn't count as a change. A change is read once
 the text stops changing (it has finished typing out).
@@ -26,12 +29,14 @@ import numpy as np
 from PIL import Image
 
 DEFAULT_PATH = Path("data/dialogue_boxes.json")
+_VERSION = 2  # earlier files held one learned box per game, from mixed layouts: dropped
 
-# Captures that must agree on the box before it's used, and how many are remembered.
+# Captures that must agree on where dialogue is before a region is suggested, and how many
+# are remembered.
 _AGREE = 3
 _KEEP = 12
-# Room around the learned text area, in line heights: the name tag sits above the text, and
-# longer lines can reach further than the ones seen so far.
+# Room around text when suggesting a region from it, in line heights: the name tag sits above
+# the text, and longer lines can reach further than the ones seen so far.
 _PAD_TOP, _PAD_BOTTOM, _PAD_SIDES = 1.8, 0.6, 1.5
 
 Box = tuple[float, float, float, float]  # left, top, right, bottom as fractions of the game picture
@@ -54,68 +59,85 @@ class Observation:
         return (right - left) * (bottom - top) >= 0.5 * min(area(self.box), area(other.box))
 
 
+@dataclass(frozen=True)
+class Region:
+    name: str
+    box: Box
+
+
+def layout(size: tuple[int, int]) -> str:
+    """A name for the screen layout of a game picture of `size` (width, height): its shape.
+    One 3DS screen and two side by side are different layouts; resizing the window is not."""
+    width, height = size
+    return f"{width / max(height, 1):.1f}"
+
+
 class DialogueBoxes:
-    """Where each game shows its dialogue, learned from the player's captures."""
+    """Each game's auto-read regions, per screen layout, and where its dialogue has been seen."""
 
     def __init__(self, path: Path = DEFAULT_PATH) -> None:
         self.path = path
         self._lock = threading.Lock()
         try:
-            self._data: dict[str, dict] = json.loads(path.read_text(encoding="utf-8"))
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
-            self._data = {}
-        # Boxes learned before they were kept relative to the picture are in other units.
-        self._data = {game: data for game, data in self._data.items() if data.get("frame") == "picture"}
+            data = {}
+        # game -> layout -> {"regions": [{"name", "box"}], "seen": [{"box", "line"}], "suggested": bool}
+        self._games: dict[str, dict[str, dict]] = data.get("games", {}) if data.get("version") == _VERSION else {}
 
-    def observe(self, game: str, box: tuple[int, int, int, int], lines: int, size: tuple[int, int]) -> None:
-        """Remember a dialogue block found in a game picture of `size` (width, height)."""
-        width, height = size
-        left, top, right, bottom = box
-        entry = {"box": [left / width, top / height, right / width, bottom / height], "line": (bottom - top) / max(lines, 1) / height}
+    def regions(self, game: str, size: tuple[int, int]) -> list[Region]:
+        """The regions to watch in a picture of `size`."""
+        entry = self._games.get(game, {}).get(layout(size), {})
+        return [Region(r["name"], tuple(r["box"])) for r in entry.get("regions", [])]
+
+    def set_regions(self, game: str, size: tuple[int, int], regions: list[Region]) -> None:
+        """Replace the regions for this game and layout (none: stop auto-reading it)."""
         with self._lock:
-            game_data = self._data.setdefault(game, {"frame": "picture"})
-            seen = game_data.setdefault("seen", [])
+            entry = self._games.setdefault(game, {}).setdefault(layout(size), {})
+            entry["regions"] = [{"name": r.name, "box": [round(v, 4) for v in r.box]} for r in regions]
+        self._save()
+
+    def observe(self, game: str, box: Pixels, lines: int, size: tuple[int, int]) -> Box | None:
+        """Remember a dialogue block found in a game picture of `size`. Returns a region to
+        suggest watching when captures have now agreed on one, once per layout, and only while
+        the layout has no regions."""
+        entry = {"box": _fractions(box, size), "line": (box[3] - box[1]) / max(lines, 1) / size[1]}
+        with self._lock:
+            data = self._games.setdefault(game, {}).setdefault(layout(size), {})
+            seen = data.setdefault("seen", [])
             seen.append(entry)
             del seen[:-_KEEP]
+            group = _largest_group([_observation(e) for e in seen])
+            suggest = len(group) >= _AGREE and not data.get("regions") and not data.get("suggested")
+            if suggest:
+                data["suggested"] = True
         self._save()
+        return _padded(group) if suggest else None
 
-    def set(self, game: str, box: tuple[int, int, int, int], lines: int, size: tuple[int, int]) -> None:
-        """Use this block's position as the game's dialogue box, replacing what was learned."""
-        width, height = size
-        left, top, right, bottom = box
-        line = (bottom - top) / max(lines, 1) / height
-        with self._lock:
-            self._data[game] = {"frame": "picture", "seen": [], "fixed": {"box": [left / width, top / height, right / width, bottom / height], "line": line}}
-        self._save()
-
-    def region(self, game: str) -> Box | None:
-        """The part of the game picture to watch, or None until enough captures agree."""
-        data = self._data.get(game, {})
-        if data.get("fixed"):
-            group = [_observation(data["fixed"])]
-        else:
-            group = _largest_group([_observation(e) for e in data.get("seen", [])])
-            if len(group) < _AGREE:
-                return None
-        line = float(np.median([o.line_height for o in group]))
-        left = min(o.box[0] for o in group) - _PAD_SIDES * line
-        top = min(o.box[1] for o in group) - _PAD_TOP * line
-        right = max(o.box[2] for o in group) + _PAD_SIDES * line
-        bottom = max(o.box[3] for o in group) + _PAD_BOTTOM * line
-        return (max(left, 0.0), max(top, 0.0), min(right, 1.0), min(bottom, 1.0))
-
-    def progress(self, game: str) -> tuple[int, int]:
-        """(captures agreeing so far, captures needed)."""
-        data = self._data.get(game, {})
-        if data.get("fixed"):
-            return _AGREE, _AGREE
-        return min(len(_largest_group([_observation(e) for e in data.get("seen", [])])), _AGREE), _AGREE
+    def suggestion(self, box: Pixels, lines: int, size: tuple[int, int]) -> Box:
+        """A region around one block of text, with room for its name tag and longer lines."""
+        return _padded([Observation(_fractions(box, size), (box[3] - box[1]) / max(lines, 1) / size[1])])
 
     def _save(self) -> None:
         with self._lock:
-            text = json.dumps(self._data, ensure_ascii=False, indent=1)
+            text = json.dumps({"version": _VERSION, "games": self._games}, ensure_ascii=False, indent=1)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.write_text(text, encoding="utf-8")
+
+
+def _fractions(box: Pixels, size: tuple[int, int]) -> Box:
+    width, height = size
+    left, top, right, bottom = box
+    return (left / width, top / height, right / width, bottom / height)
+
+
+def _padded(group: list[Observation]) -> Box:
+    line = float(np.median([o.line_height for o in group]))
+    left = min(o.box[0] for o in group) - _PAD_SIDES * line
+    top = min(o.box[1] for o in group) - _PAD_TOP * line
+    right = max(o.box[2] for o in group) + _PAD_SIDES * line
+    bottom = max(o.box[3] for o in group) + _PAD_BOTTOM * line
+    return (max(left, 0.0), max(top, 0.0), min(right, 1.0), min(bottom, 1.0))
 
 
 def _observation(entry: dict) -> Observation:

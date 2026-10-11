@@ -3,30 +3,40 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from horu import autocapture
-from horu.autocapture import ChangeWatcher, DialogueBoxes
+from horu.autocapture import ChangeWatcher, DialogueBoxes, Region
 
 SIZE = (2560, 1369)
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
-def test_the_dialogue_box_is_learned_once_captures_agree(tmp_path):
+def test_a_region_is_suggested_once_captures_agree(tmp_path):
     boxes = DialogueBoxes(tmp_path / "boxes.json")
-    boxes.observe("zelda", (633, 986, 1914, 1249), 3, SIZE)
-    boxes.observe("zelda", (900, 300, 1200, 340), 1, SIZE)  # a one-off elsewhere (a sign)
-    boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE)
-    assert boxes.region("zelda") is None and boxes.progress("zelda") == (2, 3)
-    boxes.observe("zelda", (727, 923, 1789, 1315), 3, SIZE)
-    left, top, right, bottom = autocapture.to_pixels(boxes.region("zelda"), (0, 0, *SIZE))
+    assert boxes.observe("zelda", (633, 986, 1914, 1249), 3, SIZE) is None
+    assert boxes.observe("zelda", (900, 300, 1200, 340), 1, SIZE) is None  # a one-off elsewhere (a sign)
+    assert boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE) is None
+    suggested = boxes.observe("zelda", (727, 923, 1789, 1315), 3, SIZE)
+    left, top, right, bottom = autocapture.to_pixels(suggested, (0, 0, *SIZE))
     # Covers every agreeing block, with room above for a name tag; the sign is left out.
     assert left < 633 and top < 923 and right > 1914 and bottom >= 1315 and top > 340
-    # Remembered across restarts.
-    assert DialogueBoxes(tmp_path / "boxes.json").region("zelda") == boxes.region("zelda")
+    # Only suggested: nothing is watched until the player saves a region, and it's suggested once.
+    assert boxes.regions("zelda", SIZE) == []
+    assert boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE) is None
 
 
-def test_a_box_set_by_hand_is_used_at_once(tmp_path):
+def test_regions_are_kept_per_game_and_screen_layout(tmp_path):
     boxes = DialogueBoxes(tmp_path / "boxes.json")
-    boxes.set("p5r", (370, 1119, 1361, 1289), 2, SIZE)
-    assert boxes.region("p5r") is not None and boxes.progress("p5r") == (3, 3)
+    one_screen, two_screens = (400, 240), (860, 287)
+    regions = [Region("Dialogue", (0.1, 0.6, 0.9, 0.95)), Region("Chat", (0.6, 0.05, 0.98, 0.4))]
+    boxes.set_regions("p5r", one_screen, regions)
+    # The same layout at another window size shares them; another layout doesn't.
+    assert boxes.regions("p5r", (800, 480)) == regions
+    assert boxes.regions("p5r", two_screens) == []
+    assert boxes.regions("zelda", one_screen) == []
+    # Remembered across restarts.
+    assert DialogueBoxes(tmp_path / "boxes.json").regions("p5r", one_screen) == regions
+    # A layout with regions isn't suggested more.
+    for _ in range(3):
+        assert boxes.observe("p5r", (40, 150, 360, 220), 2, one_screen) is None
 
 
 def frame(text: str, background: int = 40) -> Image.Image:
@@ -80,23 +90,16 @@ def test_the_game_picture_is_found_between_the_bars():
     assert autocapture.picture_box(Image.new("RGB", (400, 300), (40, 60, 80))) == (0, 0, 400, 300)
 
 
-def test_the_box_follows_the_picture_when_the_window_is_resized(tmp_path):
+def test_a_region_follows_the_picture_when_the_window_is_resized(tmp_path):
     boxes = DialogueBoxes(tmp_path / "boxes.json")
-    # The same dialogue box, seen in a wide window and in a narrow one.
-    for size, picture in (((880, 640), (0, 100, 733, 542)), ((638, 640), (0, 162, 531, 481))):
-        p_left, p_top, p_right, p_bottom = picture
-        width, height = p_right - p_left, p_bottom - p_top
-        text = (p_left + round(0.2 * width), p_top + round(0.65 * height), p_left + round(0.8 * width), p_top + round(0.9 * height))
-        box, picture_size = autocapture.in_picture(text, picture)
-        boxes.observe("zelda", box, 2, picture_size)
-    boxes.observe("zelda", box, 2, picture_size)
-    region = boxes.region("zelda")
-    assert region is not None
-    # Watching the narrow window, the region surrounds the text inside its picture.
-    left, top, right, bottom = autocapture.to_pixels(region, (0, 162, 531, 481))
-    assert left < text[0] and top < text[1] and right > text[2] and bottom >= text[3] and top > 162
+    # A region saved on a capture from a wide window, watched in a narrow one.
+    boxes.set_regions("zelda", (733, 442), [Region("Dialogue", (0.2, 0.65, 0.8, 0.9))])
+    picture = (0, 162, 531, 481)
+    (region,) = boxes.regions("zelda", (531, 319))
+    left, top, right, bottom = autocapture.to_pixels(region.box, picture)
+    assert (left, top, right, bottom) == (106, 369, 425, 449)
 
 
-def test_boxes_learned_against_the_whole_window_are_dropped(tmp_path):
-    (tmp_path / "boxes.json").write_text('{"azahar.exe": {"seen": [{"box": [0.2, 0.6, 0.6, 0.8], "line": 0.06}]}}')
-    assert DialogueBoxes(tmp_path / "boxes.json").progress("azahar.exe") == (0, 3)
+def test_boxes_from_before_regions_are_dropped(tmp_path):
+    (tmp_path / "boxes.json").write_text('{"azahar.exe": {"frame": "picture", "seen": [{"box": [0.2, 0.6, 0.6, 0.8], "line": 0.06}]}}')
+    assert DialogueBoxes(tmp_path / "boxes.json").regions("azahar.exe", (400, 240)) == []

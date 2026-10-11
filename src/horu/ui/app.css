@@ -715,3 +715,111 @@ button.link {
 
 /* The size preview always shows furigana, even when it's toggled off for the lines. */
 body.no-furigana .settings .preview rt { display: revert; }
+
+/* Auto-read regions: drawn on a capture's game picture. */
+.region-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--accent);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.region-suggest span { flex: 1 1 200px; }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.55);
+}
+.modal[hidden] { display: none; }
+.modal-box {
+  width: min(900px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--popover);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.4);
+}
+.modal-head { display: flex; align-items: center; gap: 8px; }
+.modal-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
+.modal-hint { margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.modal-hint[hidden] { display: none; }
+.modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.modal-actions .spacer { flex: 1; }
+.line-btn.primary { border-color: var(--accent); color: var(--accent); }
+
+.region-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #000;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.region-stage img { display: block; width: 100%; height: 100%; pointer-events: none; }
+.region {
+  position: absolute;
+  border: 2px solid var(--region);
+  background: color-mix(in srgb, var(--region) 12%, transparent);
+  cursor: move;
+}
+.region.selected { background: color-mix(in srgb, var(--region) 22%, transparent); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6); }
+.region-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 1px 6px;
+  background: var(--region);
+  color: #111;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.region-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #111;
+  border-radius: 2px;
+  background: var(--region);
+}
+.region:not(.selected) .region-handle { display: none; }
+.region-handle.nw { top: -7px; left: -7px; cursor: nwse-resize; }
+.region-handle.ne { top: -7px; right: -7px; cursor: nesw-resize; }
+.region-handle.sw { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.region-handle.se { bottom: -7px; right: -7px; cursor: nwse-resize; }
+
+.region-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.region-item { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+.region-item.selected { background: var(--card); }
+.region-swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; }
+.region-item input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.modal .line-btn, .region-suggest .line-btn { opacity: 1; padding: 5px 12px; border: 1px solid var(--border); color: var(--text); }
+.modal .line-btn.primary { border-color: var(--accent); color: var(--accent); }

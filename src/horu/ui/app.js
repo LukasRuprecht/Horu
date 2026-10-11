@@ -226,11 +226,8 @@ function openLineMenu(anchor, line, row) {
   if (state.ai.enabled && line.kind === "dialogue") {
     items.unshift(["Re-read with AI", () => reread(line, row)]);
   }
-  if (line.box && line.kind === "dialogue") {
-    items.push(["Use as the dialogue box for auto-capture", async () => {
-      const result = await api().set_dialogue_box(line.id);
-      horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
-    }]);
+  if (line.capture) {
+    items.push(["Set auto-read regions…", () => openRegionEditor(line)]);
   }
   lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
     closeLineMenu();
@@ -246,6 +243,201 @@ function openLineMenu(anchor, line, row) {
 function closeLineMenu() {
   lineMenu.hidden = true;
 }
+
+// --- Auto-read regions: the parts of a game's picture auto-capture watches --------------
+
+const regionEditor = $("#region-editor");
+const REGION_COLORS = ["#f2c14e", "#3fb8a5", "#ef6f8e", "#6aa0ff", "#b48ef0"];
+const MIN_REGION = 0.02; // smallest region side, as a fraction of the picture
+
+async function openRegionEditor(line) {
+  closePopover();
+  const result = await api().region_editor(line.id);
+  if (!result.ok) {
+    horu.setStatus({ state: "error", message: result.message });
+    return;
+  }
+  const editor = {
+    line,
+    regions: result.regions.map((r) => ({ name: r.name, box: [...r.box] })),
+    proposed: result.proposed,
+    selected: null,
+  };
+  if (!editor.regions.length) {
+    editor.regions.push({ name: "Dialogue", box: [...result.proposed] });
+  }
+  editor.selected = editor.regions.length - 1;
+
+  $("#region-game").textContent = result.game;
+  const stage = $("#region-stage");
+  const img = el("img");
+  img.src = result.image;
+  img.alt = `Capture from ${result.game}`;
+  img.draggable = false;
+  stage.replaceChildren(img);
+  stage.style.aspectRatio = String(result.aspect);
+  editor.stage = stage;
+  regionEditor.editor = editor;
+  renderRegions(editor);
+  regionEditor.hidden = false;
+}
+
+function closeRegionEditor() {
+  regionEditor.hidden = true;
+  regionEditor.editor = null;
+}
+
+function renderRegions(editor) {
+  const stage = editor.stage;
+  stage.querySelectorAll(".region").forEach((node) => node.remove());
+  editor.regions.forEach((region, index) => {
+    const color = REGION_COLORS[index % REGION_COLORS.length];
+    const node = el("div", "region" + (index === editor.selected ? " selected" : ""));
+    node.style.setProperty("--region", color);
+    node.dataset.index = index;
+    placeRegion(node, region.box);
+    node.append(el("span", "region-label", region.name || `Region ${index + 1}`));
+    for (const corner of ["nw", "ne", "sw", "se"]) {
+      const handle = el("span", `region-handle ${corner}`);
+      handle.dataset.corner = corner;
+      node.append(handle);
+    }
+    stage.append(node);
+  });
+
+  const list = $("#region-list");
+  list.replaceChildren(...editor.regions.map((region, index) => {
+    const item = el("li", "region-item" + (index === editor.selected ? " selected" : ""));
+    const swatch = el("span", "region-swatch");
+    swatch.style.background = REGION_COLORS[index % REGION_COLORS.length];
+    const name = el("input");
+    name.type = "text";
+    name.value = region.name;
+    name.placeholder = `Region ${index + 1}`;
+    name.addEventListener("focus", () => selectRegion(editor, index));
+    name.addEventListener("input", () => {
+      region.name = name.value;
+      const label = stage.querySelector(`.region[data-index="${index}"] .region-label`);
+      if (label) label.textContent = name.value || `Region ${index + 1}`;
+    });
+    const remove = button("line-btn", "Remove", () => {
+      editor.regions.splice(index, 1);
+      editor.selected = editor.regions.length ? Math.min(index, editor.regions.length - 1) : null;
+      renderRegions(editor);
+    });
+    item.append(swatch, name, remove);
+    return item;
+  }));
+  $("#region-empty").hidden = editor.regions.length > 0;
+}
+
+function placeRegion(node, [left, top, right, bottom]) {
+  node.style.left = `${left * 100}%`;
+  node.style.top = `${top * 100}%`;
+  node.style.width = `${(right - left) * 100}%`;
+  node.style.height = `${(bottom - top) * 100}%`;
+}
+
+function selectRegion(editor, index) {
+  if (editor.selected === index) return;
+  editor.selected = index;
+  editor.stage.querySelectorAll(".region").forEach((node) => node.classList.toggle("selected", Number(node.dataset.index) === index));
+  $("#region-list").querySelectorAll(".region-item").forEach((node, i) => node.classList.toggle("selected", i === index));
+}
+
+// Dragging: a region's body moves it, a corner resizes it, empty picture draws a new one.
+$("#region-stage").addEventListener("pointerdown", (e) => {
+  const editor = regionEditor.editor;
+  if (!editor || e.button !== 0) return;
+  e.preventDefault();
+  const stage = editor.stage;
+  const rect = stage.getBoundingClientRect();
+  const at = (event) => [
+    Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1),
+    Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1),
+  ];
+  const [x0, y0] = at(e);
+  const regionNode = e.target.closest(".region");
+  let index, corner;
+  if (regionNode) {
+    index = Number(regionNode.dataset.index);
+    corner = e.target.dataset.corner || null;
+  } else {
+    editor.regions.push({ name: "", box: [x0, y0, x0, y0] });
+    index = editor.regions.length - 1;
+    corner = "se";
+    editor.selected = index;
+    renderRegions(editor);
+  }
+  selectRegion(editor, index);
+  const region = editor.regions[index];
+  const start = [...region.box];
+  const node = () => stage.querySelector(`.region[data-index="${index}"]`);
+
+  const move = (event) => {
+    const [x, y] = at(event);
+    const dx = x - x0, dy = y - y0;
+    let [left, top, right, bottom] = start;
+    if (!corner) {
+      const w = right - left, h = bottom - top;
+      left = Math.min(Math.max(left + dx, 0), 1 - w);
+      top = Math.min(Math.max(top + dy, 0), 1 - h);
+      right = left + w;
+      bottom = top + h;
+    } else {
+      if (corner.includes("w")) left = Math.min(left + dx, right - MIN_REGION);
+      if (corner.includes("e")) right = Math.max(right + dx, left + MIN_REGION);
+      if (corner.includes("n")) top = Math.min(top + dy, bottom - MIN_REGION);
+      if (corner.includes("s")) bottom = Math.max(bottom + dy, top + MIN_REGION);
+      [left, top, right, bottom] = [Math.max(left, 0), Math.max(top, 0), Math.min(right, 1), Math.min(bottom, 1)];
+    }
+    region.box = [left, top, right, bottom];
+    placeRegion(node(), region.box);
+  };
+  const up = () => {
+    stage.removeEventListener("pointermove", move);
+    stage.removeEventListener("pointerup", up);
+    stage.removeEventListener("pointercancel", up);
+    const [left, top, right, bottom] = region.box;
+    if (!regionNode && (right - left < 0.03 || bottom - top < 0.03)) {
+      // A click on the picture, not a drag: no new region.
+      editor.regions.splice(index, 1);
+      editor.selected = editor.regions.length ? editor.regions.length - 1 : null;
+    }
+    renderRegions(editor);
+  };
+  try {
+    stage.setPointerCapture(e.pointerId); // keeps the drag going outside the picture
+  } catch {
+    // not a real pointer (a test); the drag still works inside the picture
+  }
+  stage.addEventListener("pointermove", move);
+  stage.addEventListener("pointerup", up);
+  stage.addEventListener("pointercancel", up);
+});
+
+$("#region-add").addEventListener("click", () => {
+  const editor = regionEditor.editor;
+  if (!editor) return;
+  editor.regions.push({ name: "", box: [...editor.proposed] });
+  editor.selected = editor.regions.length - 1;
+  renderRegions(editor);
+});
+
+$("#region-cancel").addEventListener("click", closeRegionEditor);
+$("#region-close").addEventListener("click", closeRegionEditor);
+regionEditor.addEventListener("click", (e) => {
+  if (e.target === regionEditor) closeRegionEditor();
+});
+
+$("#region-save").addEventListener("click", async () => {
+  const editor = regionEditor.editor;
+  if (!editor) return;
+  const regions = editor.regions.map((r, i) => ({ name: r.name.trim() || `Region ${i + 1}`, box: r.box }));
+  const result = await api().save_regions(editor.line.id, regions);
+  horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
+  if (result.ok) closeRegionEditor();
+});
 
 function editSpeakerEnglish(line) {
   const current = line.speaker.english || "";
@@ -1064,6 +1256,7 @@ document.addEventListener("keydown", (e) => {
     closePopover();
     closeLineMenu();
     toggleSettings(false);
+    closeRegionEditor();
   }
 });
 linesEl.addEventListener("scroll", () => {
@@ -1168,6 +1361,20 @@ window.horu = {
     if (line) line.uncertain = false;
     const flag = rowFor(id)?.querySelector(".uncertain-flag");
     if (flag) flag.remove();
+  },
+
+  // Hotkey captures keep finding dialogue in the same place: offer to auto-read it.
+  suggestRegion({ lineId, game }) {
+    const line = state.lines.get(lineId);
+    const row = rowFor(lineId);
+    if (!line || !row) return;
+    const note = el("div", "region-suggest");
+    note.append(
+      el("span", null, `Dialogue in ${game} keeps showing up here. Read it automatically?`),
+      button("line-btn", "Set auto-read region", () => { note.remove(); openRegionEditor(line); }),
+      button("line-btn", "Not now", () => note.remove()),
+    );
+    row.append(note);
   },
 
   setAutoState({ state: autoState, message }) {
