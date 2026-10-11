@@ -154,6 +154,7 @@ class App:
         self.corrections = corrections.Corrections()
         self.speakers = speakers.SpeakerBook()
         self.boxes = autocapture.DialogueBoxes()
+        self._pictures = autocapture.PictureFinder()
         self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
         self._last_auto: tuple[int, str] | None = None  # (line id, text) of the last auto-read line
@@ -654,6 +655,7 @@ class App:
             for b in blocks
         ]
 
+        picture = autocapture.picture_box(image) if not auto else None
         if auto:
             # Only dialogue: location names and other popups that show up inside the watched
             # area some of the time would be read some of the time. The hotkey reads those.
@@ -662,7 +664,8 @@ class App:
             # Where this game shows dialogue, for auto-capture.
             for block in blocks:
                 if block.kind == "dialogue":
-                    self.boxes.observe(game, block.box, len(block.lines), image.size)
+                    box, size = autocapture.in_picture(block.box, picture)
+                    self.boxes.observe(game, box, len(block.lines), size)
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -674,7 +677,8 @@ class App:
             line = self._line(block, repeat)
             line["game"] = game
             if not auto:  # where it was, for "Use as the dialogue box"
-                line["box"], line["frame"], line["rows"] = list(block.box), list(image.size), len(block.lines)
+                box, size = autocapture.in_picture(block.box, picture)
+                line["box"], line["frame"], line["rows"] = list(box), list(size), len(block.lines)
             if line["speaker"]:
                 line["speaker"]["english"] = self.speaker_english(game, block.speaker)
             lines.append(line)
@@ -775,7 +779,9 @@ class App:
         if box is None or (foreground != window and not capture.focused_window_is_own()):
             self._set_auto("paused", f"Paused: {game} isn't in front.")
             return None
-        part = autocapture.to_pixels(region, (box["width"], box["height"]))
+        size = (box["width"], box["height"])
+        picture = self._pictures.find(size, lambda: capture.grab_part(box, (0, 0, *size)))
+        part = autocapture.to_pixels(region, picture)
         if not capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]):
             self._set_auto("paused", f"Paused: something is covering {game}'s dialogue box.")
             return None

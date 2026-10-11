@@ -2,18 +2,22 @@
 
 Each game draws dialogue in one place. Horu learns where from the captures the player makes
 with the hotkey (the dialogue blocks it found), per game, and once a few agree, watches only
-that region: menus, battle UI, and popups elsewhere on screen are never read.
+that region: menus, battle UI, and popups elsewhere on screen are never read. Positions are
+kept relative to the game picture, not the window: emulators centre the picture between
+black bars that change with the window's size.
 
-Watching is cheap: a few times a second the region is shrunk and turned into a map of sharp
-edges (text outlines). Comparing edge maps rather than pixels means moving scenery behind a
-see-through box doesn't count as a change. A change is read once the text stops changing
-(it has finished typing out).
+Watching is cheap: a few times a second the region is shrunk and turned into a map of the
+pixels that stand out sharply (text strokes). Comparing those rather than all pixels means
+moving scenery behind a see-through box doesn't count as a change. A change is read once
+the text stops changing (it has finished typing out).
 """
 
 from __future__ import annotations
 
 import json
 import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,13 +34,14 @@ _KEEP = 12
 # longer lines can reach further than the ones seen so far.
 _PAD_TOP, _PAD_BOTTOM, _PAD_SIDES = 1.8, 0.6, 1.5
 
-Box = tuple[float, float, float, float]  # left, top, right, bottom as fractions of the window
+Box = tuple[float, float, float, float]  # left, top, right, bottom as fractions of the game picture
+Pixels = tuple[int, int, int, int]
 
 
 @dataclass(frozen=True)
 class Observation:
     box: Box
-    line_height: float  # as a fraction of the window height
+    line_height: float  # as a fraction of the picture height
 
     def overlaps(self, other: Observation) -> bool:
         """Most of the smaller box lies inside the other: the same dialogue box, holding
@@ -59,14 +64,16 @@ class DialogueBoxes:
             self._data: dict[str, dict] = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             self._data = {}
+        # Boxes learned before they were kept relative to the picture are in other units.
+        self._data = {game: data for game, data in self._data.items() if data.get("frame") == "picture"}
 
     def observe(self, game: str, box: tuple[int, int, int, int], lines: int, size: tuple[int, int]) -> None:
-        """Remember a dialogue block found in a `size` (width, height) capture of the game."""
+        """Remember a dialogue block found in a game picture of `size` (width, height)."""
         width, height = size
         left, top, right, bottom = box
         entry = {"box": [left / width, top / height, right / width, bottom / height], "line": (bottom - top) / max(lines, 1) / height}
         with self._lock:
-            game_data = self._data.setdefault(game, {})
+            game_data = self._data.setdefault(game, {"frame": "picture"})
             seen = game_data.setdefault("seen", [])
             seen.append(entry)
             del seen[:-_KEEP]
@@ -78,11 +85,11 @@ class DialogueBoxes:
         left, top, right, bottom = box
         line = (bottom - top) / max(lines, 1) / height
         with self._lock:
-            self._data[game] = {"seen": [], "fixed": {"box": [left / width, top / height, right / width, bottom / height], "line": line}}
+            self._data[game] = {"frame": "picture", "seen": [], "fixed": {"box": [left / width, top / height, right / width, bottom / height], "line": line}}
         self._save()
 
     def region(self, game: str) -> Box | None:
-        """The part of the window to watch, or None until enough captures agree."""
+        """The part of the game picture to watch, or None until enough captures agree."""
         data = self._data.get(game, {})
         if data.get("fixed"):
             group = [_observation(data["fixed"])]
@@ -125,10 +132,90 @@ def _largest_group(observations: list[Observation]) -> list[Observation]:
     return best
 
 
-def to_pixels(region: Box, size: tuple[int, int]) -> tuple[int, int, int, int]:
-    width, height = size
+def to_pixels(region: Box, picture: Pixels) -> Pixels:
+    """`region` of the picture at `picture` (left, top, right, bottom in window pixels), in
+    window pixels."""
+    p_left, p_top, p_right, p_bottom = picture
+    width, height = p_right - p_left, p_bottom - p_top
     left, top, right, bottom = region
-    return round(left * width), round(top * height), round(right * width), round(bottom * height)
+    return (
+        p_left + round(left * width),
+        p_top + round(top * height),
+        p_left + round(right * width),
+        p_top + round(bottom * height),
+    )
+
+
+def in_picture(box: Pixels, picture: Pixels) -> tuple[Pixels, tuple[int, int]]:
+    """A box in window pixels as (box in picture pixels, picture size), for DialogueBoxes."""
+    p_left, p_top, p_right, p_bottom = picture
+    left, top, right, bottom = box
+    return (left - p_left, top - p_top, right - p_left, bottom - p_top), (p_right - p_left, p_bottom - p_top)
+
+
+# --- Finding the game picture ------------------------------------------------------------
+
+# Brightness at or below which a pixel is part of a black bar, and the share of a row (or,
+# within the picture's rows, a column) that must be brighter for it to be picture. Rows are
+# lenient so a dark cave still counts; columns strict so a small second screen beside the
+# picture (a 3DS emulator's touch screen) doesn't.
+_BLACK = 4
+_LIT_ROW, _LIT_COLUMN = 0.05, 0.35
+
+
+def picture_box(image: Image.Image) -> Pixels:
+    """Where the game picture is in a window capture: the largest area between black bars,
+    leaving out the emulator's menu and status bars. The whole image if there are no bars."""
+    lit = np.asarray(image.convert("L")) > _BLACK
+    height, width = lit.shape
+    top, bottom = _longest_run(lit.mean(axis=1) > _LIT_ROW)
+    if bottom - top < 0.25 * height:
+        return 0, 0, width, height
+    left, right = _longest_run(lit[top:bottom].mean(axis=0) > _LIT_COLUMN)
+    if right - left < 0.25 * width:
+        return 0, 0, width, height
+    return left, top, right, bottom
+
+
+def _longest_run(flags: np.ndarray) -> tuple[int, int]:
+    """(start, end) of the longest run of True values."""
+    best, start = (0, 0), None
+    for i, flag in enumerate([*flags.tolist(), False]):
+        if flag and start is None:
+            start = i
+        elif not flag and start is not None:
+            if i - start > best[1] - best[0]:
+                best = (start, i)
+            start = None
+    return best
+
+
+class PictureFinder:
+    """Keeps track of where the game picture is while watching, without capturing the whole
+    window every frame: found again when the window's size changes, and checked every few
+    seconds in case the emulator's layout changed (taken on once two checks agree)."""
+
+    def __init__(self, every: float = 2.0) -> None:
+        self.every = every
+        self._size: tuple[int, int] | None = None
+        self._box: Pixels | None = None
+        self._pending: Pixels | None = None
+        self._checked = 0.0
+
+    def find(self, size: tuple[int, int], grab_window: Callable[[], Image.Image]) -> Pixels:
+        now = time.monotonic()
+        if self._box is None or size != self._size:
+            self._size, self._box, self._pending, self._checked = size, picture_box(grab_window()), None, now
+        elif now - self._checked >= self.every:
+            self._checked = now
+            found = picture_box(grab_window())
+            if found == self._box:
+                self._pending = None
+            elif found == self._pending:
+                self._box, self._pending = found, None
+            else:
+                self._pending = found
+        return self._box
 
 
 # --- Noticing new text -------------------------------------------------------------------

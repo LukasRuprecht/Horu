@@ -16,7 +16,7 @@ def test_the_dialogue_box_is_learned_once_captures_agree(tmp_path):
     boxes.observe("zelda", (650, 985, 1910, 1252), 3, SIZE)
     assert boxes.region("zelda") is None and boxes.progress("zelda") == (2, 3)
     boxes.observe("zelda", (727, 923, 1789, 1315), 3, SIZE)
-    left, top, right, bottom = autocapture.to_pixels(boxes.region("zelda"), SIZE)
+    left, top, right, bottom = autocapture.to_pixels(boxes.region("zelda"), (0, 0, *SIZE))
     # Covers every agreeing block, with room above for a name tag; the sign is left out.
     assert left < 633 and top < 923 and right > 1914 and bottom >= 1315 and top > 340
     # Remembered across restarts.
@@ -59,3 +59,44 @@ def test_scenery_moving_behind_the_box_is_not_new_text():
     watcher = ChangeWatcher()
     reads = [watcher.update(frame) for frame in frames]
     assert reads == [False, False, True, False]
+
+
+def emulator_window(width, height, picture):
+    """An Azahar-like window: menu and status bars, black bars around a (dark) game picture,
+    and the small touch screen beside it."""
+    window = Image.new("RGB", (width, height), "black")
+    draw = ImageDraw.Draw(window)
+    draw.rectangle((0, 0, width, 30), fill=(32, 32, 32))  # menu bar
+    draw.rectangle((0, height - 30, width, height), fill=(32, 32, 32))  # status bar
+    left, top, right, bottom = picture
+    draw.rectangle((left, top, right - 1, bottom - 1), fill=(20, 18, 16))  # a dark cave
+    draw.rectangle((right, bottom - 100, width - 1, bottom - 1), fill=(90, 90, 90))  # touch screen
+    return window
+
+
+def test_the_game_picture_is_found_between_the_bars():
+    assert autocapture.picture_box(emulator_window(880, 640, (0, 100, 733, 542))) == (0, 100, 733, 542)
+    # No bars: the whole capture.
+    assert autocapture.picture_box(Image.new("RGB", (400, 300), (40, 60, 80))) == (0, 0, 400, 300)
+
+
+def test_the_box_follows_the_picture_when_the_window_is_resized(tmp_path):
+    boxes = DialogueBoxes(tmp_path / "boxes.json")
+    # The same dialogue box, seen in a wide window and in a narrow one.
+    for size, picture in (((880, 640), (0, 100, 733, 542)), ((638, 640), (0, 162, 531, 481))):
+        p_left, p_top, p_right, p_bottom = picture
+        width, height = p_right - p_left, p_bottom - p_top
+        text = (p_left + round(0.2 * width), p_top + round(0.65 * height), p_left + round(0.8 * width), p_top + round(0.9 * height))
+        box, picture_size = autocapture.in_picture(text, picture)
+        boxes.observe("zelda", box, 2, picture_size)
+    boxes.observe("zelda", box, 2, picture_size)
+    region = boxes.region("zelda")
+    assert region is not None
+    # Watching the narrow window, the region surrounds the text inside its picture.
+    left, top, right, bottom = autocapture.to_pixels(region, (0, 162, 531, 481))
+    assert left < text[0] and top < text[1] and right > text[2] and bottom >= text[3] and top > 162
+
+
+def test_boxes_learned_against_the_whole_window_are_dropped(tmp_path):
+    (tmp_path / "boxes.json").write_text('{"azahar.exe": {"seen": [{"box": [0.2, 0.6, 0.6, 0.8], "line": 0.06}]}}')
+    assert DialogueBoxes(tmp_path / "boxes.json").progress("azahar.exe") == (0, 3)
