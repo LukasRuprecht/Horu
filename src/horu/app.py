@@ -651,7 +651,11 @@ class App:
             for b in blocks
         ]
 
-        if not auto:
+        if auto:
+            # Only dialogue: location names and other popups that show up inside the watched
+            # area some of the time would be read some of the time. The hotkey reads those.
+            blocks = [b for b in blocks if b.kind == "dialogue"]
+        else:
             # Where this game shows dialogue, for auto-capture.
             for block in blocks:
                 if block.kind == "dialogue":

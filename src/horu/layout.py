@@ -365,7 +365,10 @@ def _ends_complete_without_punctuation(text: str) -> bool:
 
 def _is_furigana(line: TextLine, lines: list[TextLine]) -> bool:
     text = line.text.replace(" ", "").replace("\u3000", "")
-    if not _KANA_ONLY.fullmatch(text):
+    # Furigana is kana, but small kana gets misread: \u307e\u307b\u3046 as \u624b\u307b\u3046. One other character is
+    # allowed in a reading of three or more.
+    others = len(text) - sum(len(run) for run in _KANA_ONLY.findall(text))
+    if not text or others > (1 if len(text) >= 3 else 0):
         return False
     left, top, right, bottom = line.box
     height = bottom - top

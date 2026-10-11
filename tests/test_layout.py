@@ -147,3 +147,16 @@ def test_rows_set_apart_for_furigana_still_join():
         line("おおがねも", 177, 458, 269, 479),
     ]
     assert [b.text for b in group_blocks(lines)] == ["のろいを解いていただけるなら大金持ちにしてさしあげます。"]
+
+
+def test_misread_furigana_is_not_a_speaker():
+    # Ocarina of Time 3D: the furigana まほう over 魔法 read as 手ほう.
+    lines = [
+        line("魔法のツボを手に入れた！", 111, 73, 489, 114),
+        line("魔力のゲージが回復する！", 116, 119, 482, 160),
+        line("まりよく", 122, 108, 176, 127),
+        line("手ほう", 123, 61, 170, 81),
+        line("かいく", 350, 108, 407, 127),
+    ]
+    blocks = group_blocks(lines)
+    assert [(b.speaker, b.text) for b in blocks] == [(None, "魔法のツボを手に入れた！魔力のゲージが回復する！")]
