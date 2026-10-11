@@ -536,6 +536,7 @@ function setLineText(line, row, text, words) {
 function refreshTranslation(line, row, { auto = state.prefs.autoTranslate } = {}) {
   const old = row.querySelector(".translation");
   if (!old) return;
+  delete line.translation; // a repeat's copied translation is of the old text too
   const fresh = translationRow(line, { auto });
   // The new translation is the next one Python numbers; ignore the old one's chunks.
   fresh.dataset.gen = Number(old.dataset.gen || 0) + 1;
@@ -632,7 +633,11 @@ function isNearBottom() {
 function translationRow(line, { auto = state.prefs.autoTranslate } = {}) {
   const row = el("div", "translation");
   row.dataset.line = line.id;
-  if (auto) {
+  if (line.translation) {
+    // A repeat of a line already translated.
+    row.dataset.state = "done";
+    translationText(row).textContent = line.translation;
+  } else if (auto) {
     // Python starts these itself as soon as the capture arrives.
     setTranslationState(row, "loading");
   } else {

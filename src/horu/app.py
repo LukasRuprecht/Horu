@@ -13,18 +13,23 @@ import sys
 import threading
 import time
 import traceback
+import unicodedata
 import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
 from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
+from horu.text_sources.vote import edit_distance
 from horu.tutor import Line, Tutor
 
 UI_DIR = Path(__file__).parent / "ui"
 # Blocks already shown recently are skipped, so persistent text (HUD, menus) and repeated
 # hotkey presses on the same dialogue don't flood the history.
 _RECENT_LINES = 20
+# A line read again is still a repeat when OCR reads it a little differently (１ for 1, 喜 for
+# 暮): up to one character in this many may differ. Short lines must match exactly.
+_REPEAT_SLACK = 10
 # Earlier dialogue lines sent along with AI requests, so pronouns and names make sense.
 _CONTEXT_LINES = 4
 # Lines OCR read with less confidence than this (even after voting) are marked as possibly
@@ -179,7 +184,7 @@ class App:
         self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
         self._speaker_shots: dict[int, bytes] = {}  # line id -> PNG of a doubtful name tag, until checked
         self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
-        self.recent: deque[str] = deque(maxlen=_RECENT_LINES)
+        self.recent: deque[tuple[str, int]] = deque(maxlen=_RECENT_LINES)  # (text, line id) shown recently
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
         self._ai = ai_setup.Resolved()
         self._vision: bool | None = None  # whether the AI model reads images (None: not known yet)
@@ -689,11 +694,13 @@ class App:
         capture_id = next(self._capture_ids)
         lines = []
         for block in blocks:
-            repeat = block.text in self.recent
-            if not repeat:
-                self.recent.append(block.text)
-            line = self._line(block, repeat, game)
+            earlier = next((i for text, i in self.recent if _same_line(block.text, text)), None)
+            line = self._line(block, earlier is not None, game)
             line["game"] = game
+            if earlier is None:
+                self.recent.append((block.text, line["id"]))
+            elif self.lines.get(earlier, {}).get("translation"):
+                line["translation"] = self.lines[earlier]["translation"]  # shown with it, no new request
             if not auto:  # where it was, for drawing auto-read regions
                 box, size = autocapture.in_picture(block.box, picture)
                 line["capture"], line["box"], line["frame"], line["rows"] = capture_id, list(box), list(size), len(block.lines)
@@ -1018,6 +1025,15 @@ class App:
     def _call(self, function: str, *args) -> None:
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
+
+
+def _same_line(a: str, b: str) -> bool:
+    """The same text, allowing for OCR noise (see _REPEAT_SLACK)."""
+    a, b = (unicodedata.normalize("NFKC", corrections.normalize(t)) for t in (a, b))
+    if a == b:
+        return True
+    slack = min(len(a), len(b)) // _REPEAT_SLACK
+    return slack > 0 and abs(len(a) - len(b)) <= slack and edit_distance(a, b) <= slack
 
 
 def _png(image, box: tuple[int, int, int, int], margin: int) -> bytes:
