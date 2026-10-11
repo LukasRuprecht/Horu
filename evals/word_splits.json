@@ -1,0 +1,460 @@
+{
+ "about": "Correct word splits for evals/eval_words.py: words as Horu should show them (conjugations folded onto their word, compounds and set phrases whole). Spaces are required boundaries; '|' marks a boundary that may go either way.",
+ "sentences": [
+  {
+   "source": "gt:dialogue_box_two_lines",
+   "text": "とにかく、こっちの事は心配無用だ。逃げ切る事だけ考えてくれ！",
+   "words": "とにかく 、 こっち の 事 は 心配|無用 だ 。 逃げ切る 事 だけ 考えてくれ ！"
+  },
+  {
+   "source": "gt:battle_skill_menu",
+   "text": "エイガオン",
+   "words": "エイガオン"
+  },
+  {
+   "source": "gt:battle_skill_menu",
+   "text": "ブレイブザッパー",
+   "words": "ブレイブザッパー"
+  },
+  {
+   "source": "gt:battle_skill_menu",
+   "text": "敵1体に呪怨属性で大ダメージを与える",
+   "words": "敵 1|体 に 呪怨 属性 で 大|ダメージ を 与える"
+  },
+  {
+   "source": "gt:battle_command_menu",
+   "text": "贄を焼く牛面鬼",
+   "words": "贄 を 焼く 牛|面|鬼"
+  },
+  {
+   "source": "gt:log_view",
+   "text": "アタッシュケースはこっちで回収しとくわ。",
+   "words": "アタッシュ|ケース は こっち で 回収しとく わ 。"
+  },
+  {
+   "source": "gt:log_view",
+   "text": "あそこだ！",
+   "words": "あそこ だ ！"
+  },
+  {
+   "source": "gt:synthetic_dialogue_box",
+   "text": "4/7火放課後",
+   "words": "4 / 7 火 放課後"
+  },
+  {
+   "source": "gt:synthetic_dialogue_box",
+   "text": "おいおい、転校初日から遅刻かよ？まあ、オレも人のこと言えねーけどな。",
+   "words": "おい|おい 、 転校 初日 から 遅刻 か よ ？ まあ 、 オレ も 人 の こと 言えねー けど な 。"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "どの設定を変更しますか？",
+   "words": "どの 設定 を 変更します か ？"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "ゲームシステム設定",
+   "words": "ゲーム システム 設定"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "サウンド設定",
+   "words": "サウンド 設定"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "グラフィック設定",
+   "words": "グラフィック 設定"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "ディスプレイ設定",
+   "words": "ディスプレイ 設定"
+  },
+  {
+   "source": "gt:settings_menu",
+   "text": "キーコンフィグ設定",
+   "words": "キーコンフィグ 設定"
+  },
+  {
+   "source": "gt:field_action_prompt",
+   "text": "ジャンプ",
+   "words": "ジャンプ"
+  },
+  {
+   "source": "gt:speech_bubble_and_legends",
+   "text": "大丈夫、誘導できる！",
+   "words": "大丈夫 、 誘導 できる ！"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "日本語音声を有効にします",
+   "words": "日本語 音声 を 有効に します"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "日本語音声",
+   "words": "日本語 音声"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "バイブレーション機能",
+   "words": "バイブレーション 機能"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "セリフ音声",
+   "words": "セリフ 音声"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "自動ページ送り",
+   "words": "自動 ページ|送り"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "アニメ字幕",
+   "words": "アニメ 字幕"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "早送り機能の継続",
+   "words": "早送り 機能 の 継続"
+  },
+  {
+   "source": "gt:settings_list_with_help_text",
+   "text": "カーソル位置記憶",
+   "words": "カーソル 位置 記憶"
+  },
+  {
+   "source": "gt:key_config_gamepad_battle",
+   "text": "銃を構える",
+   "words": "銃 を 構える"
+  },
+  {
+   "source": "gt:key_config_gamepad_battle",
+   "text": "対象選択（左）",
+   "words": "対象 選択 （ 左 ）"
+  },
+  {
+   "source": "gt:key_config_gamepad_battle",
+   "text": "対象選択（右）",
+   "words": "対象 選択 （ 右 ）"
+  },
+  {
+   "source": "gt:key_config_gamepad_battle",
+   "text": "戦況確認",
+   "words": "戦況 確認"
+  },
+  {
+   "source": "gt:key_config_gamepad_battle",
+   "text": "近接攻撃",
+   "words": "近接 攻撃"
+  },
+  {
+   "source": "gt:pause_menu",
+   "text": "チュートリアルの確認",
+   "words": "チュートリアル の 確認"
+  },
+  {
+   "source": "gt:tutorial_list_empty",
+   "text": "どのチュートリアルを確認する？",
+   "words": "どの チュートリアル を 確認する ？"
+  },
+  {
+   "source": "gt:tutorial_list_empty",
+   "text": "確認できるチュートリアルがありません",
+   "words": "確認 できる チュートリアル が ありません"
+  },
+  {
+   "source": "gt:zelda_game_furigana_spaced",
+   "text": "Lukeの寝どこだ…からだを休めて体力を回復することができる。",
+   "words": "Luke の 寝どこ だ … からだ を 休めて 体力 を 回復する こと が できる 。"
+  },
+  {
+   "source": "gt:zelda_clipped_first_char",
+   "text": "もしニワトリのコトでなんかねーちゃんにたのまれたら聞いてやれよ。",
+   "words": "もし ニワトリ の コト で なんか ねーちゃん に たのまれたら 聞いて やれ よ 。"
+  },
+  {
+   "source": "gt:zelda_centred_owl_name",
+   "text": "よくきたなLuke。ここが聖なる山デスマウンテンの山頂じゃ。",
+   "words": "よく きたな Luke 。 ここ が 聖なる 山 デス|マウンテン の 山頂 じゃ 。"
+  },
+  {
+   "source": "gt:zelda_small_tsu_spaced",
+   "text": "…ちなみにそこにある火口はとても熱くて危険な場所じゃ。うっかり近づかんようにな。",
+   "words": "… ちなみに そこ に ある 火口 は とても 熱くて 危険|な 場所 じゃ 。 うっかり 近づかん よう|に な 。"
+  },
+  {
+   "source": "gt:zelda_small_window_owl",
+   "text": "下界まで行くなら力を貸そう。近くへ来て足につかまりなさい。さあ勇気を出して。ホホ～ッ!",
+   "words": "下界 まで 行くなら 力 を 貸そう 。 近く へ 来て 足 に つかまり|なさい 。 さあ 勇気 を 出して 。 ホホ|～|ッ|!"
+  },
+  {
+   "source": "gt:zelda_item_screen_tabs",
+   "text": "アイテム",
+   "words": "アイテム"
+  },
+  {
+   "source": "gt:zelda_baby_talk",
+   "text": "けどボクのカワイイ顔じゃドキドキしないでしゅよね…やっぱり。",
+   "words": "けど ボク の カワイイ 顔 じゃ ドキドキ しないでしゅ よ ね … やっぱり 。"
+  },
+  {
+   "source": "gt:zelda_small_window_small_o",
+   "text": "じゃがまだまだハイラルの運命をあずかる男には見えぬがのぉ…",
+   "words": "じゃが まだまだ ハイラル の 運命 を あずかる 男 に は 見えぬ が のぉ …"
+  },
+  {
+   "source": "gt:zelda_dialect_small_vowels",
+   "text": "てやんでぇべらぼうめぃ！",
+   "words": "てやんでぇ べらぼう|めぃ ！"
+  },
+  {
+   "source": "gt:zelda_small_window_spaced",
+   "text": "太陽は月に…月は太陽に…",
+   "words": "太陽 は 月 に … 月 は 太陽 に …"
+  },
+  {
+   "source": "gt:zelda_sign_with_title",
+   "text": "ゾーラ川急流に注意！トコトン流されます",
+   "words": "ゾーラ|川 急流 に 注意 ！ トコトン 流されます"
+  },
+  {
+   "source": "p5r_screens:log_view",
+   "text": "あそこだ!",
+   "words": "あそこ だ !"
+  },
+  {
+   "source": "p5r_screens:log_view",
+   "text": "音声再生",
+   "words": "音声 再生"
+  },
+  {
+   "source": "p5r_screens:speech_bubble_and_legends",
+   "text": "大丈夫、誘導できる!",
+   "words": "大丈夫 、 誘導 できる !"
+  },
+  {
+   "source": "p5r_screens:cutscene_skip",
+   "text": "スキップ",
+   "words": "スキップ"
+  },
+  {
+   "source": "p5r_screens:battle_skill_menu_2",
+   "text": "敵1体に物理属性で超特大ダメージを与える",
+   "words": "敵 1|体 に 物理 属性 で 超|特大 ダメージ を 与える"
+  },
+  {
+   "source": "p5r_screens:speech_bubble_two_lines",
+   "text": "よし、増援が来る前にそこから離れて。",
+   "words": "よし 、 増援 が 来る 前 に そこ から 離れて 。"
+  },
+  {
+   "source": "p5r_screens:dialogue_box_after_battle",
+   "text": "よし、難なく倒したようだな。",
+   "words": "よし 、 難なく 倒した ようだ な 。"
+  },
+  {
+   "source": "p5r_screens:log_view_highlighted_entry",
+   "text": "ともかく走って！逃げて！",
+   "words": "ともかく 走って ！ 逃げて ！"
+  },
+  {
+   "source": "p5r_screens:log_view_highlighted_entry",
+   "text": "やっちゃって、ジョーカー!",
+   "words": "やっちゃって 、 ジョーカー !"
+  },
+  {
+   "source": "p5r_screens:settings_list_with_help_text",
+   "text": "セリフ音声ON",
+   "words": "セリフ 音声 ON"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "キャラクター移動（前）",
+   "words": "キャラクター 移動 （ 前 ）"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "キャラクター移動(後）",
+   "words": "キャラクター 移動 ( 後 ）"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "キャラクター移動(左）",
+   "words": "キャラクター 移動 ( 左 ）"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "キャラクター移動(右)",
+   "words": "キャラクター 移動 ( 右 )"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "決定・アクション",
+   "words": "決定 ・ アクション"
+  },
+  {
+   "source": "p5r_screens:key_config_list_with_icons",
+   "text": "汎用メニュー操作",
+   "words": "汎用 メニュー 操作"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "グラフィック品質の設定を一括で変更します",
+   "words": "グラフィック 品質 の 設定 を 一括 で 変更します"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "グラフィック品質",
+   "words": "グラフィック 品質"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "レンダリングスケール",
+   "words": "レンダリング スケール"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "影の品質",
+   "words": "影 の 品質"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "画面の明るさ",
+   "words": "画面 の 明るさ"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "フレームレート上限",
+   "words": "フレーム|レート 上限"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "アンチエイリアス",
+   "words": "アンチ|エイリアス"
+  },
+  {
+   "source": "p5r_screens:graphics_settings_with_help_text",
+   "text": "被写界深度",
+   "words": "被写界深度"
+  },
+  {
+   "source": "p5r_screens:battle_skill_menu_small_window",
+   "text": "と、エイガオン",
+   "words": "と 、 エイガオン"
+  },
+  {
+   "source": "other_games:zelda_question_with_game_furigana",
+   "text": "シーカーストーンに道をたずねますか？",
+   "words": "シーカー|ストーン に 道 を たずねます か ？"
+  },
+  {
+   "source": "other_games:zelda_question_with_game_furigana",
+   "text": "ヒント映像を見る",
+   "words": "ヒント 映像 を 見る"
+  },
+  {
+   "source": "other_games:zelda_question_with_game_furigana",
+   "text": "自分で考える",
+   "words": "自分 で 考える"
+  },
+  {
+   "source": "session",
+   "text": "のろいを解いていただけるなら大金持ちにしてさしあげます。",
+   "words": "のろい を 解いて いただけるなら 大金持ち に して|さしあげます 。"
+  },
+  {
+   "source": "session",
+   "text": "魔法のツボを手に入れた！魔力のゲージが回復する！",
+   "words": "魔法 の ツボ を 手|に|入れた ！ 魔力 の ゲージ が 回復する ！"
+  },
+  {
+   "source": "session",
+   "text": "急流に注意！トコトン流されます",
+   "words": "急流 に 注意 ！ トコトン 流されます"
+  },
+  {
+   "source": "session",
+   "text": "王家とかかわりを持つ者にしか彼らは扉を開かぬのじゃ。",
+   "words": "王家 と かかわり を 持つ 者 に しか 彼ら は 扉 を 開かぬ の|じゃ 。"
+  },
+  {
+   "source": "session",
+   "text": "この先はゾーラ族のすみか。彼らはハイラル王家に仕えこの水源を守っておる。",
+   "words": "この|先 は ゾーラ|族 の すみか 。 彼ら は ハイラル 王家 に 仕え この 水源 を 守っておる 。"
+  },
+  {
+   "source": "session",
+   "text": "たくましくなったものじゃのお",
+   "words": "たくましく なった もの じゃ のお"
+  },
+  {
+   "source": "session",
+   "text": "王家に伝わる調べを聞かせよ。ゾーラ族の耳にとどく場所でな。ホホ〜ッ！",
+   "words": "王家 に 伝わる 調べ を 聞かせよ 。 ゾーラ|族 の 耳 に とどく 場所 で な 。 ホホ|〜|ッ|！"
+  },
+  {
+   "source": "session",
+   "text": "下界まで行くなら力を貸そう。近くへ来て足につかまりなさい。さあ、勇気を出して。ホホ〜ッ！",
+   "words": "下界 まで 行くなら 力 を 貸そう 。 近く へ 来て 足 に つかまり|なさい 。 さあ 、 勇気 を 出して 。 ホホ|〜|ッ|！"
+  },
+  {
+   "source": "session",
+   "text": "くらい・せまい・こわい三拍子の井戸",
+   "words": "くらい ・ せまい ・ こわい 三拍子 の 井戸"
+  },
+  {
+   "source": "session",
+   "text": "ウチのボーヤはもう寝ちゃったわよ。また遊んでやってね。",
+   "words": "ウチ の ボーヤ は もう 寝ちゃった わ|よ 。 また 遊んで やって ね 。"
+  },
+  {
+   "source": "session",
+   "text": "この世に迷う魂を太陽の歌をもってしずめよ",
+   "words": "この世 に 迷う 魂 を 太陽 の 歌 を もって しずめよ"
+  },
+  {
+   "source": "session",
+   "text": "なかなかいい詩だ…ん？",
+   "words": "なかなか いい 詩 だ … ん ？"
+  },
+  {
+   "source": "session",
+   "text": "こんな所になにか書いてある…作曲家兄弟のヒミツのメロディだ！",
+   "words": "こんな 所 に なにか 書いてある … 作曲家 兄弟 の ヒミツ の メロディ だ ！"
+  },
+  {
+   "source": "session",
+   "text": "どうすれば会えるかはまわりをよく見てできることを考えるのじゃ。",
+   "words": "どう|すれば 会える か は まわり を よく 見て できる こと を 考える の|じゃ 。"
+  },
+  {
+   "source": "session",
+   "text": "インパ様のおやしきはここだが今はおいでにはならん。",
+   "words": "インパ|様 の おやしき は ここ だ が 今 は おいで に は ならん 。"
+  },
+  {
+   "source": "session",
+   "text": "今は9:36だから小屋の中で寝てるわきっと。",
+   "words": "今 は 9|:|36 だから 小屋 の 中 で 寝てる わ きっと 。"
+  },
+  {
+   "source": "session",
+   "text": "平原でも行って時間つぶしてきたらどう？",
+   "words": "平原 で|も 行って 時間 つぶしてきたら どう ？"
+  },
+  {
+   "source": "session",
+   "text": "のぼる太陽やがて沈み生まれし命いつか消えゆく",
+   "words": "のぼる 太陽 やがて 沈み 生まれし 命 いつか 消えゆく"
+  },
+  {
+   "source": "session",
+   "text": "生ける死者には安らかな眠りを",
+   "words": "生ける 死者 に は 安らかな 眠り を"
+  }
+ ]
+}
