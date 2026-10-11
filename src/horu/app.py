@@ -358,10 +358,12 @@ class App:
             self._screenshots.popitem(last=False)
 
     def _words(self, text: str) -> list[dict]:
-        """The words of a line, for the UI. With the dictionary loaded, casual spellings the
-        tokenizer splits (ねー + ちゃん) are joined back into words it knows."""
-        known = self._dictionary.has_form if self._dictionary else None
-        return [w.to_dict() for w in analyze(text, known)]
+        """The words of a line, for the UI. With the dictionary loaded, words come out as it has
+        them: pieces the tokenizer split apart (か + かわり, ねー + ちゃん) are joined, and
+        phrases it doesn't know (太陽の歌) are shown word by word."""
+        if not self._dictionary:
+            return [w.to_dict() for w in analyze(text)]
+        return [w.to_dict() for w in analyze(text, self._dictionary.has_form, self._dictionary.kinds)]
 
     def update_line(self, line_id: int, text: str) -> list[dict]:
         words = self._words(text)

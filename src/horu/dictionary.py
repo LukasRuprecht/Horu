@@ -185,6 +185,7 @@ class Dictionary:
             self._db.execute("SELECT value FROM meta WHERE key = 'pos_descriptions'").fetchone()[0]
         )
         self.has_names = self._db.execute("SELECT 1 FROM sqlite_master WHERE name = 'names'").fetchone() is not None
+        self._kinds: dict[str, set[str]] = {}
 
     def lookup_names(self, word: dict, limit: int = 3) -> list[dict]:
         """JMnedict entries for a word's exact spelling, people first, matching reading first."""
@@ -213,6 +214,18 @@ class Dictionary:
         """Whether some JMdict entry is spelled or read `form`."""
         return self._db.execute("SELECT 1 FROM forms WHERE form = ? LIMIT 1", (form,)).fetchone() is not None
 
+    def kinds(self, form: str) -> set[str]:
+        """JMdict part-of-speech codes ("n", "adv", "v5r", ...) of the entries spelled or read
+        `form`; empty if there are none."""
+        cached = self._kinds.get(form)
+        if cached is None:
+            rows = self._db.execute(
+                "SELECT e.data FROM forms f JOIN entries e ON e.id = f.entry_id WHERE f.form = ?", (form,)
+            ).fetchall()
+            cached = {p for (data,) in rows for sense in json.loads(data)["senses"] for p in sense["pos"]}
+            self._kinds[form] = cached
+        return cached
+
     def lookup(self, word: dict, limit: int = 3) -> list[dict]:
         """Best JMdict entries for a word from `horu.nlp.Word.to_dict()`."""
         scored: dict[int, tuple[float, dict]] = {}
@@ -232,7 +245,7 @@ class Dictionary:
     def _score(self, entry: dict, word: dict, common: int, form_rank: int) -> float:
         score = 2.0 * common - form_rank
         if word["lemma"] in entry["kanji"] or word["dictionary_form"] in entry["kanji"]:
-            score += 4  # UniDic's lemma pins the kanji even when the text is in kana (なる -> 成る)
+            score += 4  # The normalized form pins the kanji even when the text is in kana (なる -> 成る)
         if word["dictionary_reading"] in entry["readings"]:
             score += 2
         prefixes = _POS_MATCH.get(word["pos"], ())

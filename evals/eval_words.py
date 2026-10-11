@@ -55,7 +55,7 @@ def main() -> None:
     sentences = json.loads(args.truth.read_text(encoding="utf-8"))["sentences"]
     right = split = joined = 0
     for sentence in sentences:
-        words = [w.surface for w in analyze(sentence["text"], known=dictionary.has_form)]
+        words = [w.surface for w in analyze(sentence["text"], dictionary.has_form, dictionary.kinds)]
         required, optional = boundaries(sentence["words"])
         cuts = predicted(words)
         extra = cuts - required - optional

@@ -79,3 +79,52 @@ def test_words_split_at_a_stretched_vowel_are_joined():
     assert [w.surface for w in analyze("そーだね", known)] == ["そー", "だ", "ね"]
     # Without the dictionary nothing is joined.
     assert "ねーちゃん" not in [w.surface for w in analyze("なんか　ねーちゃんに")]
+
+
+# A tiny dictionary: spellings and their JMdict parts of speech.
+_KINDS = {
+    "かかわり": {"n"}, "とか": {"prt", "conj", "n"}, "なにか": {"adv", "pn"}, "彼ら": {"pn"},
+    "逃げ切る": {"v5r", "vi"}, "そこに": {"n"}, "には": {"exp", "prt"}, "日本語": {"n"}, "作曲家": {"n"},
+}
+
+
+def _known(form):
+    return form in _KINDS
+
+
+def _kinds(form):
+    return _KINDS.get(form, set())
+
+
+def test_compounds_stay_whole_with_their_parts_kept():
+    [word] = [w for w in analyze("作曲家", _known, _kinds)]
+    assert word.surface == "作曲家"
+    assert [p["surface"] for p in word.to_dict()["parts"]] == ["作曲", "家"]
+    assert word.to_dict()["parts"][0]["reading"] == "さっきょく"
+
+
+def test_phrases_the_dictionary_lacks_are_shown_word_by_word():
+    # Sudachi's dictionary has the song name 太陽の歌 as one unit; JMdict doesn't.
+    assert [w.surface for w in analyze("太陽の歌を", _known, _kinds)] == ["太陽", "の", "歌", "を"]
+    assert "太陽の歌" in [w.surface for w in analyze("太陽の歌を")]
+
+
+def test_pieces_of_one_word_are_joined_back():
+    words = analyze("王家とかかわりを持つ", _known, _kinds)
+    assert [w.surface for w in words] == ["王家", "と", "かかわり", "を", "持つ"]  # not とか + かわり
+    assert next(w for w in words if w.surface == "かかわり").pos == "noun"
+    assert "なにか" in [w.surface for w in analyze("なにか書いてある", _known, _kinds)]
+    assert "彼ら" in [w.surface for w in analyze("彼らは", _known, _kinds)]
+    fled = next(w for w in analyze("逃げ切った", _known, _kinds) if w.surface == "逃げ切った")
+    assert (fled.dictionary_form, fled.dictionary_reading, fled.grammar) == ("逃げ切る", "にげきる", ["past 〜た"])
+
+
+def test_homophones_and_grammar_are_not_joined():
+    # そこに is also 底荷 (ballast); には is a pair of particles.
+    assert [w.surface for w in analyze("そこにある", _known, _kinds)][:2] == ["そこ", "に"]
+    assert [w.surface for w in analyze("男には見えぬ", _known, _kinds)][:3] == ["男", "に", "は"]
+
+
+def test_casual_negative_n():
+    word = next(w for w in analyze("今はおいでにはならん。") if w.surface == "ならん")
+    assert "negative 〜ん" in word.grammar

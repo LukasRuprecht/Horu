@@ -7,7 +7,6 @@ license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=1.11.0",
-    "fugashi>=1.5.2",
     "keyring>=25.7.0",
     "mss>=10.2.0",
     "numpy>=2.4.6",
@@ -18,7 +17,8 @@ dependencies = [
     "python-dotenv>=1.2.4",
     "pywebview>=6.2.1",
     "rapidocr>=3.9.2",
-    "unidic-lite>=1.0.8",
+    "sudachidict-full>=20260723",
+    "sudachipy>=0.7.0",
 ]
 
 [project.scripts]

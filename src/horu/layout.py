@@ -290,7 +290,7 @@ def _reads_like_dialogue(text: str) -> bool:
     last = content[-1]
     # Ends like a sentence: a copula or auxiliary (あそこだ, 行きます) or a sentence-final
     # particle (そうか, いいよ).
-    # UniDic doesn't always tag these as sentence-final (そうか's か is "adverbial"), so the
+    # The tokenizer doesn't always tag these as sentence-final (そうか's か is "adverbial"), so the
     # common ones count by spelling too.
     return last.pos1 == "助動詞" or (
         last.pos1 == "助詞" and (last.pos2 == "終助詞" or last.surface in _SENTENCE_FINAL_PARTICLES)

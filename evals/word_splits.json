@@ -54,7 +54,7 @@
   {
    "source": "gt:settings_menu",
    "text": "ゲームシステム設定",
-   "words": "ゲーム システム 設定"
+   "words": "ゲーム|システム 設定"
   },
   {
    "source": "gt:settings_menu",
@@ -179,7 +179,7 @@
   {
    "source": "gt:zelda_centred_owl_name",
    "text": "よくきたなLuke。ここが聖なる山デスマウンテンの山頂じゃ。",
-   "words": "よく きたな Luke 。 ここ が 聖なる 山 デス|マウンテン の 山頂 じゃ 。"
+   "words": "よく きた|な Luke 。 ここ が 聖なる 山 デス|マウンテン の 山頂 じゃ 。"
   },
   {
    "source": "gt:zelda_small_tsu_spaced",
@@ -434,12 +434,12 @@
   {
    "source": "session",
    "text": "インパ様のおやしきはここだが今はおいでにはならん。",
-   "words": "インパ|様 の おやしき は ここ だ が 今 は おいで に は ならん 。"
+   "words": "インパ|様 の おやしき は ここ だ|が 今 は おいで に は ならん 。"
   },
   {
    "source": "session",
    "text": "今は9:36だから小屋の中で寝てるわきっと。",
-   "words": "今 は 9|:|36 だから 小屋 の 中 で 寝てる わ きっと 。"
+   "words": "今 は 9|:|36 だ|から 小屋 の 中 で 寝てる わ きっと 。"
   },
   {
    "source": "session",

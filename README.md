@@ -182,7 +182,8 @@ Horu is MIT licensed. See [LICENSE](LICENSE).
   [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under
   [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). Downloaded on first run, not
   bundled.
-- Word analysis: [fugashi](https://github.com/polm/fugashi) with
-  [UniDic](https://clrd.ninjal.ac.jp/unidic/) (unidic-lite).
+- Word analysis: [SudachiPy](https://github.com/WorksApplications/sudachi.rs) with
+  [SudachiDict](https://github.com/WorksApplications/SudachiDict) (full), by Works Applications,
+  under the Apache License 2.0.
 - OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
   [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
