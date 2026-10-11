@@ -768,8 +768,11 @@ class App:
         if box is None or (foreground != window and not capture.focused_window_is_own()):
             self._set_auto("paused", f"Paused: {game} isn't in front.")
             return None
-        self._set_auto("watching", f"Watching {game}'s dialogue box.")
         part = autocapture.to_pixels(region, (box["width"], box["height"]))
+        if not capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]):
+            self._set_auto("paused", f"Paused: something is covering {game}'s dialogue box.")
+            return None
+        self._set_auto("watching", f"Watching {game}'s dialogue box.")
         return capture.grab_part(box, part), game
 
     def _set_auto(self, state: str, message: str) -> None:

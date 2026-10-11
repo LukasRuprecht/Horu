@@ -18,6 +18,11 @@ if sys.platform == "win32":
 
     _user32 = ctypes.WinDLL("user32")
     _kernel32 = ctypes.WinDLL("kernel32")
+    _user32.WindowFromPoint.argtypes = [wintypes.POINT]
+    _user32.WindowFromPoint.restype = wintypes.HWND
+    _user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
+    _user32.GetAncestor.restype = wintypes.HWND
+    _GA_ROOT = 2
     # Work in physical pixels so window coordinates match what mss captures.
     try:
         _user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # PER_MONITOR_AWARE_V2
@@ -91,6 +96,25 @@ def grab_part(box: dict, part: tuple[int, int, int, int]) -> Image.Image:
     """Capture `part` (left, top, right, bottom, in pixels of the box) of a screen box."""
     left, top, right, bottom = part
     return _grab_box({"left": box["left"] + left, "top": box["top"] + top, "width": right - left, "height": bottom - top})
+
+
+def shows_part(hwnd: int, box: dict, part: tuple[int, int, int, int], own_ok: bool = False) -> bool:
+    """True when nothing covers `part` of the window's box on screen: its corners and centre
+    show the window itself (or Horu's own window, with `own_ok`, when Horu hides from captures)."""
+    if sys.platform != "win32":
+        return True
+    left, top, right, bottom = part
+    points = [(left, top), (right - 1, top), (left, bottom - 1), (right - 1, bottom - 1), ((left + right) // 2, (top + bottom) // 2)]
+    for x, y in points:
+        shown = _user32.WindowFromPoint(wintypes.POINT(box["left"] + x, box["top"] + y))
+        root = _user32.GetAncestor(shown, _GA_ROOT) if shown else None
+        if root and root & 0xFFFFFFFF == hwnd & 0xFFFFFFFF:  # handles fit in 32 bits
+            continue
+        pid = wintypes.DWORD()
+        _user32.GetWindowThreadProcessId(root, ctypes.byref(pid))
+        if not (own_ok and pid.value == os.getpid()):
+            return False
+    return True
 
 
 def focused_window_is_own() -> bool:

@@ -147,8 +147,12 @@ def group_blocks(
         styles = [line_style(image, l.box) if image is not None else None for l in lines]
     kept = [(l, st) for l, st in zip(lines, styles) if is_japanese(l.text)]
     # Game-drawn furigana would otherwise be read as speakers or lines of their own.
-    kept = [(l, st) for l, st in kept if not _is_furigana(l, [o for o, _ in kept])]
+    all_lines = [o for o, _ in kept]
+    furigana = [l for l in all_lines if _is_furigana(l, all_lines)]
+    kept = [(l, st) for l, st in kept if l not in furigana]
     lines = [l for l, _ in kept]
+    # Furigana printed above a line widens the gap above it: the rows are set apart to fit it.
+    ruby = {i: _ruby_height(l, furigana) for i, l in enumerate(lines)}
     styles = {i: st for i, (_, st) in enumerate(kept) if st is not None}
     order = sorted(range(len(lines)), key=lambda i: (lines[i].box[1], lines[i].box[0]))
     legends = {i for i in order if is_legend(lines[i].text) and normalize(lines[i].text) not in hints.dialogue}
@@ -167,7 +171,7 @@ def group_blocks(
             if group.get("legend"):
                 continue
             if group["lines"]:
-                attaches = _continues(lines[group["lines"][-1]], line)
+                attaches = _continues(lines[group["lines"][-1]], line, ruby[i])
             else:  # a speaker still waiting for its first line
                 attaches = _under_speaker(lines[group["speaker"]], line)
             if attaches:
@@ -175,7 +179,7 @@ def group_blocks(
                 break
         else:
             groups.append({"speaker": None, "lines": [i]})
-    _join_centred(groups, lines)
+    _join_centred(groups, lines, ruby)
 
     blocks = []
     for group in groups:
@@ -280,14 +284,14 @@ def _reads_like_dialogue(text: str) -> bool:
     )
 
 
-def _continues(prev: TextLine, line: TextLine) -> bool:
+def _continues(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
     p_left, p_top, p_right, p_bottom = prev.box
     left, top, right, bottom = line.box
     p_height, height = p_bottom - p_top, bottom - top
     similar_size = max(p_height, height) <= 1.5 * min(p_height, height)
     # Tightly set lines' boxes can overlap by up to about half a line.
     # Measured against the smaller line, since an icon beside a menu item can inflate its box.
-    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height)
+    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height) + ruby
     overlaps = min(p_right, right) > max(p_left, left)
     wraps = len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
     # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
@@ -314,7 +318,7 @@ def _continues(prev: TextLine, line: TextLine) -> bool:
     )
 
 
-def _join_centred(groups: list[dict], lines: list[TextLine]) -> None:
+def _join_centred(groups: list[dict], lines: list[TextLine], ruby: dict[int, int] | None = None) -> None:
     """Join centred text that wraps unevenly. In a centred dialogue box lines can be any
     length (よく　きたな　Luke。／ここが　聖なる山／デスマウンテンの山頂じゃ。), which the
     left-aligned wrap rules read as separate labels. A tight centred stack is one block when it
@@ -329,18 +333,18 @@ def _join_centred(groups: list[dict], lines: list[TextLine]) -> None:
         for earlier in groups[:k]:
             if earlier.get("legend") or not earlier["lines"]:
                 continue
-            if _centred_below(lines[earlier["lines"][-1]], first):
+            if _centred_below(lines[earlier["lines"][-1]], first, (ruby or {}).get(later["lines"][0], 0)):
                 earlier["lines"].extend(later["lines"])
                 del groups[k]
                 break
 
 
-def _centred_below(prev: TextLine, line: TextLine) -> bool:
+def _centred_below(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
     p_left, p_top, p_right, p_bottom = prev.box
     left, top, right, bottom = line.box
     p_height, height = p_bottom - p_top, bottom - top
     similar_size = max(p_height, height) <= 1.5 * min(p_height, height)
-    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height)
+    close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height) + ruby
     centred = abs((left + right) - (p_left + p_right)) / 2 <= 0.5 * p_height
     return similar_size and close_below and centred
 
@@ -375,6 +379,18 @@ def _is_furigana(line: TextLine, lines: list[TextLine]) -> bool:
         if smaller and just_above and o_left <= center <= o_right:
             return True
     return False
+
+
+def _ruby_height(line: TextLine, furigana: list[TextLine]) -> int:
+    """The height of the furigana printed just above `line`, or 0."""
+    left, top, right, _ = line.box
+    heights = []
+    for f in furigana:
+        f_left, f_top, f_right, f_bottom = f.box
+        height = f_bottom - f_top
+        if left <= (f_left + f_right) / 2 <= right and -0.6 * height <= top - f_bottom <= 0.6 * height:
+            heights.append(height)
+    return max(heights, default=0)
 
 
 def _height(line: TextLine) -> int:

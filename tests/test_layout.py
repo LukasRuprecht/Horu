@@ -137,3 +137,13 @@ def test_a_short_name_after_a_wide_space_is_on_the_same_row():
     assert merge_rows([(856, 900, 1380, 1020), (1445, 924, 1596, 1000)]) == [(856, 900, 1596, 1020)]
     # A button beside a small label is not.
     assert len(merge_rows([(739, 165, 854, 192), (876, 158, 952, 205)])) == 2
+
+
+def test_rows_set_apart_for_furigana_still_join():
+    # Ocarina of Time 3D: the furigana over 大金持ち widens the gap between the rows.
+    lines = [
+        line("のろいを解いていただけるなら", 151, 427, 581, 462),
+        line("大金持ちにしてさしあげます。", 176, 475, 556, 509),
+        line("おおがねも", 177, 458, 269, 479),
+    ]
+    assert [b.text for b in group_blocks(lines)] == ["のろいを解いていただけるなら大金持ちにしてさしあげます。"]
