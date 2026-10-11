@@ -2758,6 +2758,1301 @@
      "text": "敵1体に屈性で大ダメージを与える"
     }
    ]
+  },
+  {
+   "name": "tutorial_with_title_bar",
+   "note": "1280x720 window (776x640 capture): a tutorial's title bar is a heading over its text, not a speaker",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "」画面右上に、次にとるべき行動についての",
+     "box": [
+      217,
+      276,
+      479,
+      293
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.912,
+     "slant_height": 0.0
+    },
+    {
+     "text": "ビントや目的地が表示されています。",
+     "box": [
+      228,
+      290,
+      446,
+      310
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.956,
+     "slant_height": 0.0
+    },
+    {
+     "text": "迷った時などに夢者にしてください。",
+     "box": [
+      228,
+      307,
+      443,
+      325
+     ],
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.897,
+     "slant_height": 0.0
+    },
+    {
+     "text": "行動目的のヒント",
+     "box": [
+      325,
+      238,
+      444,
+      264
+     ],
+     "style": {
+      "ink": [
+       67,
+       67,
+       67
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.997,
+     "slant_height": 0.0
+    },
+    {
+     "text": "午後",
+     "box": [
+      12,
+      170,
+      90,
+      233
+     ],
+     "style": {
+      "ink": [
+       52,
+       56,
+       56
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.953,
+     "slant_height": 43.7
+    },
+    {
+     "text": "SATURDaN",
+     "box": [
+      58,
+      129,
+      175,
+      193
+     ],
+     "style": {
+      "ink": [
+       36,
+       56,
+       55
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.773,
+     "slant_height": 40.0
+    },
+    {
+     "text": "TURRAL",
+     "box": [
+      118,
+      161,
+      323,
+      276
+     ],
+     "style": {
+      "ink": [
+       253,
+       253,
+       253
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.676,
+     "slant_height": 72.0
+    },
+    {
+     "text": "先に",
+     "box": [
+      438,
+      390,
+      514,
+      413
+     ],
+     "style": {
+      "ink": [
+       193,
+       187,
+       187
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.725,
+     "slant_height": 15.0
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "行動目的のヒント　」画面右上に、次にとるべき行動についてのビントや目的地が表示されています。迷った時などに夢者にしてください。"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "先に"
+    }
+   ]
+  },
+  {
+   "name": "objective_hud_and_garbled_sign",
+   "note": "the objective (with an icon read as 『) and a garbled sign are other text",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "工科用決た",
+     "box": [
+      260,
+      172,
+      346,
+      187
+     ],
+     "style": {
+      "ink": [
+       117,
+       65,
+       11
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.546,
+     "slant_height": 0.0
+    },
+    {
+     "text": "四軒茶屋",
+     "box": [
+      582,
+      486,
+      641,
+      507
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.899,
+     "slant_height": 0.0
+    },
+    {
+     "text": "『居候先に向かえ",
+     "box": [
+      593,
+      131,
+      700,
+      155
+     ],
+     "style": {
+      "ink": [
+       240,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.839,
+     "slant_height": 0.0
+    },
+    {
+     "text": "地下鉄の駅を出ろ",
+     "box": [
+      598,
+      167,
+      702,
+      187
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.985,
+     "slant_height": 0.0
+    },
+    {
+     "text": "地下鉄ホーム",
+     "box": [
+      625,
+      493,
+      721,
+      520
+     ],
+     "style": {
+      "ink": [
+       242,
+       241,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.947,
+     "slant_height": 20.0
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "『居候先に向かえ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "地下鉄の駅を出ろ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "工科用決た"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "四軒茶屋"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "地下鉄ホーム"
+    }
+   ]
+  },
+  {
+   "name": "thought_bubble_with_legends",
+   "note": "a thought bubble is dialogue",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "佐意惣治郎（さくらそうじろう）の家…",
+     "box": [
+      301,
+      448,
+      554,
+      465
+     ],
+     "style": {
+      "ink": [
+       242,
+       97,
+       95
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.864,
+     "slant_height": 0.0
+    },
+    {
+     "text": "今日から世話になる",
+     "box": [
+      360,
+      430,
+      494,
+      447
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.991,
+     "slant_height": 0.0
+    },
+    {
+     "text": "F送り",
+     "box": [
+      708,
+      466,
+      757,
+      488
+     ],
+     "style": {
+      "ink": [
+       231,
+       230,
+       230
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.762,
+     "slant_height": 0.0
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "今日から世話になる佐意惣治郎（さくらそうじろう）の家…"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F送り"
+    }
+   ]
+  },
+  {
+   "name": "tutorial_title_over_instructions",
+   "note": "a tutorial title over instructions that end mid-phrase",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "1137",
+     "box": [
+      273,
+      356,
+      349,
+      410
+     ],
+     "style": {
+      "ink": [
+       107,
+       107,
+       107
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.902,
+     "slant_height": 0.0
+    },
+    {
+     "text": "またかRを押すと",
+     "box": [
+      277,
+      304,
+      434,
+      327
+     ],
+     "style": {
+      "ink": [
+       238,
+       238,
+       238
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.789,
+     "slant_height": 0.0
+    },
+    {
+     "text": "カメラを回転させることができます。",
+     "box": [
+      278,
+      287,
+      529,
+      307
+     ],
+     "style": {
+      "ink": [
+       245,
+       245,
+       245
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.998,
+     "slant_height": 0.0
+    },
+    {
+     "text": "キャラクターの背後にカメラを戻すことができます。",
+     "box": [
+      279,
+      324,
+      630,
+      344
+     ],
+     "style": {
+      "ink": [
+       243,
+       243,
+       243
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.951,
+     "slant_height": 0.0
+    },
+    {
+     "text": "ロJKLを入力すると",
+     "box": [
+      280,
+      267,
+      456,
+      290
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.872,
+     "slant_height": 0.0
+    },
+    {
+     "text": "周囲を見回してみる",
+     "box": [
+      381,
+      225,
+      538,
+      252
+     ],
+     "style": {
+      "ink": [
+       68,
+       68,
+       68
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.997,
+     "slant_height": 0.0
+    },
+    {
+     "text": "午後",
+     "box": [
+      11,
+      144,
+      106,
+      222
+     ],
+     "style": {
+      "ink": [
+       51,
+       56,
+       56
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.927,
+     "slant_height": 53.5
+    },
+    {
+     "text": "SATURDaN",
+     "box": [
+      62,
+      96,
+      205,
+      177
+     ],
+     "style": {
+      "ink": [
+       38,
+       56,
+       55
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.784,
+     "slant_height": 50.7
+    },
+    {
+     "text": "TURRAL",
+     "box": [
+      147,
+      136,
+      380,
+      269
+     ],
+     "style": {
+      "ink": [
+       253,
+       253,
+       253
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.74,
+     "slant_height": 83.4
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "周囲を見回してみる　ロJKLを入力するとカメラを回転させることができます。またかRを押すとキャラクターの背後にカメラを戻すことができます。"
+    }
+   ]
+  },
+  {
+   "name": "dialogue_choices",
+   "note": "both choices are dialogue, though 用は無い ends like a label; the slanted name tag is the speaker",
+   "size": null,
+   "lines": [
+    {
+     "text": "56 FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       128,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.948,
+     "slant_height": 0.0
+    },
+    {
+     "text": "まだ何か？",
+     "box": [
+      136,
+      491,
+      223,
+      515
+     ],
+     "style": {
+      "ink": [
+       63,
+       63,
+       63
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.94,
+     "slant_height": 0.0
+    },
+    {
+     "text": "午後",
+     "box": [
+      12,
+      144,
+      107,
+      223
+     ],
+     "style": {
+      "ink": [
+       98,
+       108,
+       107
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.928,
+     "slant_height": 53.5
+    },
+    {
+     "text": "愛想のない番察官",
+     "box": [
+      50,
+      429,
+      203,
+      488
+     ],
+     "style": {
+      "ink": [
+       64,
+       64,
+       64
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.88,
+     "slant_height": 30.6
+    },
+    {
+     "text": "SATURDY",
+     "box": [
+      65,
+      97,
+      204,
+      177
+     ],
+     "style": {
+      "ink": [
+       72,
+       108,
+       106
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.775,
+     "slant_height": 50.4
+    },
+    {
+     "text": "道を訊きたい",
+     "box": [
+      488,
+      332,
+      601,
+      375
+     ],
+     "style": {
+      "ink": [
+       14,
+       14,
+       12
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.99,
+     "slant_height": 23.3
+    },
+    {
+     "text": "用は無い",
+     "box": [
+      555,
+      408,
+      634,
+      440
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.994,
+     "slant_height": 25.2
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "道を訊きたい"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "用は無い"
+    },
+    {
+     "speaker": "愛想のない番察官",
+     "kind": "dialogue",
+     "text": "まだ何か？"
+    }
+   ]
+  },
+  {
+   "name": "slanted_name_tag",
+   "note": "a slanted name tag as tall as the text is the speaker",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "第三ビルの手前を曲がった先。",
+     "box": [
+      277,
+      503,
+      514,
+      525
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.994,
+     "slant_height": 0.0
+    },
+    {
+     "text": "奥の路地だよ。",
+     "box": [
+      278,
+      483,
+      392,
+      503
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.999,
+     "slant_height": 0.0
+    },
+    {
+     "text": "生鲜本鋪",
+     "box": [
+      700,
+      177,
+      789,
+      234
+     ],
+     "style": {
+      "ink": [
+       41,
+       43,
+       42
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.785,
+     "slant_height": 0.0
+    },
+    {
+     "text": "愛想のない警察団",
+     "box": [
+      197,
+      413,
+      350,
+      479
+     ],
+     "style": {
+      "ink": [
+       247,
+       247,
+       247
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.724,
+     "slant_height": 30.8
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "生鲜本鋪"
+    },
+    {
+     "speaker": "愛想のない警察団",
+     "kind": "dialogue",
+     "text": "奥の路地だよ。第三ビルの手前を曲がった先。"
+    }
+   ]
+  },
+  {
+   "name": "objective_hud",
+   "note": "the objective's two lines and the location are other text",
+   "size": null,
+   "lines": [
+    {
+     "text": "58 FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.946,
+     "slant_height": 0.0
+    },
+    {
+     "text": "BM",
+     "box": [
+      25,
+      529,
+      210,
+      560
+     ],
+     "style": {
+      "ink": [
+       237,
+       237,
+       236
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.658,
+     "slant_height": 0.0
+    },
+    {
+     "text": "佐倉惣治郎の家に向かえ",
+     "box": [
+      670,
+      143,
+      839,
+      165
+     ],
+     "style": {
+      "ink": [
+       240,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.996,
+     "slant_height": 0.0
+    },
+    {
+     "text": "『居候先に向かえ",
+     "box": [
+      691,
+      101,
+      814,
+      127
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       240
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.828,
+     "slant_height": 0.0
+    },
+    {
+     "text": "四軒茶屋",
+     "box": [
+      743,
+      506,
+      813,
+      530
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.866,
+     "slant_height": 0.0
+    },
+    {
+     "text": "+",
+     "box": [
+      790,
+      409,
+      805,
+      423
+     ],
+     "style": {
+      "ink": [
+       248,
+       228,
+       17
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.796,
+     "slant_height": 0.0
+    },
+    {
+     "text": "午後",
+     "box": [
+      12,
+      142,
+      108,
+      222
+     ],
+     "style": {
+      "ink": [
+       225,
+       250,
+       248
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.967,
+     "slant_height": 51.9
+    },
+    {
+     "text": "路地里",
+     "box": [
+      788,
+      519,
+      849,
+      549
+     ],
+     "style": {
+      "ink": [
+       240,
+       240,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.808,
+     "slant_height": 26.1
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "『居候先に向かえ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "佐倉惣治郎の家に向かえ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "四軒茶屋"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "路地里"
+    }
+   ]
+  },
+  {
+   "name": "street_sign_in_perspective",
+   "note": "a sign's run of nouns is other text; the thought bubble is dialogue",
+   "size": null,
+   "lines": [
+    {
+     "text": "60FPS",
+     "box": [
+      0,
+      0,
+      26,
+      12
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.954,
+     "slant_height": 0.0
+    },
+    {
+     "text": "203-0646　48000/88",
+     "box": [
+      1,
+      270,
+      156,
+      298
+     ],
+     "style": {
+      "ink": [
+       61,
+       80,
+       80
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.631,
+     "slant_height": 0.0
+    },
+    {
+     "text": "この先の住所ではなさそうだ…",
+     "box": [
+      374,
+      457,
+      622,
+      480
+     ],
+     "style": {
+      "ink": [
+       241,
+       241,
+       241
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.999,
+     "slant_height": 0.0
+    },
+    {
+     "text": "科一般·循環器系・皮腐系",
+     "box": [
+      0,
+      341,
+      155,
+      392
+     ],
+     "style": {
+      "ink": [
+       53,
+       83,
+       91
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.851,
+     "slant_height": 32.0
+    },
+    {
+     "text": "武　見　内科医院",
+     "box": [
+      0,
+      353,
+      172,
+      457
+     ],
+     "style": {
+      "ink": [
+       38,
+       67,
+       90
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.931,
+     "slant_height": 65.7
+    },
+    {
+     "text": "午後",
+     "box": [
+      10,
+      143,
+      110,
+      225
+     ],
+     "style": {
+      "ink": [
+       183,
+       200,
+       196
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.912,
+     "slant_height": 55.2
+    },
+    {
+     "text": "予約優先",
+     "box": [
+      23,
+      240,
+      83,
+      273
+     ],
+     "style": {
+      "ink": [
+       150,
+       156,
+       151
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.987,
+     "slant_height": 24.3
+    },
+    {
+     "text": "休诊日 日腊·祝日3",
+     "box": [
+      44,
+      435,
+      161,
+      506
+     ],
+     "style": {
+      "ink": [
+       74,
+       102,
+       121
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.723,
+     "slant_height": 21.5
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "午後"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "予約優先"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "科一般·循環器系・皮腐系"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "武　見　内科医院休诊日 日腊·祝日3"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "この先の住所ではなさそうだ…"
+    }
+   ]
   }
  ]
 }

@@ -17,7 +17,7 @@ above help text don't produce speakers.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 from PIL import Image
@@ -27,7 +27,12 @@ from horu.text_sources.base import TextLine
 
 # Hiragana, katakana, CJK ideographs (kanji), and the halfwidth katakana range.
 _JAPANESE = re.compile(r"[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]")
-_SENTENCE_PUNCTUATION = re.compile(r"[。、！？!?…‥「」『』]")
+_SENTENCE_PUNCTUATION = re.compile(r"[。、！？!?…‥]")
+# Quotes mark speech only in pairs: a lone 『 or 」 at a line's edge is usually an icon misread.
+_QUOTED = re.compile(r"[「『].*[」』]")
+# Below this OCR confidence, a short line without a speaker is a garbled read of scenery (a
+# sign in perspective), not dialogue.
+_GARBLED = 0.65
 _NAME_LIKE = re.compile(r"声$|^[?？]{2,}$")
 _MAX_SPEAKER_CHARS = 10
 # A line wraps onto the next only if it's long (it filled the text box) or ends mid-sentence
@@ -198,14 +203,57 @@ def group_blocks(
         # Lone characters are almost always icons or decorations misread as kanji.
         if len(text) < _MIN_BLOCK_CHARS and speaker is None:
             continue
-        kind = "other" if group.get("legend") else ("dialogue" if speaker or _reads_like_dialogue(text) else "other")
-        if normalize(text) in hints.dialogue:
-            kind = "dialogue"
-        elif normalize(text) in hints.other:
-            kind = "other"
+        garbled = speaker is None and max(l.score for l in block_lines) < _GARBLED
+        kind = "other" if group.get("legend") or garbled else ("dialogue" if speaker or _reads_like_dialogue(text) else "other")
         speaker_line = lines[group["speaker"]] if group["speaker"] is not None else None
         blocks.append(TextBlock(block_lines, speaker, kind, speaker_score, bool(group.get("titled")), speaker_line))
+    blocks = _choices_follow(blocks)
+    for i, block in enumerate(blocks):
+        if normalize(block.text) in hints.dialogue:
+            blocks[i] = replace(block, kind="dialogue")
+        elif normalize(block.text) in hints.other:
+            blocks[i] = replace(block, kind="other")
     return blocks
+
+
+def _choices_follow(blocks: list[TextBlock]) -> list[TextBlock]:
+    """Choices are offered as a stack of short lines; when one reads like something said
+    (道を訊きたい), or they follow a question, the others that are phrases are dialogue too
+    (用は無い ends like a menu label would)."""
+    blocks = list(blocks)
+    changed = True
+    while changed:
+        changed = False
+        said = [b for b in blocks if b.kind == "dialogue" and b.speaker is None]
+        for i, block in enumerate(blocks):
+            if (
+                block.kind == "other"
+                and block.speaker is None
+                and len(block.lines) == 1
+                and not is_legend(block.text)
+                and _is_phrase(block.text)
+                and any(_stacked(block.lines[0], other.lines[-1]) or _stacked(block.lines[0], other.lines[0]) for other in said)
+            ):
+                blocks[i] = replace(block, kind="dialogue")
+                changed = True
+    return blocks
+
+
+def _stacked(a: TextLine, b: TextLine) -> bool:
+    """Two lines of about the same size, one just above the other and overlapping it: items
+    of one list."""
+    height = min(_height(a), _height(b))
+    upper, lower = sorted((a, b), key=lambda l: l.box[1])
+    gap = lower.box[1] - upper.box[3]
+    overlaps = min(a.box[2], b.box[2]) > max(a.box[0], b.box[0])
+    return max(_height(a), _height(b)) <= 1.5 * height and -0.5 * height <= gap <= 2 * height and overlaps
+
+
+def _is_phrase(text: str) -> bool:
+    """Has a verb, adjective, or auxiliary: says something, unlike a noun label."""
+    from horu.nlp.words import tokenize
+
+    return any(t.pos1 in ("動詞", "形容詞", "助動詞") for t in tokenize(text))
 
 
 # --- Speakers --------------------------------------------------------------------------
@@ -220,7 +268,7 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if not marked and (
         len(_JAPANESE.findall(text)) < 2 and not _NAME_LIKE.search(text)
         or len(text) > _MAX_SPEAKER_CHARS
-        or (_SENTENCE_PUNCTUATION.search(text) and not _NAME_LIKE.search(text))
+        or (_has_sentence_punctuation(text) and not _NAME_LIKE.search(text))
     ):
         return False
     below = [j for j in range(len(lines)) if j != i and j not in legends and _under_speaker(candidate, lines[j])]
@@ -229,13 +277,11 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if marked:
         return True
     body = min(below, key=lambda j: lines[j].box[1])
-    # Name tags sit at the text's left edge (or left of it). A heading centred over the text,
-    # well in from its edge, is a title: a sign's place name (ゾーラ川 over 急流に注意！).
-    c_left, _, c_right, _ = candidate.box
-    b_left, b_top, b_right, b_bottom = lines[body].box
-    b_height = b_bottom - b_top
-    centred = abs((c_left + c_right) - (b_left + b_right)) / 2 <= 0.5 * b_height
-    if not marked and centred and c_left - b_left > 2 * b_height:
+    # Name tags sit at the text's left edge (or left of it). A line starting well in from it is
+    # a heading: a sign's place name (ゾーラ川 over 急流に注意！), a tutorial's title.
+    c_left = candidate.box[0]
+    b_left, b_top, _, b_bottom = lines[body].box
+    if not marked and c_left - b_left > 2 * (b_bottom - b_top):
         return False
     # A speaker says something: the line below must read like dialogue, not be another menu
     # item or label.
@@ -282,16 +328,24 @@ def _has_person_name(text: str) -> bool:
 # --- Dialogue vs other text ------------------------------------------------------------
 
 
+def _has_sentence_punctuation(text: str) -> bool:
+    return bool(_SENTENCE_PUNCTUATION.search(text) or _QUOTED.search(text))
+
+
 def _reads_like_dialogue(text: str) -> bool:
-    # Count only Japanese characters: digits and stray Latin (HP/SP values, misreads) don't
-    # make a label a sentence.
-    if len(_JAPANESE.findall(text)) >= _LONG_TEXT_CHARS or _SENTENCE_PUNCTUATION.search(text):
+    if _has_sentence_punctuation(text):
         return True
     from horu.nlp.words import tokenize
 
     content = [t for t in tokenize(text) if t.pos1 not in ("補助記号", "記号", "空白")]
     if not content:
         return False
+    # Long text is a sentence even without punctuation, if it has the particles or endings of
+    # one: a sign's run of nouns (武見内科医院　休診日　日曜・祝日) is not. Only Japanese
+    # characters count: digits and stray Latin (HP/SP values, misreads) don't make a label a
+    # sentence.
+    if len(_JAPANESE.findall(text)) >= _LONG_TEXT_CHARS:
+        return any(t.pos1 in ("助詞", "助動詞") for t in content)
     last = content[-1]
     # Ends like a sentence: a copula or auxiliary (あそこだ, 行きます) or a sentence-final
     # particle (そうか, いいよ).
@@ -358,9 +412,9 @@ def _join_centred(groups: list[dict], lines: list[TextLine], ruby: dict[int, int
 
 
 def _join_titles(groups: list[dict], lines: list[TextLine], styles: dict[int, Style], ruby: dict[int, int]) -> None:
-    """Join a title to the text under it: a short line in its own colour, centred just above
-    a block (ゾーラ川 over a sign's 急流に注意！トコトン流されます). The colour keeps centred
-    menus (はじめから／つづきから) apart."""
+    """Join a title to the text under it: a short line in its own colour just above a block,
+    within its width (ゾーラ川 over a sign's 急流に注意！トコトン流されます; a P5R tutorial's
+    title bar). The colour keeps centred menus (はじめから／つづきから) apart."""
     for k in range(len(groups) - 2, -1, -1):
         title = groups[k]
         if title.get("legend") or title["speaker"] is not None or len(title["lines"]) != 1:
@@ -374,7 +428,13 @@ def _join_titles(groups: list[dict], lines: list[TextLine], styles: dict[int, St
                 continue
             first = body["lines"][0]
             own_colour = t in styles and first in styles and styles[t].differs_from(styles[first])
-            if own_colour and _centred_below(lines[t], lines[first], ruby.get(first, 0)):
+            body_box = _union_box([lines[i] for i in body["lines"]])
+            # Centred over the first line (a sign's place name), or anywhere above a paragraph
+            # (a tutorial's title bar); a highlighted menu item over the next is neither.
+            above = _centred_below(lines[t], lines[first], ruby.get(first, 0)) or (
+                len(body["lines"]) > 1 and _heading_above(lines[t], lines[first], body_box, ruby.get(first, 0))
+            )
+            if own_colour and above:
                 body["lines"].insert(0, t)
                 body["titled"] = True
                 del groups[k]
@@ -389,6 +449,27 @@ def _centred_below(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
     close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height) + ruby
     centred = abs((left + right) - (p_left + p_right)) / 2 <= 0.5 * p_height
     return similar_size and close_below and centred
+
+
+def _heading_above(title: TextLine, first: TextLine, body: tuple[int, int, int, int], ruby: int = 0) -> bool:
+    """`title` sits just above the block whose first line is `first`, within its width (a
+    title bar's padding sets it a little further off than wrapped lines)."""
+    t_left, t_top, t_right, t_bottom = title.box
+    t_height, height = _height(title), _height(first)
+    similar_size = max(t_height, height) <= 1.6 * min(t_height, height)
+    gap = first.box[1] - t_bottom
+    close_above = first.box[1] > t_top and -0.5 * t_height <= gap <= 0.8 * min(t_height, height) + ruby
+    within = t_left >= body[0] - height and t_right <= body[2] + height
+    return similar_size and close_above and within
+
+
+def _union_box(lines: list[TextLine]) -> tuple[int, int, int, int]:
+    return (
+        min(l.box[0] for l in lines),
+        min(l.box[1] for l in lines),
+        max(l.box[2] for l in lines),
+        max(l.box[3] for l in lines),
+    )
 
 
 def _ends_complete_without_punctuation(text: str) -> bool:
