@@ -1079,6 +1079,7 @@ const FIELDS = [
   ["#auto-cards", "autoCards", false],
   ["#hide-from-capture", "hideFromCapture", true],
   ["#auto-translate", "autoTranslate", false],
+  ["#ai-checks", "aiChecks", true],
   ["#apply-ai-readings", "applyAiReadings", true],
   ["#blur-translations", "blurTranslations", true],
   ["#learner-level", "learnerLevel", ""],

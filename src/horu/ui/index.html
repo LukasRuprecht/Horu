@@ -88,8 +88,9 @@
     <p id="hook-status" class="ai-status" hidden></p>
     <p class="check-hint flush">For PC games a text hooker can attach to (most visual novels): exact text,
       no OCR. Run the hooker (Textractor, LunaHook, ...) and pick the game's text thread there.
-      Clipboard: turn on the hooker's "copy to clipboard"; anything Japanese you copy shows up too.
-      WebSocket: Textractor with the textractor_websocket extension, or LunaTranslator's WebSocket output.</p>
+      Clipboard: turn on the hooker's copy-to-clipboard option (in Textractor, the Copy to Clipboard
+      extension); anything Japanese you copy shows up too. WebSocket: a hooker that sends lines to
+      texthooker pages, such as Textractor with the textractor_websocket extension.</p>
 
     <h2>Problems</h2>
     <div class="test-row">
@@ -164,6 +165,10 @@
     <p id="ai-status" class="ai-status"></p>
     <div id="ai-options">
       <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>
+      <label class="check"><input id="ai-checks" type="checkbox"> Check new dialogue against the screenshot</label>
+      <p class="check-hint">The AI reads each new dialogue line (and a name tag OCR wasn't sure of) from a
+        picture of it, to catch OCR misreads. One request with an image per line; models that can't
+        read images are skipped. Lines from a text hooker are never checked.</p>
       <label class="check"><input id="apply-ai-readings" type="checkbox"> Fix likely misreads with the AI's reading</label>
       <p class="check-hint">When OCR may have misread a line or a speaker's name, the AI reads it from the
         screenshot and Horu uses that reading, marked "corrected" (click to undo). Off: Horu asks

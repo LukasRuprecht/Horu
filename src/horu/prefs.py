@@ -24,6 +24,9 @@ DEFAULTS: dict = {
     # Use the AI's reading of a possibly misread line (or name tag) straight away, showing
     # what changed, instead of asking "Did you mean ...?".
     "applyAiReadings": True,
+    # Have a vision model read each new dialogue line from its screenshot, to catch OCR
+    # misreads: one AI request, with a picture of the line, per line.
+    "aiChecks": True,
     "blurTranslations": True,
     "learnerLevel": "Beginner (studying with Genki I)",
     # AI provider chosen in the settings panel ("" = use config.toml). Keys are not stored

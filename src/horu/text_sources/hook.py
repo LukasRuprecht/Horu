@@ -4,9 +4,9 @@ Horu doesn't hook games itself. A hooker (Textractor, LunaHook, Agent, ...) atta
 game and sends out each line it finds. Horu listens in one of two ways:
 
 - the clipboard: the hooker copies each line (Textractor's "Copy to Clipboard" extension,
-  LunaTranslator's clipboard output). Works with almost any hooker.
-- a WebSocket: the hooker serves each line to connected clients (Textractor with the
-  textractor_websocket extension, LunaTranslator, Agent).
+  or another hooker's copy-to-clipboard option). Works with almost any hooker.
+- a WebSocket: the hooker serves each line to connected clients, as browser texthooker
+  pages expect (Textractor with the textractor_websocket extension, and others).
 """
 
 from __future__ import annotations

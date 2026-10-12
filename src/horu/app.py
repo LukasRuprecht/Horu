@@ -1071,7 +1071,9 @@ class App:
     # --- fixing misread lines --------------------------------------------------------
 
     def _can_check(self, line_id: int) -> bool:
-        return bool(self._provider and line_id in self._screenshots and self._vision is not False)
+        return bool(
+            self.prefs.values["aiChecks"] and self._provider and line_id in self._screenshots and self._vision is not False
+        )
 
     def _auto_cards(self, line_ids: list[int]) -> None:
         if line_ids and self.prefs.values["autoCards"] and self._provider:
