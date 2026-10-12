@@ -183,7 +183,7 @@ function renderCapture(capture) {
   const card = el("section", "capture");
   const head = el("header", "capture-head");
   const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
-  head.append(el("span", "capture-num", `Capture ${capture.id}`), el("span", null, capture.time), el("span", null, count));
+  head.append(el("span", "capture-num", capture.hooked ? "Hooked" : `Capture ${capture.id}`), el("span", null, capture.time), el("span", null, count));
   card.append(head);
   // Runs of lines that were already shown are collapsed, so a re-captured backlog page shows
   // what's new without anything silently disappearing.
@@ -224,7 +224,7 @@ function openLineMenu(anchor, line, row) {
   } else if (line.text.length <= 10) {
     items.push([`「${line.text}」 is a speaker name`, () => mark(line, row, "speaker")]);
   }
-  if (state.ai.enabled && line.kind === "dialogue") {
+  if (state.ai.enabled && line.kind === "dialogue" && !line.hooked) {
     items.unshift(["Re-read with AI", () => reread(line, row)]);
   }
   if (line.capture) {
@@ -1021,6 +1021,8 @@ const FIELDS = [
   ["#apply-ai-readings", "applyAiReadings", true],
   ["#blur-translations", "blurTranslations", true],
   ["#learner-level", "learnerLevel", ""],
+  ["#hook-source", "hookSource", ""],
+  ["#hook-url", "hookUrl", "ws://127.0.0.1:6677"],
 ];
 
 function applyFields() {
@@ -1031,6 +1033,7 @@ function applyFields() {
     else if (document.activeElement !== input) input.value = value;
   }
   document.body.classList.toggle("blur-translations", state.prefs.blurTranslations ?? true);
+  $("#hook-url-row").hidden = state.prefs.hookSource !== "websocket";
 }
 
 for (const [selector, key] of FIELDS) {
@@ -1322,6 +1325,7 @@ $("#anki-check").addEventListener("click", checkAnki);
 
 async function loadFromPython() {
   state.prefs = await api().get_prefs();
+  horu.setHookState(await api().hook_state());
   applyAllPrefs();
   horu.setAI(await api().ai_info());
   await loadAISettings();
@@ -1430,6 +1434,14 @@ window.horu = {
   },
 
   // Hotkey captures keep finding dialogue in the same place: offer to auto-read it.
+  setHookState({ state: hookState, message }) {
+    const status = $("#hook-status");
+    status.hidden = hookState === "off";
+    status.textContent = message;
+    status.classList.toggle("ok", hookState === "listening");
+    status.classList.toggle("error", hookState === "error");
+  },
+
   setAutoState({ state: autoState, message }) {
     const toggle = $("#toggle-auto");
     toggle.dataset.state = autoState;

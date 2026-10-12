@@ -37,6 +37,9 @@ DEFAULTS: dict = {
     "autoCards": False,
     # Read the game's dialogue box by itself whenever its text changes.
     "autoCapture": False,
+    # Lines from a text hooker (Textractor, LunaHook...): "" off, "clipboard", or "websocket".
+    "hookSource": "",
+    "hookUrl": "ws://127.0.0.1:6677",
 }
 
 

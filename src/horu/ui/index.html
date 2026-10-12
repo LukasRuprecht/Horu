@@ -64,6 +64,25 @@
       stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's HUD keeps
       changing, limit it to parts of the picture: open a line's ⋯ menu and pick "Set auto-read regions".</p>
 
+    <h2>Text hooker</h2>
+    <label class="field">
+      <span>Read lines from</span>
+      <select id="hook-source">
+        <option value="">Off</option>
+        <option value="clipboard">The clipboard</option>
+        <option value="websocket">A WebSocket</option>
+      </select>
+    </label>
+    <label id="hook-url-row" class="field" hidden>
+      <span>WebSocket address</span>
+      <input id="hook-url" type="text" placeholder="ws://127.0.0.1:6677" spellcheck="false">
+    </label>
+    <p id="hook-status" class="ai-status" hidden></p>
+    <p class="check-hint flush">For PC games a text hooker can attach to (most visual novels): exact text,
+      no OCR. Run the hooker (Textractor, LunaHook, ...) and pick the game's text thread there.
+      Clipboard: turn on the hooker's "copy to clipboard"; anything Japanese you copy shows up too.
+      WebSocket: Textractor with the textractor_websocket extension, or LunaTranslator's WebSocket output.</p>
+
     <h2>Problems</h2>
     <div class="test-row">
       <button id="bundle-last" type="button">Save a debug bundle of the last capture…</button>
