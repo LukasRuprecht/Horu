@@ -5,8 +5,10 @@ Detection finds every line on screen, so no capture region is needed.
 
 from __future__ import annotations
 
+import contextlib
 import re
 import unicodedata
+from typing import Callable
 
 import cv2
 import numpy as np
@@ -50,6 +52,41 @@ _SMALL_KANA_DOUBT = re.compile(r"[ぁ-ゖァ-ヺ][つやゆよツヤユヨ]")
 # empty strip tells a space from a character the recognizer skipped (ふしぎ[な]うでわ).
 _SPACE_STEP = 1.5
 _SPACE_WIDTH = 0.45
+
+
+@contextlib.contextmanager
+def download_progress(report: Callable[[int, int], None]):
+    """While RapidOCR loads, report its model downloads (first run only) as (bytes, total
+    bytes) for each file. It draws a tqdm bar for them; this stands in for the bar, and does
+    nothing if RapidOCR stops using one."""
+    try:
+        from rapidocr.utils import download_file
+    except ImportError:
+        download_file = None
+    if download_file is None or not hasattr(download_file, "tqdm"):
+        yield
+        return
+
+    class Bar:
+        def __init__(self, total=0, **kwargs) -> None:
+            self.total, self.done = total or 0, 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc) -> None:
+            pass
+
+        def update(self, n: int) -> None:
+            self.done += n
+            report(self.done, self.total)
+
+    original = download_file.tqdm
+    download_file.tqdm = Bar
+    try:
+        yield
+    finally:
+        download_file.tqdm = original
 
 
 def text_finder(width: int):

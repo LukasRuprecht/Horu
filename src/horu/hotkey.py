@@ -91,7 +91,7 @@ def _listen_win32(spec: str, callback: Callable[[], None]) -> Callable[[], None]
     ready.wait()
     if "error" in state:
         if state["error"] == _ERROR_HOTKEY_ALREADY_REGISTERED:
-            raise HotkeyError(f"{spec} is already used by another program. Pick a different hotkey in config.toml.")
+            raise HotkeyError(f"{spec} is already used by another program.")
         raise HotkeyError(f"Could not register hotkey {spec} (Windows error {state['error']})")
 
     def stop() -> None:

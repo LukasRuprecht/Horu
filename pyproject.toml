@@ -25,6 +25,9 @@ dependencies = [
 [project.scripts]
 horu = "horu.cli:main"
 
+[project.gui-scripts]
+horu-app = "horu.cli:gui"
+
 [project.optional-dependencies]
 manga-ocr = [
     "manga-ocr>=0.1.16",

@@ -6,6 +6,7 @@ import argparse
 import queue
 import sys
 import time
+import traceback
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ def cmd_console(cfg: config.Config) -> None:
     try:
         stop_hotkey = hotkey.listen(cfg.capture_hotkey, lambda: requests.put(None))
     except hotkey.HotkeyError as e:
-        sys.exit(str(e))
+        sys.exit(f"{e} Pick a different hotkey in config.toml.")
     print(f"Ready. Capture mode '{cfg.capture.mode}'. Press {cfg.capture_hotkey} to read text, Ctrl+C to quit.")
 
     try:
@@ -123,6 +124,37 @@ def load_source(cfg: config.Config) -> text_sources.TextSource:
         return text_sources.create(cfg.ocr_engine)
     except (ImportError, ValueError) as e:
         sys.exit(str(e))
+
+
+LOG_PATH = Path("data/horu.log")
+
+
+def gui() -> None:
+    """The Start-menu shortcut's entry point: the window, with no console. What Horu prints
+    goes to data/horu.log (the run before is kept as horu.log.1), and a problem that stops it
+    starting is shown in a message box."""
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if LOG_PATH.exists():
+        LOG_PATH.replace(LOG_PATH.with_name(LOG_PATH.name + ".1"))
+    sys.stdout = sys.stderr = LOG_PATH.open("w", encoding="utf-8", buffering=1)
+    try:
+        main()
+    except SystemExit as e:
+        if e.code not in (None, 0):
+            _message_box(str(e.code))
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        _message_box(f"Horu stopped: {e}\n\nDetails are in {LOG_PATH.resolve()}")
+        raise
+
+
+def _message_box(text: str) -> None:
+    print(text)
+    if sys.platform == "win32":
+        import ctypes
+
+        ctypes.windll.user32.MessageBoxW(None, text, "Horu", 0x10)  # MB_ICONERROR
 
 
 def main() -> None:

@@ -164,6 +164,12 @@ class Api:
     def hook_state(self) -> dict:
         return self._app.hook_state
 
+    def hotkey_info(self) -> dict:
+        return self._app.hotkey_info()
+
+    def set_hotkey(self, spec: str) -> dict:
+        return self._app.set_hotkey(spec)
+
     def mark(self, line_id: int, label: str, part: str = "text") -> dict:
         """Remember a correction for this line's text (or its speaker) in this game."""
         return self._app.mark(line_id, label, part)
@@ -229,6 +235,7 @@ class App:
         self._capture_ids = itertools.count(1)
         self._page_loaded = threading.Event()
         self._stop_hotkey = None
+        self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
     def run(self) -> None:
         import webview
@@ -666,28 +673,78 @@ class App:
                 self._status("error", f"Capture failed: {e}")
 
     def _load(self) -> bool:
+        shown = [None]
+
+        def show(message: str) -> None:  # downloads report often; only changes reach the page
+            if message != shown[0]:
+                shown[0] = message
+                self._status("loading", message)
+
+        # Short: the status bar is narrow. These happen on the first run only.
+        def dictionary_progress(name: str, done: int, total: int) -> None:
+            what = "dictionary" if name == "JMdict" else "names dictionary"
+            if total and done < total:
+                show(f"Downloading {what}: {done >> 20}/{total >> 20} MB")
+            else:
+                show(f"Indexing {what}...")
+
+        def ocr_progress(done: int, total: int) -> None:
+            if total and done < total:
+                show(f"Downloading OCR model: {done >> 20}/{total >> 20} MB")
+            else:
+                show(f"Loading OCR ({self.cfg.ocr_engine})...")
+
         try:
             try:
                 self._dictionary = dictionary.Dictionary()
             except dictionary.DictionaryMissing:
-                self._status("loading", "Downloading the dictionary (first run only)...")
-                dictionary.build()
+                show("Downloading the dictionary (first run only)...")
+                dictionary.build(progress=dictionary_progress)
                 self._dictionary = dictionary.Dictionary()
             if not self._dictionary.has_names:  # dictionaries built before names were added
-                self._status("loading", "Downloading the names dictionary (one time only)...")
-                dictionary.build_names()
+                show("Downloading the names dictionary (one time only)...")
+                dictionary.build_names(progress=dictionary_progress)
                 self._dictionary = dictionary.Dictionary()
-            self._status("loading", f"Loading OCR ({self.cfg.ocr_engine})...")
-            self._source = text_sources.create(self.cfg.ocr_engine)
-            self._stop_hotkey = hotkey.listen(self.cfg.capture_hotkey, lambda: self._requests.put(None))
+            show(f"Loading OCR ({self.cfg.ocr_engine})...")
+            with rapidocr_source.download_progress(ocr_progress):
+                self._source = text_sources.create(self.cfg.ocr_engine)
             self.apply_ai()  # AI is optional: problems are reported in settings, not fatal
             self.apply_hook()
         except Exception as e:
             traceback.print_exc()
             self._status("error", str(e))
             return False
+        # Without the hotkey, auto-capture and a text hooker still work: say how to fix it.
+        try:
+            self._stop_hotkey = hotkey.listen(self.hotkey_spec, lambda: self._requests.put(None))
+        except hotkey.HotkeyError as e:
+            self._hotkey_error = str(e).replace(self.hotkey_spec, _pretty_hotkey(self.hotkey_spec))
+        self._call("showHotkey", self.hotkey_info())
         self._ready()
         return True
+
+    @property
+    def hotkey_spec(self) -> str:
+        return self.prefs.values["captureHotkey"] or self.cfg.capture_hotkey
+
+    def hotkey_info(self) -> dict:
+        return {"spec": self.hotkey_spec, "name": _pretty_hotkey(self.hotkey_spec), "error": self._hotkey_error}
+
+    def set_hotkey(self, spec: str) -> dict:
+        """Use `spec` as the capture hotkey, if Windows lets Horu have it; the old one stays
+        otherwise."""
+        if spec == self.hotkey_spec and self._stop_hotkey:
+            return {"ok": True, "message": f"Capture with {_pretty_hotkey(spec)}.", **self.hotkey_info()}
+        try:
+            stop = hotkey.listen(spec, lambda: self._requests.put(None))
+        except hotkey.HotkeyError as e:
+            return {"ok": False, "message": f"{str(e).replace(spec, _pretty_hotkey(spec))} Try another.", **self.hotkey_info()}
+        if self._stop_hotkey:
+            self._stop_hotkey()
+        self._stop_hotkey, self._hotkey_error = stop, None
+        self.prefs.set("captureHotkey", spec)
+        self._ready()
+        return {"ok": True, "message": f"Capture with {_pretty_hotkey(spec)}.", **self.hotkey_info()}
 
     def _capture(self, request: AutoRead | None = None) -> None:
         started = time.monotonic()
@@ -899,7 +956,7 @@ class App:
         if not self.prefs.values["autoCapture"] or self._source is None:
             self._set_auto("off", "Auto-capture is off.")
             return None
-        hotkey_name = _pretty_hotkey(self.cfg.capture_hotkey)
+        hotkey_name = _pretty_hotkey(self.hotkey_spec)
         if self._game_window is None:
             self._set_auto("waiting", f"Press {hotkey_name} in your game once, so Horu knows which window to watch.")
             return None
@@ -1002,7 +1059,11 @@ class App:
             # Not the server address: it can hold a private host or a token.
             "prefs": {k: v for k, v in self.prefs.values.items() if k != "aiBaseUrl"},
         }
-        path = debug_bundle.save(kept, note.strip(), settings)
+        log = ""
+        if getattr(sys.stdout, "name", None) and Path(sys.stdout.name).name == "horu.log":  # started from the shortcut
+            sys.stdout.flush()
+            log = "\n".join(Path(sys.stdout.name).read_text(encoding="utf-8", errors="replace").splitlines()[-200:])
+        path = debug_bundle.save(kept, note.strip(), settings, log=log)
         if sys.platform == "win32":
             subprocess.Popen(["explorer", "/select,", str(path.resolve())])
         return {"ok": True, "message": f"Saved {path}. Look at the screenshot in it before sharing.", "path": str(path.resolve())}
@@ -1135,7 +1196,10 @@ class App:
     # --- talking to the page ---------------------------------------------------------
 
     def _ready(self, message: str | None = None) -> None:
-        self._status("ready", message or f"Ready. Press {_pretty_hotkey(self.cfg.capture_hotkey)} in your game.")
+        if self._hotkey_error and not message:
+            self._status("error", f"{_pretty_hotkey(self.hotkey_spec)} is taken by another program: choose a capture hotkey in Settings.")
+            return
+        self._status("ready", message or f"Ready. Press {_pretty_hotkey(self.hotkey_spec)} in your game.")
 
     def _status(self, state: str, message: str) -> None:
         self._call("setStatus", {"state": state, "message": message})

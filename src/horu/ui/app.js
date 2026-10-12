@@ -443,6 +443,67 @@ $("#region-save").addEventListener("click", async () => {
   if (result.ok) closeRegionEditor();
 });
 
+// --- The capture hotkey: recorded from the next key combination pressed ------------------
+
+let recordingHotkey = false;
+
+function showHotkey(info, message, ok = true) {
+  $("#hotkey-name").textContent = info.name;
+  const status = $("#hotkey-status");
+  status.textContent = message || (info.error ? `${info.error} Choose another.` : "Works while your game is in front.");
+  status.classList.toggle("error", !ok || (!message && Boolean(info.error)));
+}
+
+// A KeyboardEvent as a hotkey spec ("<ctrl>+<alt>+j"), or null for a lone modifier.
+function hotkeySpec(e) {
+  let key = null;
+  if (/^Key[A-Z]$/.test(e.code)) key = e.code.slice(3).toLowerCase();
+  else if (/^Digit\d$/.test(e.code)) key = e.code.slice(5);
+  else if (/^F([1-9]|1\d|2[0-4])$/.test(e.code)) key = e.code.toLowerCase();
+  else key = { Space: "space", Insert: "insert", Delete: "delete", Home: "home", End: "end",
+    PageUp: "page_up", PageDown: "page_down", Pause: "pause" }[e.code] || null;
+  if (!key) return null;
+  const mods = [e.ctrlKey && "<ctrl>", e.altKey && "<alt>", e.shiftKey && "<shift>", e.metaKey && "<win>"].filter(Boolean);
+  return [...mods, key.length > 1 ? `<${key}>` : key].join("+");
+}
+
+function stopRecordingHotkey() {
+  recordingHotkey = false;
+  $("#hotkey-name").classList.remove("recording");
+  $("#hotkey-change").textContent = "Change";
+}
+
+$("#hotkey-change").addEventListener("click", async () => {
+  if (recordingHotkey) {
+    stopRecordingHotkey();
+    showHotkey(await api().hotkey_info());
+    return;
+  }
+  recordingHotkey = true;
+  $("#hotkey-name").classList.add("recording");
+  $("#hotkey-name").textContent = "Press the keys…";
+  $("#hotkey-change").textContent = "Cancel";
+  $("#hotkey-status").textContent = "A letter, number, or F-key, with Ctrl, Alt, or Shift (F-keys work alone).";
+  $("#hotkey-status").classList.remove("error");
+});
+
+document.addEventListener("keydown", async (e) => {
+  if (!recordingHotkey) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.key === "Escape") {
+    stopRecordingHotkey();
+    showHotkey(await api().hotkey_info());
+    return;
+  }
+  const spec = hotkeySpec(e);
+  // Ignore a lone modifier, and a key that's needed for typing or playing (J, Space) alone.
+  if (!spec || !(/^<f\d+>$/.test(spec) || /<(ctrl|alt|shift|win)>/.test(spec))) return;
+  stopRecordingHotkey();
+  const result = await api().set_hotkey(spec);
+  showHotkey(result, result.message, result.ok);
+}, true);
+
 // --- Debug bundles: a capture and what Horu made of it, for bug reports ------------------
 
 const bundleDialog = $("#bundle-dialog");
@@ -1326,6 +1387,7 @@ $("#anki-check").addEventListener("click", checkAnki);
 async function loadFromPython() {
   state.prefs = await api().get_prefs();
   horu.setHookState(await api().hook_state());
+  showHotkey(await api().hotkey_info());
   applyAllPrefs();
   horu.setAI(await api().ai_info());
   await loadAISettings();
@@ -1434,6 +1496,10 @@ window.horu = {
   },
 
   // Hotkey captures keep finding dialogue in the same place: offer to auto-read it.
+  showHotkey(info) {
+    if (!recordingHotkey) showHotkey(info);
+  },
+
   setHookState({ state: hookState, message }) {
     const status = $("#hook-status");
     status.hidden = hookState === "off";

@@ -35,6 +35,7 @@ What's inside:
   into dialogue, speakers, and other text. Same format as Horu's regression screens.
 - report.json: what Horu showed, your note, the corrections and speaker names it used for
   this game, and versions. No API keys or other secrets.
+- log.txt (when Horu runs from its shortcut): the end of what Horu printed, such as errors.
 
 To report a problem, attach this zip to an issue at
 https://github.com/LukasRuprecht/Horu/issues and say what you expected to see.
@@ -97,7 +98,7 @@ def report(capture: Capture, note: str, settings: dict) -> dict:
     }
 
 
-def save(capture: Capture, note: str = "", settings: dict | None = None, folder: Path | None = None) -> Path:
+def save(capture: Capture, note: str = "", settings: dict | None = None, folder: Path | None = None, log: str = "") -> Path:
     """Write the bundle as a zip in `folder` and return its path."""
     folder = folder or DEFAULT_DIR
     folder.mkdir(parents=True, exist_ok=True)
@@ -111,6 +112,8 @@ def save(capture: Capture, note: str = "", settings: dict | None = None, folder:
         z.writestr("capture.png", png.getvalue())
         z.writestr("screen.json", _json(screen(capture)))
         z.writestr("report.json", _json(report(capture, note, settings or {})))
+        if log:
+            z.writestr("log.txt", log)
     return path
 
 

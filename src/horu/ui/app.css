@@ -755,6 +755,18 @@ body.no-furigana .settings .preview rt { display: revert; }
   resize: vertical;
 }
 .check-hint.flush { margin-left: 0; }
+.hotkey-name {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.hotkey-name.recording { border-color: var(--accent); color: var(--accent); }
+#hotkey-status.error { color: var(--error); }
 .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .modal-actions .spacer { flex: 1; }
 .line-btn.primary { border-color: var(--accent); color: var(--accent); }

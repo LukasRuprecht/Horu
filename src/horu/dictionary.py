@@ -16,6 +16,7 @@ import sqlite3
 import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Callable
 
 JMDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
 JMNEDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMnedict.xml.gz"
@@ -63,12 +64,27 @@ class DictionaryMissing(Exception):
     pass
 
 
-def _load_xml(url: str, source: Path | None, root: str) -> tuple[dict[str, str], bytes]:
+# Called with (bytes downloaded, total bytes or 0 when unknown) while downloading.
+Progress = Callable[[int, int], None]
+
+
+def _download(url: str, progress: Progress | None) -> bytes:
+    print(f"Downloading {url} ...")
+    with urllib.request.urlopen(url, timeout=60) as response:
+        total = int(response.headers.get("Content-Length") or 0)
+        chunks, done = [], 0
+        while chunk := response.read(1 << 16):
+            chunks.append(chunk)
+            done += len(chunk)
+            if progress:
+                progress(done, total)
+    return b"".join(chunks)
+
+
+def _load_xml(url: str, source: Path | None, root: str, progress: Progress | None = None) -> tuple[dict[str, str], bytes]:
     """Download (unless `source` is given) an EDRDG dictionary and prepare it for parsing."""
     if source is None:
-        print(f"Downloading {url} ...")
-        with urllib.request.urlopen(url) as response:
-            raw = response.read()
+        raw = _download(url, progress)
     else:
         raw = source.read_bytes()
     text = gzip.decompress(raw).decode("utf-8")
@@ -80,10 +96,15 @@ def _load_xml(url: str, source: Path | None, root: str) -> tuple[dict[str, str],
     return descriptions, body.encode("utf-8")
 
 
-def build(path: Path = DEFAULT_PATH, source: Path | None = None, names_source: Path | None = None) -> int:
+def build(
+    path: Path = DEFAULT_PATH,
+    source: Path | None = None,
+    names_source: Path | None = None,
+    progress: Callable[[str, int, int], None] | None = None,
+) -> int:
     """Download (unless sources are given) and index JMdict and JMnedict. Returns the number
-    of JMdict entries."""
-    descriptions, body = _load_xml(JMDICT_URL, source, "JMdict")
+    of JMdict entries. `progress` is called with (which dictionary, bytes, total bytes)."""
+    descriptions, body = _load_xml(JMDICT_URL, source, "JMdict", progress and (lambda d, t: progress("JMdict", d, t)))
 
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
@@ -109,25 +130,25 @@ def build(path: Path = DEFAULT_PATH, source: Path | None = None, names_source: P
         count += 1
     db.execute("CREATE INDEX forms_form ON forms(form)")
     db.execute("INSERT INTO meta VALUES ('pos_descriptions', ?)", (json.dumps(descriptions, ensure_ascii=False),))
-    _build_names(db, names_source)
+    _build_names(db, names_source, progress)
     db.commit()
     db.close()
     tmp.replace(path)
     return count
 
 
-def build_names(path: Path = DEFAULT_PATH, source: Path | None = None) -> int:
+def build_names(path: Path = DEFAULT_PATH, source: Path | None = None, progress: Callable[[str, int, int], None] | None = None) -> int:
     """Add JMnedict to an existing dictionary built before names were supported."""
     db = sqlite3.connect(path)
     db.executescript("DROP TABLE IF EXISTS names; DROP TABLE IF EXISTS name_forms;")
-    count = _build_names(db, source)
+    count = _build_names(db, source, progress)
     db.commit()
     db.close()
     return count
 
 
-def _build_names(db: sqlite3.Connection, source: Path | None) -> int:
-    _, body = _load_xml(JMNEDICT_URL, source, "JMnedict")
+def _build_names(db: sqlite3.Connection, source: Path | None, progress: Callable[[str, int, int], None] | None = None) -> int:
+    _, body = _load_xml(JMNEDICT_URL, source, "JMnedict", progress and (lambda d, t: progress("JMnedict", d, t)))
     db.executescript(
         """
         CREATE TABLE names (id INTEGER PRIMARY KEY, data TEXT NOT NULL);
