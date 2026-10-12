@@ -4334,6 +4334,281 @@
      "text": "お前が、パント？"
     }
    ]
+  },
+  {
+   "name": "choices_with_no_said_anchor",
+   "note": "気をつける／適当にやる are plain verb phrases; they're choices because someone is speaking",
+   "size": [
+    1340,
+    1000
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      0,
+      0,
+      29,
+      13
+     ],
+     "score": 0.95,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       41,
+       144,
+       41
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "今度退学になったら、うちからも追い出すぞ？",
+     "box": [
+      258,
+      772,
+      782,
+      806
+     ],
+     "score": 1.0,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       63,
+       63,
+       63
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "というか…",
+     "box": [
+      260,
+      743,
+      390,
+      774
+     ],
+     "score": 0.999,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       65,
+       64,
+       64
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      1225,
+      751,
+      1307,
+      790
+     ],
+     "score": 0.86,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "区オート",
+     "box": [
+      1230,
+      787,
+      1306,
+      822
+     ],
+     "score": 0.618,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       236,
+       236,
+       236
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "回ログ",
+     "box": [
+      1231,
+      817,
+      1306,
+      856
+     ],
+     "score": 0.776,
+     "slant_height": 0.0,
+     "style": {
+      "ink": [
+       231,
+       231,
+       231
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "10",
+     "box": [
+      0,
+      80,
+      317,
+      291
+     ],
+     "score": 0.587,
+     "slant_height": 140.9,
+     "style": {
+      "ink": [
+       108,
+       108,
+       108
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "昼間",
+     "box": [
+      19,
+      244,
+      150,
+      351
+     ],
+     "score": 0.933,
+     "slant_height": 70.6,
+     "style": {
+      "ink": [
+       107,
+       107,
+       107
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "SUNDAYE",
+     "box": [
+      106,
+      174,
+      293,
+      291
+     ],
+     "score": 0.793,
+     "slant_height": 70.6,
+     "style": {
+      "ink": [
+       109,
+       108,
+       108
+      ],
+      "light_on_dark": true
+     }
+    },
+    {
+     "text": "佐倉惣治郎",
+     "box": [
+      218,
+      643,
+      373,
+      717
+     ],
+     "score": 0.889,
+     "slant_height": 37.4,
+     "style": {
+      "ink": [
+       7,
+       7,
+       7
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "気をつける",
+     "box": [
+      749,
+      521,
+      890,
+      581
+     ],
+     "score": 0.998,
+     "slant_height": 35.5,
+     "style": {
+      "ink": [
+       13,
+       13,
+       12
+      ],
+      "light_on_dark": false
+     }
+    },
+    {
+     "text": "適当にやる",
+     "box": [
+      814,
+      631,
+      953,
+      677
+     ],
+     "score": 0.999,
+     "slant_height": 34.1,
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     }
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "昼間"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "気をつける"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "適当にやる"
+    },
+    {
+     "speaker": "佐倉惣治郎",
+     "kind": "dialogue",
+     "text": "というか…今度退学になったら、うちからも追い出すぞ？"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "区オート"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "回ログ"
+    }
+   ]
   }
  ]
 }

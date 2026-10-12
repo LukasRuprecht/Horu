@@ -219,20 +219,32 @@ def group_blocks(
 def _choices_follow(blocks: list[TextBlock]) -> list[TextBlock]:
     """Choices are offered as a stack of short lines; when one reads like something said
     (道を訊きたい), or they follow a question, the others that are phrases are dialogue too
-    (用は無い ends like a menu label would)."""
+    (用は無い ends like a menu label would). So are stacked phrases offered while someone
+    is speaking (気をつける／適当にやる under 佐倉惣治郎's line): menus don't come with a name
+    tag."""
     blocks = list(blocks)
+
+    def could_be_choice(block: TextBlock) -> bool:
+        return (
+            block.kind == "other"
+            and block.speaker is None
+            and len(block.lines) == 1
+            and not is_legend(block.text)
+            and _is_phrase(block.text)
+        )
+
+    if any(b.kind == "dialogue" and b.speaker for b in blocks):
+        offered = [i for i, b in enumerate(blocks) if could_be_choice(b)]
+        stack = [i for i in offered if any(j != i and _stacked(blocks[i].lines[0], blocks[j].lines[0]) for j in offered)]
+        for i in stack:
+            blocks[i] = replace(blocks[i], kind="dialogue")
     changed = True
     while changed:
         changed = False
         said = [b for b in blocks if b.kind == "dialogue" and b.speaker is None]
         for i, block in enumerate(blocks):
-            if (
-                block.kind == "other"
-                and block.speaker is None
-                and len(block.lines) == 1
-                and not is_legend(block.text)
-                and _is_phrase(block.text)
-                and any(_stacked(block.lines[0], other.lines[-1]) or _stacked(block.lines[0], other.lines[0]) for other in said)
+            if could_be_choice(block) and any(
+                _stacked(block.lines[0], other.lines[-1]) or _stacked(block.lines[0], other.lines[0]) for other in said
             ):
                 blocks[i] = replace(block, kind="dialogue")
                 changed = True

@@ -31,6 +31,8 @@ _RECENT_LINES = 20
 # A line read again is still a repeat when OCR reads it a little differently (１ for 1, 喜 for
 # 暮): up to one character in this many may differ. Short lines must match exactly.
 _REPEAT_SLACK = 10
+# A piece of a line already shown this long or longer is a repeat too.
+_PIECE_CHARS = 6
 # Earlier dialogue lines sent along with AI requests, so pronouns and names make sense.
 _CONTEXT_LINES = 4
 # Lines OCR read with less confidence than this (even after voting) are marked as possibly
@@ -385,6 +387,7 @@ class App:
         words = self._words(text)
         if line_id in self.lines:
             self.lines[line_id].update(text=text, words=words)
+            self.recent.append((text, line_id))  # read like this again, it's a repeat
         return words
 
     # --- AI ----------------------------------------------------------------------------
@@ -690,11 +693,12 @@ class App:
         lines = []
         for block in blocks:
             earlier = next((i for text, i in self.recent if _same_line(block.text, text)), None)
-            line = self._line(block, earlier is not None, game)
+            repeat = earlier is not None or _pieces_of(block.text, [text for text, _ in self.recent])
+            line = self._line(block, repeat, game)
             line["game"] = game
-            if earlier is None:
+            if not repeat:
                 self.recent.append((block.text, line["id"]))
-            elif self.lines.get(earlier, {}).get("translation"):
+            elif earlier is not None and self.lines.get(earlier, {}).get("translation"):
                 line["translation"] = self.lines[earlier]["translation"]  # shown with it, no new request
             if not auto:  # where it was, for drawing auto-read regions
                 box, size = autocapture.in_picture(block.box, picture)
@@ -1026,6 +1030,21 @@ def _same_line(a: str, b: str) -> bool:
         return True
     slack = min(len(a), len(b)) // _REPEAT_SLACK
     return slack > 0 and abs(len(a) - len(b)) <= slack and edit_distance(a, b) <= slack
+
+
+def _pieces_of(text: str, shown: list[str]) -> bool:
+    """`text` was shown already, read differently: in pieces that are now read whole (the
+    mouse pointer over a line split it), or as a piece of a longer line (the pointer covering
+    its end). Short pieces don't count: they turn up inside longer lines by chance."""
+    key = lambda t: unicodedata.normalize("NFKC", corrections.normalize(t))
+    text, shown = key(text), [key(t) for t in shown]
+    if len(text) >= _PIECE_CHARS and any(text in line for line in shown):
+        return True
+    for count in (2, 3):
+        for start in range(len(shown) - count + 1):
+            if _same_line(text, "".join(shown[start : start + count])):
+                return True
+    return False
 
 
 def _png(image, box: tuple[int, int, int, int], margin: int) -> bytes:

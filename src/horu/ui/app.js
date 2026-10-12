@@ -160,9 +160,10 @@ function renderLine(line) {
   text.lang = "ja";
   renderWords(line, text);
   row.append(meta, text);
-  if (line.kind === "dialogue" && state.ai.enabled) {
-    // Repeats were translated (or skipped) when first shown; translate them only on request.
-    row.append(translationRow(line, line.repeat ? { auto: false } : undefined));
+  if (state.ai.enabled) {
+    // Repeats were translated (or skipped) when first shown, and other text (menus, signs)
+    // isn't translated by itself: those only on request.
+    row.append(translationRow(line, line.repeat || line.kind !== "dialogue" ? { auto: false } : undefined));
   }
   return row;
 }
@@ -456,7 +457,7 @@ async function mark(line, row, label, part = "text") {
     const kindLabel = row.querySelector(".kind-label");
     if (kindLabel) kindLabel.remove();
     if (KIND_LABEL[line.kind]) row.querySelector(".spacer").before(el("span", "kind-label", KIND_LABEL[line.kind]));
-    if (line.kind === "dialogue" && state.ai.enabled && !row.querySelector(".translation")) {
+    if (state.ai.enabled && !row.querySelector(".translation")) {
       row.append(translationRow(line, { auto: false }));
     }
     horu.setStatus({ state: "ready", message: `Saved: "${line.text}" will be read as ${line.kind === "other" ? "other text" : "dialogue"} in ${line.game}.` });
