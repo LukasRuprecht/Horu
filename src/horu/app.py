@@ -9,6 +9,7 @@ import itertools
 import json
 import os
 import queue
+import re
 import sys
 import threading
 import time
@@ -21,7 +22,7 @@ from pathlib import Path
 from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.text_sources import rapidocr_source
-from horu.text_sources.vote import edit_distance
+from horu.text_sources.vote import _SIZES, edit_distance
 from horu.tutor import Line, Tutor
 
 UI_DIR = Path(__file__).parent / "ui"
@@ -29,8 +30,12 @@ UI_DIR = Path(__file__).parent / "ui"
 # hotkey presses on the same dialogue don't flood the history.
 _RECENT_LINES = 20
 # A line read again is still a repeat when OCR reads it a little differently (１ for 1, 喜 for
-# 暮): up to one character in this many may differ. Short lines must match exactly.
+# 暮): up to one character in this many may differ (at least one, from _SLACK_FROM characters
+# on). Shorter lines must match exactly.
 _REPEAT_SLACK = 10
+_SLACK_FROM = 6
+_FULL_SIZE = str.maketrans({small: big for big, small in _SIZES.items()})
+_JAPANESE_OR_DIGIT = re.compile(r"[぀-ヿ㐀-鿿々ー0-9]")
 # A piece of a line already shown this long or longer is a repeat too.
 _PIECE_CHARS = 6
 # Earlier dialogue lines sent along with AI requests, so pronouns and names make sense.
@@ -1024,20 +1029,35 @@ class App:
 
 
 def _same_line(a: str, b: str) -> bool:
-    """The same text, allowing for OCR noise (see _REPEAT_SLACK)."""
-    a, b = (unicodedata.normalize("NFKC", corrections.normalize(t)) for t in (a, b))
+    """The same text, allowing for OCR noise (see _REPEAT_SLACK). Compared again on the
+    Japanese alone, since button icons inside a line (Ⅰ・Ⓧ・Ⓨ・Ⅱにセット) read differently
+    every time: ・II, ・, 皿."""
+    a, b = _repeat_key(a), _repeat_key(b)
+    japanese = lambda t: "".join(_JAPANESE_OR_DIGIT.findall(t))
+    return _close(a, b) or _close(japanese(a), japanese(b))
+
+
+def _repeat_key(text: str) -> str:
+    """Text as compared for repeats: no spaces, one width, and small kana as full-size ones
+    (OCR reads ディ as デイ when the ィ is drawn large)."""
+    return unicodedata.normalize("NFKC", corrections.normalize(text)).translate(_FULL_SIZE)
+
+
+def _close(a: str, b: str) -> bool:
     if a == b:
         return True
-    slack = min(len(a), len(b)) // _REPEAT_SLACK
-    return slack > 0 and abs(len(a) - len(b)) <= slack and edit_distance(a, b) <= slack
+    shorter = min(len(a), len(b))
+    if shorter < _SLACK_FROM:
+        return False
+    slack = max(1, shorter // _REPEAT_SLACK)
+    return abs(len(a) - len(b)) <= slack and edit_distance(a, b) <= slack
 
 
 def _pieces_of(text: str, shown: list[str]) -> bool:
     """`text` was shown already, read differently: in pieces that are now read whole (the
     mouse pointer over a line split it), or as a piece of a longer line (the pointer covering
     its end). Short pieces don't count: they turn up inside longer lines by chance."""
-    key = lambda t: unicodedata.normalize("NFKC", corrections.normalize(t))
-    text, shown = key(text), [key(t) for t in shown]
+    text, shown = _repeat_key(text), [_repeat_key(t) for t in shown]
     if len(text) >= _PIECE_CHARS and any(text in line for line in shown):
         return True
     for count in (2, 3):

@@ -210,8 +210,13 @@ _STILL = 0.07
 _STILL_FRAMES = 2
 # How much two boxes must overlap (intersection over union) to be the same piece of text.
 _SAME_PLACE = 0.6
+# ...and how much a piece's box may shift between frames for it to count as still.
+_STILL_PLACE = 0.85
 # Frames after which text no longer on screen is forgotten: shown again later, it's new.
 _FORGET_FRAMES = 40
+_KNOWN_MAX = 200
+# Text this many of its line heights away from text still typing out is in the same box.
+_BESIDE = 1.5
 
 Detector = Callable[[np.ndarray], list[Pixels]]
 
@@ -290,30 +295,40 @@ class TextWatcher:
         for box in boxes:
             piece = _Text(box, _crop(stroke_map, box))
             before = max(self._current, key=lambda t: overlap(t.box, box), default=None)
-            if before is not None and overlap(before.box, box) >= _SAME_PLACE:
-                # Compared where it was, so a box found a pixel wider isn't a change.
+            if before is not None and overlap(before.box, box) >= _STILL_PLACE:
+                # Compared where it was, so a box found a pixel wider isn't a change. (A line
+                # typing out grows: its box moves on more than that.)
                 if difference(_crop(stroke_map, before.box), before.strokes) <= _STILL:
                     piece.still = before.still + 1
             current.append(piece)
         self._current = current
 
-        new = False
+        # Text that has settled and wasn't there before (or looked different). Any version of
+        # it seen lately counts: Navi flying over a line changes it, and it comes back as it was.
+        new = []
         for piece in current:
             if piece.still < _STILL_FRAMES:
                 continue
-            known = max(self._known, key=lambda t: overlap(t.box, piece.box), default=None)
-            if (
-                known is not None
-                and overlap(known.box, piece.box) >= _SAME_PLACE
-                and difference(_crop(stroke_map, known.box), known.strokes) <= _CHANGED
-            ):
-                known.seen = self._frame
-                continue
-            new = True
-            self._known = [t for t in self._known if overlap(t.box, piece.box) < _SAME_PLACE]
-            self._known.append(_Text(piece.box, piece.strokes, seen=self._frame))
-        self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES]
-        return new
+            versions = [t for t in self._known if overlap(t.box, piece.box) >= _SAME_PLACE]
+            matches = [t for t in versions if difference(_crop(stroke_map, t.box), t.strokes) <= _CHANGED]
+            for t in matches:
+                t.seen = self._frame
+            if not matches:
+                new.append(piece)
+        # Wait while text beside it is still changing: the rest of the box typing out.
+        typing = [t for t in current if t.still < _STILL_FRAMES]
+        if not new or any(_beside(t.box, n.box) for t in typing for n in new):
+            self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES]
+            return False
+        self._known += [_Text(n.box, n.strokes, seen=self._frame) for n in new]
+        self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES][-_KNOWN_MAX:]
+        return True
+
+
+def _beside(a: Pixels, b: Pixels) -> bool:
+    """Close enough to be in one text box: within a line height or so of each other."""
+    reach = max(a[3] - a[1], b[3] - b[1]) * _BESIDE
+    return a[0] - reach < b[2] and b[0] - reach < a[2] and a[1] - reach < b[3] and b[1] - reach < a[3]
 
 
 def _crop(stroke_map: np.ndarray, box: Pixels) -> np.ndarray:

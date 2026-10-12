@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import pytest
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from horu import autocapture
 from horu.autocapture import DialogueBoxes, Region, TextWatcher
@@ -106,3 +106,47 @@ def test_a_region_follows_the_picture_when_the_window_is_resized(tmp_path):
 def test_boxes_from_before_regions_are_dropped(tmp_path):
     (tmp_path / "boxes.json").write_text('{"azahar.exe": {"frame": "picture", "seen": [{"box": [0.2, 0.6, 0.6, 0.8], "line": 0.06}]}}')
     assert DialogueBoxes(tmp_path / "boxes.json").regions("azahar.exe", (400, 240)) == []
+
+
+class Drawn:
+    """Frames of a 320-wide dialogue box with lines of text drawn in it, and a stand-in
+    detector that finds those lines."""
+
+    def __init__(self):
+        self.boxes = []
+        self.font = ImageFont.load_default(size=16)
+
+    def frame(self, lines: list[str], cover: tuple[int, int, int, int] | None = None) -> Image.Image:
+        image = Image.new("RGB", (320, 180), (30, 40, 60))
+        draw = ImageDraw.Draw(image)
+        self.boxes = []
+        for i, text in enumerate(lines):
+            if text:
+                draw.text((20, 100 + 22 * i), text, fill=(240, 240, 240), font=self.font)
+                self.boxes.append(tuple(int(v) for v in draw.textbbox((20, 100 + 22 * i), text, font=self.font)))
+        if cover:
+            draw.ellipse(cover, fill=(200, 200, 255))  # a fairy flying over the text
+        return image
+
+    def detect(self, pixels):
+        return list(self.boxes)
+
+
+def test_a_box_is_read_once_it_has_finished_typing_out():
+    # Ocarina of Time: the first lines settle while the last is still typing out; reading
+    # then gave a line per character typed.
+    drawn = Drawn()
+    watcher = TextWatcher(drawn.detect)
+    first, second = "Din's Fire obtained!", "Set it to a button"
+    frames = [[first, second, "A dome"], [first, second, "A dome of"], [first, second, "A dome of fla"],
+              [first, second, "A dome of flame!"], [first, second, "A dome of flame!"], [first, second, "A dome of flame!"]]
+    assert [i for i, lines in enumerate(frames) if watcher.update(drawn.frame(lines))] == [5]
+
+
+def test_text_coming_back_after_something_passed_over_it_is_not_new():
+    drawn = Drawn()
+    watcher = TextWatcher(drawn.detect)
+    lines = ["Din's Fire obtained!", "A dome of flame!"]
+    covered = [drawn.frame(lines, cover=(30, 95, 70, 125))] * 4  # Navi hovers over the first line
+    reads = [watcher.update(f) for f in [drawn.frame(lines)] * 3 + covered + [drawn.frame(lines)] * 4]
+    assert reads.count(True) <= 2 and not any(reads[7:])  # not again once she's gone

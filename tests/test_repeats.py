@@ -22,3 +22,13 @@ def test_a_line_read_in_pieces_and_then_whole_is_a_repeat():
     # A short piece is not enough, and new text isn't a repeat.
     assert not _pieces_of("はい", ["はいはい、わかったよ。"])
     assert not _pieces_of("ルブランという店にいるらしい。", shown)
+
+
+def test_button_icons_and_one_misread_character_dont_make_a_line_new():
+    # Ocarina of Time: Ⅰ・Ⓧ・Ⓨ・Ⅱにセットして使う, read differently on each auto read.
+    assert _same_line("・Ⅱ にセットして使う", "・にセットして使う")
+    assert _same_line("・皿にセットして使う", "・II にセットして使う")
+    assert _same_line("ディンの炎を　手に入れた！", "ディンの炎を一手に入れた！")
+    # Different lines still are.
+    assert not _same_line("炎のドームの　攻撃魔法！", "ディンの炎を　手に入れた！")
+    assert _same_line("インの炎を　手に入れた！", "ディンの炎を　手に入れた！")  # ディ read as イ
