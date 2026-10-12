@@ -13,6 +13,7 @@ config.toml
 # Runtime data
 captures/
 data/
+debug/
 
 # Editors / OS
 .vscode/

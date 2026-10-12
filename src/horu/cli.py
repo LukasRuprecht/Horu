@@ -103,6 +103,15 @@ def cmd_reset_learned() -> None:
     print("Restart Horu if it's running: it would save what it still remembers when it next learns something.")
 
 
+def cmd_add_screen(bundle: Path, fixture: Path, name: str) -> None:
+    from horu import debug_bundle
+
+    entry = debug_bundle.add_to_fixture(bundle, fixture, name)
+    print(f"Added {name!r} to {fixture}. Horu made these blocks of it; correct any that are wrong there:")
+    for block in entry["expected"]:
+        print(f"  {block['kind']}: {block['speaker'] + ': ' if block['speaker'] else ''}{block['text']}")
+
+
 def cmd_monitors() -> None:
     for i, m in enumerate(capture.list_monitors()):
         label = "all monitors" if i == 0 else f"monitor {i}"
@@ -138,6 +147,10 @@ def main() -> None:
         "reset-learned",
         help="forget speaker names, auto-read regions, and line corrections (keeps settings, dictionary, API keys)",
     )
+    add_screen = sub.add_parser("add-screen", help="add a debug bundle's screen to a regression fixture (for developers)")
+    add_screen.add_argument("bundle", type=Path, help="a horu-debug-*.zip")
+    add_screen.add_argument("fixture", type=Path, help="e.g. tests/fixtures/other_games.json")
+    add_screen.add_argument("name", help="the screen's name in the fixture, e.g. vn_name_box")
     args = parser.parse_args()
 
     if args.command == "monitors":
@@ -148,6 +161,12 @@ def main() -> None:
         return
     if args.command == "reset-learned":
         cmd_reset_learned()
+        return
+    if args.command == "add-screen":
+        try:
+            cmd_add_screen(args.bundle, args.fixture, args.name)
+        except (OSError, KeyError, ValueError) as e:
+            sys.exit(str(e))
         return
 
     try:

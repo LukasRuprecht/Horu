@@ -230,6 +230,9 @@ function openLineMenu(anchor, line, row) {
   if (line.capture) {
     items.push(["Set auto-read regions…", () => openRegionEditor(line)]);
   }
+  if (line.captureId) {
+    items.push(["Save debug bundle…", () => openBundleDialog(line)]);
+  }
   lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
     closeLineMenu();
     action();
@@ -438,6 +441,38 @@ $("#region-save").addEventListener("click", async () => {
   const result = await api().save_regions(editor.line.id, regions);
   horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
   if (result.ok) closeRegionEditor();
+});
+
+// --- Debug bundles: a capture and what Horu made of it, for bug reports ------------------
+
+const bundleDialog = $("#bundle-dialog");
+
+function openBundleDialog(line) {
+  closePopover();
+  toggleSettings(false);
+  bundleDialog.lineId = line ? line.id : null;
+  $("#bundle-what").textContent = line
+    ? `Saves the capture with 「${line.text.slice(0, 20)}${line.text.length > 20 ? "…" : ""}」 in it.`
+    : "Saves your last capture, even one where Horu found no text.";
+  $("#bundle-note").value = "";
+  bundleDialog.hidden = false;
+  $("#bundle-note").focus();
+}
+
+function closeBundleDialog() {
+  bundleDialog.hidden = true;
+}
+
+$("#bundle-last").addEventListener("click", () => openBundleDialog(null));
+$("#bundle-cancel").addEventListener("click", closeBundleDialog);
+$("#bundle-close").addEventListener("click", closeBundleDialog);
+bundleDialog.addEventListener("click", (e) => {
+  if (e.target === bundleDialog) closeBundleDialog();
+});
+$("#bundle-save").addEventListener("click", async () => {
+  const result = await api().save_debug_bundle(bundleDialog.lineId, $("#bundle-note").value);
+  horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
+  closeBundleDialog();
 });
 
 function editSpeakerEnglish(line) {
@@ -1264,6 +1299,7 @@ document.addEventListener("keydown", (e) => {
     closeLineMenu();
     toggleSettings(false);
     closeRegionEditor();
+    closeBundleDialog();
   }
 });
 linesEl.addEventListener("scroll", () => {

@@ -548,4 +548,6 @@ def _otsu(values: np.ndarray) -> float:
         mean0 = sum0 / weight0
         mean1 = (sum0[-1] - sum0) / weight1
         between = weight0 * weight1 * (mean0 - mean1) ** 2
+    if np.isnan(between).all():  # one flat colour: nothing to separate
+        return float(values.max())
     return float(np.nanargmax(between))

@@ -10,6 +10,7 @@ import json
 import os
 import queue
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -19,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
+from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
 from horu.nlp import analyze
 from horu.text_sources import rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -53,6 +54,8 @@ _WATCH_SECONDS = 0.25
 # Hotkey captures whose game picture is kept, for drawing auto-read regions on.
 _PICTURES_KEPT = 10
 _PICTURE_MAX_WIDTH = 1280
+# Captures kept whole (screenshot and OCR lines), for saving as a debug bundle.
+_BUNDLES_KEPT = 5
 
 
 @dataclasses.dataclass
@@ -166,6 +169,9 @@ class Api:
     def make_cards(self, line_id: int, session: int) -> None:
         self._app.make_cards(line_id, session)
 
+    def save_debug_bundle(self, line_id: int | None, note: str = "") -> dict:
+        return self._app.save_debug_bundle(line_id, note)
+
     def clear(self) -> None:
         self._app.recent.clear()
         self._app.lines.clear()
@@ -186,6 +192,7 @@ class App:
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
         self._last_auto: dict[str, tuple[int, str]] = {}  # region -> (line id, text) of the last line read there
         self._captured_pictures: OrderedDict[int, tuple[bytes, tuple[int, int], str]] = OrderedDict()  # capture id -> (JPEG, picture size, game)
+        self._kept_captures: OrderedDict[int, debug_bundle.Capture] = OrderedDict()  # capture id -> the capture, for debug bundles
         self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
         self.anki = anki.AnkiClient()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
@@ -679,7 +686,14 @@ class App:
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
         hints = dataclasses.replace(self.corrections.hints(game), known_speakers=self.speakers.known(game))
-        blocks = layout.group_blocks(self._source.read(image), image, hints=hints)
+        read = self._source.read(image)
+        blocks = layout.group_blocks(read, image, hints=hints)
+        capture_id = next(self._capture_ids)
+        kept = debug_bundle.Capture(image, read, game, auto, hints)
+        if not auto or blocks:  # auto-capture also fires on boxes emptying: nothing to report there
+            self._kept_captures[capture_id] = kept
+            while len(self._kept_captures) > _BUNDLES_KEPT:
+                self._kept_captures.popitem(last=False)
         # Correct misread name tags against names already seen in this game.
         blocks = [
             dataclasses.replace(b, speaker=self.speakers.resolve(game, b.speaker, b.speaker_score)) if b.speaker else b
@@ -694,13 +708,12 @@ class App:
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
-        capture_id = next(self._capture_ids)
         lines = []
         for block in blocks:
             earlier = next((i for text, i in self.recent if _same_line(block.text, text)), None)
             repeat = earlier is not None or _pieces_of(block.text, [text for text, _ in self.recent])
             line = self._line(block, repeat, game)
-            line["game"] = game
+            line["game"], line["captureId"] = game, capture_id
             if not repeat:
                 self.recent.append((block.text, line["id"]))
             elif earlier is not None and self.lines.get(earlier, {}).get("translation"):
@@ -711,6 +724,7 @@ class App:
             if line["speaker"]:
                 line["speaker"]["english"] = self.speaker_english(game, block.speaker)
             lines.append(line)
+        kept.shown = lines
         new = [l for l in lines if not l["repeat"]]
         if auto and not new:
             return  # an empty box, or text already shown: nothing to say
@@ -889,6 +903,32 @@ class App:
         if not self.prefs.values["autoCapture"]:
             return {"ok": True, "message": f"Saved. Turn on auto-capture (the eye button) to read {game} by itself."}
         return {"ok": True, "message": f"Auto-capture is watching {len(cleaned)} region(s) in {game}."}
+
+    # --- debug bundles ----------------------------------------------------------------
+
+    def save_debug_bundle(self, line_id: int | None, note: str = "") -> dict:
+        """Save the capture `line_id` came from (or the last capture) as a debug bundle, and
+        show it in Explorer."""
+        if line_id is None:
+            capture_id = next(reversed(self._kept_captures), None)
+        else:
+            capture_id = self.lines.get(line_id, {}).get("captureId")
+        kept = self._kept_captures.get(capture_id)
+        if kept is None:
+            if line_id is None:
+                return {"ok": False, "message": "Nothing captured yet. Capture the screen with the problem, then try again."}
+            return {"ok": False, "message": f"Only the last {_BUNDLES_KEPT} captures are kept. Capture the screen again, then try again."}
+        settings = {
+            "capture_mode": self.cfg.capture.mode,
+            "ocr_engine": self.cfg.ocr_engine,
+            "config_ai_provider": self.cfg.ai.provider,
+            # Not the server address: it can hold a private host or a token.
+            "prefs": {k: v for k, v in self.prefs.values.items() if k != "aiBaseUrl"},
+        }
+        path = debug_bundle.save(kept, note.strip(), settings)
+        if sys.platform == "win32":
+            subprocess.Popen(["explorer", "/select,", str(path.resolve())])
+        return {"ok": True, "message": f"Saved {path}. Look at the screenshot in it before sharing.", "path": str(path.resolve())}
 
     # --- fixing misread lines --------------------------------------------------------
 

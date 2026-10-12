@@ -742,6 +742,19 @@ body.no-furigana .settings .preview rt { display: revert; }
 .modal-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
 .modal-hint { margin: 8px 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .modal-hint[hidden] { display: none; }
+.modal-box.narrow { width: min(460px, 100%); }
+.modal-text {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+.check-hint.flush { margin-left: 0; }
 .modal-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .modal-actions .spacer { flex: 1; }
 .line-btn.primary { border-color: var(--accent); color: var(--accent); }

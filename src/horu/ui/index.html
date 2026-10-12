@@ -64,6 +64,13 @@
       stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's HUD keeps
       changing, limit it to parts of the picture: open a line's ⋯ menu and pick "Set auto-read regions".</p>
 
+    <h2>Problems</h2>
+    <div class="test-row">
+      <button id="bundle-last" type="button">Save a debug bundle of the last capture…</button>
+    </div>
+    <p class="check-hint flush">When Horu reads a screen wrongly: a zip with the screenshot and what Horu made
+      of it, to attach to a bug report. A line's ⋯ menu saves the capture that line came from.</p>
+
     <h2>Anki</h2>
     <label class="field">
       <span>Deck for new cards</span>
@@ -182,6 +189,25 @@
         <span class="spacer"></span>
         <button id="region-cancel" class="line-btn" type="button">Cancel</button>
         <button id="region-save" class="line-btn primary" type="button">Save</button>
+      </footer>
+    </section>
+  </div>
+
+  <div id="bundle-dialog" class="modal" hidden>
+    <section class="modal-box narrow" role="dialog" aria-labelledby="bundle-title">
+      <header class="modal-head">
+        <h2 id="bundle-title">Save a debug bundle</h2>
+        <button id="bundle-close" class="pop-close" type="button" title="Close">×</button>
+      </header>
+      <p id="bundle-what" class="modal-hint"></p>
+      <textarea id="bundle-note" class="modal-text" rows="4"
+        placeholder="What went wrong? e.g. the name tag was shown as dialogue, or a line is missing"></textarea>
+      <p class="modal-hint">The bundle holds the screenshot, the text Horu read, and how it grouped it.
+        No API keys. The screenshot shows whatever was on screen, so look at it before sharing.</p>
+      <footer class="modal-actions">
+        <span class="spacer"></span>
+        <button id="bundle-cancel" class="line-btn" type="button">Cancel</button>
+        <button id="bundle-save" class="line-btn primary" type="button">Save</button>
       </footer>
     </section>
   </div>
