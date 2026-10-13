@@ -449,6 +449,8 @@ let recordingHotkey = false;
 
 function showHotkey(info, message, ok = true) {
   $("#hotkey-name").textContent = info.name;
+  $("#hotkey-chip").textContent = info.error ? "" : info.name;
+  $("#welcome-hotkey").textContent = info.name;
   const status = $("#hotkey-status");
   status.textContent = message || (info.error ? `${info.error} Choose another.` : "Works while your game is in front.");
   status.classList.toggle("error", !ok || (!message && Boolean(info.error)));
@@ -883,26 +885,55 @@ function openPopover(wordEl) {
   const body = el("div", "pop-body");
   body.append(el("p", "pop-note", "Looking up..."));
   const actions = el("div", "pop-actions");
-  actions.append(button("pop-action", "Explain in context", () => explainWord(line, index, part)));
-  const save = button("pop-action secondary", "Add to Anki", async () => {
-    save.disabled = true;
-    save.textContent = state.ai.enabled ? "Writing card..." : "Adding...";
-    const result = await api().save_card(line.id, index, part);
-    save.textContent = result.ok ? "Added" : "Add to Anki";
-    save.disabled = result.ok;
-    if (!result.ok) body.append(el("p", "pop-note error", result.message));
-    else {
-      horu.setStatus({ state: "ready", message: result.message });
-      horu.cardsAdded({ lineId: line.id, words: [word.dictionary_form] });
-    }
-    positionPopover(wordEl);
-  });
-  actions.append(save);
+  actions.append(button("pop-action secondary", "Explain in context", () => explainWord(line, index, part)));
+  actions.append(saveControl(line, index, part, word, body, wordEl));
   popover.append(body, actions);
   popover.hidden = false;
   positionPopover(wordEl);
 
   showLookup(word, body, wordEl);
+}
+
+// Save keeps the word in Horu for the Study tab. Anki users get "Add to Anki", with a ▾ to
+// save it in Horu instead.
+function saveControl(line, index, part, word, body, wordEl) {
+  const run = async (target, label, busy, done, call) => {
+    target.disabled = true;
+    target.textContent = state.ai.enabled ? "Writing card..." : busy;
+    const result = await call();
+    target.textContent = result.ok ? done : label;
+    target.disabled = result.ok;
+    target.classList.toggle("done", result.ok);
+    if (!result.ok) body.append(el("p", "pop-note error", result.message));
+    else horu.setStatus({ state: "ready", message: result.message });
+    positionPopover(wordEl);
+    return result;
+  };
+  const saveInHoru = (target, label) => run(target, label, "Saving...", "Saved", async () => {
+    const result = await api().save_word(line.id, index, part);
+    if (result.ok) refreshCounts();
+    return result;
+  });
+  if (state.prefs.studyWith !== "anki") {
+    const save = button("pop-action primary", "Save", () => saveInHoru(save, "Save"), "Keep this word, with this line and screenshot, for the Study tab");
+    return save;
+  }
+  const split = el("div", "split");
+  const add = button("pop-action primary", "Add to Anki", () => run(add, "Add to Anki", "Adding...", "Added", async () => {
+    const result = await api().save_card(line.id, index, part);
+    if (result.ok) horu.cardsAdded({ lineId: line.id, words: [word.dictionary_form] });
+    return result;
+  }));
+  const menu = el("div", "split-menu");
+  menu.hidden = true;
+  const more = button("pop-action primary more-btn", "▾", () => { menu.hidden = !menu.hidden; }, "More ways to save");
+  menu.append(button("menu-item", "Save in Horu instead", () => {
+    menu.hidden = true;
+    saveInHoru(add, "Add to Anki");
+    more.disabled = true;
+  }));
+  split.append(add, more, menu);
+  return split;
 }
 
 function showLookup(word, body, wordEl) {
@@ -945,6 +976,11 @@ function popoverHeader(word, wordEl) {
 
   const chips = el("div", "chips");
   chips.append(el("span", `chip pos pos-${word.pos}`, POS_LABEL[word.pos] || word.pos));
+  if (word.jlpt) {
+    const level = el("span", "chip jlpt", `N${word.jlpt}`);
+    level.title = `On the JLPT N${word.jlpt} vocabulary list`;
+    chips.append(level);
+  }
   for (const note of word.grammar) chips.append(el("span", "chip grammar", note));
   nodes.push(chips);
 
@@ -1085,6 +1121,8 @@ const FIELDS = [
   ["#learner-level", "learnerLevel", ""],
   ["#hook-source", "hookSource", ""],
   ["#hook-url", "hookUrl", "ws://127.0.0.1:6677"],
+  ["#study-with", "studyWith", "horu"],
+  ["#new-per-day", "newPerDay", 10],
 ];
 
 function applyFields() {
@@ -1096,13 +1134,15 @@ function applyFields() {
   }
   document.body.classList.toggle("blur-translations", state.prefs.blurTranslations ?? true);
   $("#hook-url-row").hidden = state.prefs.hookSource !== "websocket";
+  $("#study-with").value = state.prefs.studyWith || "horu"; // "": not chosen yet, which works like Horu
 }
 
 for (const [selector, key] of FIELDS) {
   const input = $(selector);
   input.addEventListener("change", () => {
-    setPref(key, input.type === "checkbox" ? input.checked : input.value.trim());
+    setPref(key, input.type === "checkbox" ? input.checked : input.type === "number" ? Number(input.value) : input.value.trim());
     applyFields();
+    if (key === "studyWith" || key === "newPerDay") refreshCounts();
   });
 }
 
@@ -1307,6 +1347,7 @@ function startPull(name) {
 }
 
 function applyAllPrefs() {
+  applyTheme();
   applyDisplay();
   applyFields();
   for (const key of Object.keys(TOGGLES)) applyToggle(key);
@@ -1328,14 +1369,10 @@ $("#reset-display").addEventListener("click", () => {
 });
 
 function toggleSettings(open) {
-  settings.hidden = !open;
-  $("#open-settings").setAttribute("aria-pressed", String(open));
-  if (open) {
-    closePopover();
-    if (api()) checkAnki();
-  }
+  if (open) showView("settings");
+  else if (state.view === "settings") showView(state.lastView);
 }
-$("#open-settings").addEventListener("click", () => toggleSettings(settings.hidden));
+$("#open-settings").addEventListener("click", () => toggleSettings(state.view !== "settings"));
 
 $("#clear").addEventListener("click", () => {
   closePopover();
@@ -1356,15 +1393,16 @@ linesEl.addEventListener("click", (e) => {
 document.addEventListener("mousedown", (e) => {
   if (!popover.hidden && !popover.contains(e.target) && !e.target.closest("button.word")) closePopover();
   if (!lineMenu.hidden && !lineMenu.contains(e.target)) closeLineMenu();
-  if (!settings.hidden && !settings.contains(e.target) && !e.target.closest("#open-settings")) toggleSettings(false);
+  if (!e.target.closest(".split")) popover.querySelectorAll(".split-menu").forEach((m) => { m.hidden = true; });
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    const open = !popover.hidden || !lineMenu.hidden || !regionEditor.hidden || !bundleDialog.hidden;
     closePopover();
     closeLineMenu();
-    toggleSettings(false);
     closeRegionEditor();
     closeBundleDialog();
+    if (!open) toggleSettings(false);
   }
 });
 linesEl.addEventListener("scroll", () => {
@@ -1390,14 +1428,435 @@ async function loadFromPython() {
   horu.setHookState(await api().hook_state());
   showHotkey(await api().hotkey_info());
   applyAllPrefs();
+  if (!state.prefs.welcomeDone) openWelcome();
   horu.setAI(await api().ai_info());
   await loadAISettings();
+  refreshCounts();
 }
 
-applyAllPrefs();
-applyAI();
-if (api()) loadFromPython();
-else window.addEventListener("pywebviewready", loadFromPython, { once: true });
+
+// --- Look: colours and light or dark ---------------------------------------------------
+
+const systemLight = window.matchMedia("(prefers-color-scheme: light)");
+
+function applyTheme() {
+  const palette = state.prefs.theme || "horu";
+  const mode = state.prefs.colorMode || "system";
+  const root = document.documentElement;
+  root.dataset.palette = palette;
+  root.dataset.mode = mode === "system" ? (systemLight.matches ? "light" : "dark") : mode;
+  for (const b of document.querySelectorAll("#theme-picker [data-theme]")) b.setAttribute("aria-checked", String(b.dataset.theme === palette));
+  for (const b of document.querySelectorAll("#mode-picker [data-mode]")) b.setAttribute("aria-checked", String(b.dataset.mode === mode));
+}
+systemLight.addEventListener("change", applyTheme);
+for (const b of document.querySelectorAll("#theme-picker [data-theme]")) {
+  b.addEventListener("click", () => { setPref("theme", b.dataset.theme); applyTheme(); });
+}
+for (const b of document.querySelectorAll("#mode-picker [data-mode]")) {
+  b.addEventListener("click", () => { setPref("colorMode", b.dataset.mode); applyTheme(); });
+}
+
+// --- Tabs: Read, Words, Study, and the Settings page ------------------------------------
+
+const VIEWS = { read: "#view-read", words: "#view-words", study: "#view-study", settings: "#settings" };
+state.view = "read";
+state.lastView = "read"; // the tab to go back to when Settings closes
+
+function showView(name) {
+  if (name !== "settings") state.lastView = name;
+  state.view = name;
+  for (const [view, selector] of Object.entries(VIEWS)) $(selector).hidden = view !== name;
+  for (const tab of document.querySelectorAll(".tab")) tab.setAttribute("aria-selected", String(tab.dataset.view === name));
+  $("#open-settings").setAttribute("aria-pressed", String(name === "settings"));
+  closePopover();
+  closeLineMenu();
+  if (name !== "read") closeTutor();
+  if (name === "words") loadWords();
+  if (name === "study") loadStudy();
+  if (name === "settings" && api()) checkAnki();
+}
+for (const tab of document.querySelectorAll(".tab")) tab.addEventListener("click", () => showView(tab.dataset.view));
+
+for (const b of document.querySelectorAll(".settings-nav [data-pane]")) {
+  b.addEventListener("click", () => showPane(b.dataset.pane));
+}
+function showPane(name) {
+  for (const b of document.querySelectorAll(".settings-nav [data-pane]")) b.setAttribute("aria-current", String(b.dataset.pane === name));
+  for (const pane of document.querySelectorAll(".pane")) pane.hidden = pane.dataset.pane !== name;
+  $(".settings-panes").scrollTop = 0;
+}
+
+// The Study tab's count: reviews due plus new words left today.
+async function refreshCounts() {
+  if (!api()) return;
+  const s = await api().study_summary();
+  const count = s.due + s.new;
+  $("#due-count").textContent = count;
+  $("#due-count").hidden = count === 0;
+  if (state.view === "study" && $("#review").hidden && $("#review-done").hidden) renderStudy(s);
+}
+
+// --- Words: everything saved, with the line it came from ---------------------------------
+
+const wordFilter = { query: "", game: "", status: "" };
+let wordSearchTimer = null;
+
+$("#word-search").addEventListener("input", () => {
+  clearTimeout(wordSearchTimer);
+  wordSearchTimer = setTimeout(() => { wordFilter.query = $("#word-search").value; loadWords(); }, 200);
+});
+
+async function loadWords() {
+  if (!api()) return;
+  const { words, games } = await api().saved_words(wordFilter.query, wordFilter.game, wordFilter.status);
+  renderWordFilters(games);
+  const list = $("#word-list");
+  list.replaceChildren(...words.map(wordRow));
+  const filtered = wordFilter.query || wordFilter.game || wordFilter.status;
+  $("#words-empty").hidden = words.length > 0 || filtered;
+  $("#words-total").textContent = words.length === 1 ? "1 word" : `${words.length} words`;
+  if (!words.length && filtered) $("#words-total").textContent = "No words match.";
+  const toAnki = $("#words-to-anki");
+  toAnki.hidden = state.prefs.studyWith !== "anki" || !words.length;
+  toAnki.textContent = filtered ? "Add these to Anki" : "Add all to Anki";
+  toAnki.disabled = false;
+  toAnki.onclick = async () => {
+    toAnki.disabled = true;
+    toAnki.textContent = "Adding...";
+    const result = await api().words_to_anki(words.map((w) => w.id));
+    toAnki.textContent = result.ok ? "Added" : "Add to Anki";
+    horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
+  };
+}
+
+function renderWordFilters(games) {
+  const box = $("#word-filters");
+  const chip = (label, key, value) => {
+    const b = button(null, label, () => { wordFilter[key] = value; loadWords(); });
+    b.setAttribute("aria-pressed", String(wordFilter[key] === value));
+    return b;
+  };
+  const nodes = [chip("All games", "game", "")];
+  if (games.length > 1) nodes.push(...games.map((g) => chip(gameName(g), "game", g)));
+  nodes.push(el("span", "divider"), chip("Any", "status", ""), chip("New", "status", "new"), chip("Learning", "status", "learning"), chip("Known", "status", "known"));
+  box.replaceChildren(...nodes);
+}
+
+function gameName(game) {
+  return (game || "Unknown game").replace(/\.exe$/i, "");
+}
+
+const STATUS_LABEL = { new: "New", learning: "Learning", known: "Known" };
+
+function wordRow(w) {
+  const row = el("div", "word-row");
+  const head = el("div", "word-row-head");
+  head.lang = "ja";
+  head.append(el("b", null, w.word));
+  if (w.reading && w.reading !== w.word) head.append(el("span", "kana", w.reading));
+  if (w.jlpt) head.append(el("span", "jlpt-tag", `N${w.jlpt}`));
+  const side = el("div", "word-side");
+  side.append(el("span", `status-pill ${w.status}`, STATUS_LABEL[w.status]));
+  const remove = button("word-remove", "Remove", () => {
+    if (remove.dataset.armed) {
+      api().remove_word(w.id).then(() => { loadWords(); refreshCounts(); });
+      return;
+    }
+    remove.dataset.armed = "1";
+    remove.textContent = "Remove for good?";
+    setTimeout(() => { delete remove.dataset.armed; remove.textContent = "Remove"; }, 3000);
+  }, "Remove this word and its review history");
+  side.append(remove);
+  row.append(head, side, el("div", "meaning", w.meaning || ""));
+  if (w.sentence) {
+    const context = el("div", "context");
+    context.lang = "ja";
+    if (w.speaker) context.append(`${w.speaker} · `);
+    context.append(...markedSentence(w.sentence, w.surface || w.word), ` · ${gameName(w.game)}`);
+    row.append(context);
+  }
+  return row;
+}
+
+// The sentence with the word marked (its first appearance).
+function markedSentence(sentence, surface) {
+  const at = surface ? sentence.indexOf(surface) : -1;
+  if (at < 0) return [sentence];
+  return [sentence.slice(0, at), el("mark", null, surface), sentence.slice(at + surface.length)];
+}
+
+// --- Study: today, and reviews ------------------------------------------------------------
+
+const review = { card: null, done: 0, total: 0 };
+
+async function loadStudy() {
+  if (!api()) return;
+  $("#study-home").hidden = false;
+  $("#review").hidden = true;
+  $("#review-done").hidden = true;
+  renderStudy(await api().study_summary());
+}
+
+function renderStudy(s) {
+  $("#num-due").textContent = s.due;
+  $("#num-new").textContent = s.new;
+  $("#num-saved").textContent = s.saved;
+  const streak = $("#streak");
+  streak.replaceChildren();
+  if (s.streak) streak.append(el("span", "streak-dot", s.streak), el("span", null, "day streak"));
+  $("#num-due").parentElement.classList.toggle("due", s.due > 0);
+  const most = Math.max(1, ...s.week.map((d) => d.reviews));
+  $("#week").replaceChildren(...s.week.map((d, i) => {
+    const day = el("div", i === 6 ? "day is-today" : "day");
+    const bar = el("i", "week-bar");
+    bar.style.height = `${Math.max(3, Math.round((d.reviews / most) * 52))}px`;
+    day.title = `${d.reviews} ${d.reviews === 1 ? "review" : "reviews"}`;
+    day.append(bar, d.day.slice(0, 2));
+    return day;
+  }));
+  const cards = s.due + s.new;
+  const start = $("#start-review");
+  start.disabled = cards === 0;
+  start.textContent = cards ? `Start review · ${cards} ${cards === 1 ? "card" : "cards"}` : "Nothing to review";
+  review.total = cards;
+  const note = $("#study-note");
+  if (!s.saved) note.textContent = "Save words from the Read tab (click a word, then Save) to study them here.";
+  else if (!cards) note.textContent = s.reviewedToday ? `All done for today: ${s.reviewedToday} ${s.reviewedToday === 1 ? "review" : "reviews"}.` : "Nothing due today.";
+  else note.textContent = "";
+
+  const anki = s.anki;
+  $("#anki-study").hidden = !anki;
+  if (anki) {
+    $("#anki-due").textContent = anki.connected
+      ? `${anki.due} due, ${anki.new} new in ${anki.deck}`
+      : "Not connected. Open Anki to see your deck.";
+    $("#review-in-anki").disabled = !anki.connected;
+  }
+
+  $("#study-games").replaceChildren(...s.games.map((g) => {
+    const row = el("div", "game");
+    const icon = el("div", "game-icon", gameName(g.game).slice(0, 2).toUpperCase());
+    const info = el("div");
+    const bar = el("div", "progress");
+    const fill = el("i");
+    fill.style.width = `${Math.round((100 * g.known) / Math.max(1, g.words))}%`;
+    bar.append(fill);
+    info.append(gameName(g.game), el("small", null, `${g.words} ${g.words === 1 ? "word" : "words"} · ${g.known} known`), bar);
+    row.append(icon, info, el("span", "due-chip", `${g.due} due`));
+    return row;
+  }));
+}
+
+$("#start-review").addEventListener("click", async () => {
+  review.done = 0;
+  showCard(await api().next_review());
+});
+$("#review-in-anki").addEventListener("click", async () => {
+  const result = await api().review_in_anki();
+  if (!result.ok) horu.setStatus({ state: "error", message: result.message });
+});
+$("#end-review").addEventListener("click", loadStudy);
+$("#review-back").addEventListener("click", loadStudy);
+$("#show-answer").addEventListener("click", showAnswer);
+for (const b of document.querySelectorAll("#grades [data-rating]")) {
+  b.addEventListener("click", () => answerCard(b.dataset.rating));
+}
+document.addEventListener("keydown", (e) => {
+  if (state.view !== "study" || $("#review").hidden || (e.target instanceof Element && e.target.closest("input, textarea, select"))) return;
+  if ((e.key === " " || e.key === "Enter") && !$("#show-answer").hidden) {
+    e.preventDefault();
+    showAnswer();
+  } else if (!$("#grades").hidden && ["1", "2", "3", "4"].includes(e.key)) {
+    answerCard(["again", "hard", "good", "easy"][Number(e.key) - 1]);
+  } else if (!$("#grades").hidden && e.key === " ") {
+    e.preventDefault();
+    answerCard("good");
+  }
+});
+
+function showCard(card) {
+  review.card = card;
+  $("#study-home").hidden = true;
+  if (!card) {
+    $("#review").hidden = true;
+    $("#review-done").hidden = false;
+    $("#review-done-text").textContent = review.done
+      ? `${review.done} ${review.done === 1 ? "review" : "reviews"} done. New words and reviews come back as they're due.`
+      : "Nothing is due right now.";
+    refreshCounts();
+    return;
+  }
+  $("#review").hidden = false;
+  $("#review-done").hidden = true;
+  $("#review-left").textContent = review.total ? `${Math.min(review.done + 1, review.total)} of ${review.total}` : `${review.done + 1}`;
+  $("#review-meta").textContent = [card.speaker, gameName(card.game)].filter(Boolean).join(" · ");
+  $("#review-sentence").replaceChildren(...markedSentence(card.sentence || card.word, card.surface || card.word));
+  $("#review-word").textContent = card.word;
+  $("#review-reading").textContent = card.reading !== card.word ? card.reading : "";
+  $("#review-jlpt").hidden = !card.jlpt;
+  $("#review-jlpt").textContent = card.jlpt ? `N${card.jlpt}` : "";
+  $("#review-meaning").textContent = card.meaning;
+  $("#review-notes").textContent = card.notes;
+  $("#review-translation").textContent = card.translation;
+  for (const b of document.querySelectorAll("#grades [data-rating]")) {
+    b.querySelector("small").textContent = interval(card.intervals[b.dataset.rating]);
+  }
+  $("#review-answer").hidden = true;
+  $("#grades").hidden = true;
+  $("#show-answer").hidden = false;
+  const shot = $("#review-shot");
+  shot.hidden = true;
+  shot.removeAttribute("src");
+  if (card.image) {
+    api().word_image(card.id).then((src) => {
+      if (src && review.card === card) {
+        shot.src = src;
+        shot.hidden = false;
+      }
+    });
+  }
+}
+
+function showAnswer() {
+  $("#review-answer").hidden = false;
+  $("#grades").hidden = false;
+  $("#show-answer").hidden = true;
+}
+
+async function answerCard(rating) {
+  if (!review.card) return;
+  const id = review.card.id;
+  review.card = null; // ignore a second key press while this one is saved
+  review.done++;
+  showCard(await api().answer_review(id, rating));
+}
+
+// Seconds until the next review, as "1 min", "10 min", "3 days", "2 mo".
+function interval(seconds) {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h`;
+  const days = Math.round(hours / 24);
+  if (days < 31) return days === 1 ? "1 day" : `${days} days`;
+  const months = Math.round(days / 30);
+  if (months < 12) return `${months} mo`;
+  return `${(days / 365).toFixed(1)} yr`;
+}
+
+// --- Welcome: the first start ------------------------------------------------------------
+
+const LEVELS = [
+  "Just starting (learning kana)",
+  "Beginner (studying with Genki I)",
+  "Upper beginner (Genki II, around N4)",
+  "Intermediate (around N3)",
+  "Upper intermediate (around N2)",
+  "Advanced (N1 and up)",
+];
+const welcome = { step: 0 };
+
+function openWelcome() {
+  welcome.step = 0;
+  welcome.study = state.prefs.studyWith || "";
+  $("#welcome-deck").value = state.prefs.ankiDeck || "Horu";
+  $("#welcome").hidden = false;
+  renderWelcome();
+}
+
+function closeWelcome() {
+  $("#welcome").hidden = true;
+  setPref("welcomeDone", true);
+  refreshCounts();
+}
+
+function renderWelcome() {
+  for (const step of document.querySelectorAll(".welcome-step")) step.hidden = Number(step.dataset.step) !== welcome.step;
+  [...document.querySelectorAll("#welcome-steps i")].forEach((bar, i) => bar.classList.toggle("on", i <= welcome.step));
+  for (const choice of document.querySelectorAll(".choice[data-study]")) choice.setAttribute("aria-pressed", String(choice.dataset.study === welcome.study));
+  $("#welcome-anki").hidden = welcome.study !== "anki";
+  $("#welcome-back").hidden = welcome.step === 0;
+  $("#welcome-next").textContent = welcome.step === 3 ? "Start" : "Continue";
+  $("#welcome-next").disabled = welcome.step === 0 && !welcome.study;
+  if (welcome.step === 1) {
+    const current = state.prefs.learnerLevel || LEVELS[1];
+    $("#welcome-levels").replaceChildren(...LEVELS.map((level) => {
+      const b = button("choice", level, () => {
+        setPref("learnerLevel", level);
+        applyFields();
+        renderWelcome();
+      });
+      b.setAttribute("aria-pressed", String(level === current));
+      return b;
+    }));
+  }
+  if (welcome.step === 2) {
+    const status = $("#welcome-key-status");
+    status.className = state.ai.enabled ? "saved" : "";
+    status.textContent = state.ai.enabled ? `AI is on: ${state.ai.label}.` : "";
+  }
+}
+
+for (const choice of document.querySelectorAll(".choice[data-study]")) {
+  choice.addEventListener("click", () => {
+    welcome.study = choice.dataset.study;
+    setPref("studyWith", welcome.study);
+    applyFields();
+    renderWelcome();
+    if (welcome.study === "anki") checkWelcomeAnki();
+  });
+}
+
+async function checkWelcomeAnki() {
+  const status = $("#welcome-anki-status");
+  status.className = "test-result";
+  status.textContent = "Checking...";
+  const deck = $("#welcome-deck").value.trim() || "Horu";
+  setPref("ankiDeck", deck);
+  applyFields();
+  const result = await api().anki_status();
+  status.className = `test-result ${result.connected ? "ok" : "error"}`;
+  status.textContent = result.connected ? `Connected. Cards go to "${deck}".` : result.error;
+}
+$("#welcome-anki-check").addEventListener("click", checkWelcomeAnki);
+$("#welcome-deck").addEventListener("change", checkWelcomeAnki);
+
+$("#welcome-key-save").addEventListener("click", async () => {
+  const key = $("#welcome-key").value.trim();
+  if (!key) return;
+  const status = $("#welcome-key-status");
+  status.className = "";
+  status.textContent = "Saving...";
+  await api().save_api_key("gemini", key);
+  const preset = (aiSetup.settings && aiSetup.settings.presets.gemini) || {};
+  const info = await api().set_ai({ aiProvider: "gemini", aiModel: preset.model || "" });
+  horu.setAI(info);
+  $("#welcome-key").value = "";
+  await loadAISettings();
+  status.className = info.enabled ? "saved" : "error";
+  status.textContent = info.enabled ? `Saved. AI is on: ${info.label}.` : info.error || "That key didn't work.";
+});
+$("#welcome-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("#welcome-key-save").click();
+});
+$("#welcome-key-link").addEventListener("click", () => openExternal("https://aistudio.google.com/apikey"));
+$("#welcome-hotkey-change").addEventListener("click", () => {
+  closeWelcome();
+  showView("settings");
+  showPane("capture");
+});
+$("#welcome-back").addEventListener("click", () => { welcome.step = Math.max(0, welcome.step - 1); renderWelcome(); });
+$("#welcome-next").addEventListener("click", () => {
+  if (welcome.step === 3) {
+    closeWelcome();
+    showView("read");
+    return;
+  }
+  welcome.step++;
+  renderWelcome();
+});
+$("#welcome-skip").addEventListener("click", closeWelcome);
+$("#show-welcome").addEventListener("click", openWelcome);
 
 // --- Called from Python ----------------------------------------------------------------
 
@@ -1466,7 +1925,11 @@ window.horu = {
     linesEl.append(card);
     if (stick) card.scrollIntoView({ block: "end" });
     // Let the highlight fade out.
-    setTimeout(() => card.classList.remove("new"), 2500);
+    setTimeout(() => {
+      card.classList.add("fading");
+      card.classList.remove("new");
+      setTimeout(() => card.classList.remove("fading"), 1600);
+    }, 2500);
   },
 
   lineCorrected({ id, text, words, was }) {
@@ -1584,3 +2047,9 @@ window.horu = {
     }
   },
 };
+
+// Start: show saved settings, then load the rest from Python.
+applyAllPrefs();
+applyAI();
+if (api()) loadFromPython();
+else window.addEventListener("pywebviewready", loadFromPython, { once: true });

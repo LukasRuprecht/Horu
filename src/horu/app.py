@@ -20,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources
+from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -187,6 +187,41 @@ class Api:
     def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
         return self._app.save_card(line_id, index, part)
 
+    # Saved words and the Study tab
+
+    def save_word(self, line_id: int, index: int, part: str = "text") -> dict:
+        return self._app.save_word(line_id, index, part)
+
+    def saved_words(self, query: str = "", game: str = "", status: str = "") -> dict:
+        return {"words": self._app.words.words(query=query.strip(), game=game, status=status), "games": self._app.words.games()}
+
+    def word_image(self, word_id: int) -> str | None:
+        png = self._app.words.image(word_id)
+        return png and "data:image/png;base64," + base64.b64encode(png).decode()
+
+    def remove_word(self, word_id: int) -> None:
+        self._app.words.remove(word_id)
+
+    def words_to_anki(self, word_ids: list[int]) -> dict:
+        return self._app.words_to_anki(word_ids)
+
+    def study_summary(self) -> dict:
+        return self._app.study_summary()
+
+    def next_review(self) -> dict | None:
+        return self._app.words.next_card(self._app.prefs.values["newPerDay"])
+
+    def answer_review(self, word_id: int, rating: str) -> dict | None:
+        self._app.words.answer(word_id, rating)
+        return self.next_review()
+
+    def review_in_anki(self) -> dict:
+        try:
+            self._app.anki.review_deck(self._app.prefs.values["ankiDeck"] or "Horu")
+        except anki.AnkiError as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True}
+
     def make_cards(self, line_id: int, session: int) -> None:
         self._app.make_cards(line_id, session)
 
@@ -216,6 +251,7 @@ class App:
         self._kept_captures: OrderedDict[int, debug_bundle.Capture] = OrderedDict()  # capture id -> the capture, for debug bundles
         self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
         self.anki = anki.AnkiClient()
+        self.words = wordbook.Wordbook()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
         self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
@@ -248,7 +284,8 @@ class App:
             height=900,
             min_size=(360, 400),
             on_top=self.prefs.values["onTop"],
-            background_color="#15171d",
+            # The page's own background, so the window doesn't flash another colour while loading.
+            background_color="#f4f2ec" if self.prefs.values["colorMode"] == "light" else "#15171d",
         )
         self.window.events.loaded += self._page_loaded.set
         _quit_on_ctrl_c()
@@ -305,13 +342,10 @@ class App:
             source=" · ".join(filter(None, [line["speaker"] and line["speaker"]["text"], line["game"].removesuffix(".exe"), time.strftime("%Y-%m-%d")])),
         )
 
-    def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
-        """Add one word as a card. With an AI provider, its meaning and note are written for
-        this line; otherwise the card uses the dictionary meaning."""
-        if line_id not in self.lines:
-            return {"ok": False, "message": "That line is no longer available."}
+    def _written_card(self, line_id: int, index: int, part: str) -> anki.Card:
+        """A card for one word. With an AI provider, its meaning and note are written for this
+        line; otherwise the card uses the dictionary meaning."""
         card = self.card_for(line_id, index, part)
-        deck = self.prefs.values["ankiDeck"] or "Horu"
         if self._provider:
             line = self.lines[line_id]
             word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
@@ -321,11 +355,79 @@ class App:
                 meaning, note = "", ""  # the dictionary meaning is still a good card
             card.meaning = meaning or card.meaning
             card.notes = "; ".join(filter(None, [note, card.notes]))
+        return card
+
+    def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
+        """Add one word to Anki as a card."""
+        if line_id not in self.lines:
+            return {"ok": False, "message": "That line is no longer available."}
+        card = self._written_card(line_id, index, part)
+        deck = self.prefs.values["ankiDeck"] or "Horu"
         try:
             self.anki.add_card(deck, card, self._screenshots.get(line_id))
         except anki.AnkiError as e:
             return {"ok": False, "message": str(e)}
         return {"ok": True, "message": f"Added {card.dictionary_form} to {deck}."}
+
+    def save_word(self, line_id: int, index: int, part: str = "text") -> dict:
+        """Save one word in Horu, with its line and screenshot, for the Study tab."""
+        if line_id not in self.lines:
+            return {"ok": False, "message": "That line is no longer available."}
+        line = self.lines[line_id]
+        word = (line["speaker"]["words"] if part == "speaker" else line["words"])[index]
+        card = self._written_card(line_id, index, part)
+        saved, new = self.words.add(
+            word=card.dictionary_form,
+            reading=card.reading,
+            surface=card.word,
+            meaning=card.meaning,
+            notes=card.notes,
+            pos=word["pos"],
+            jlpt=word.get("jlpt"),
+            sentence=card.sentence,
+            speaker=line["speaker"]["text"] if line["speaker"] and part != "speaker" else "",
+            translation=card.translation,
+            game=line["game"],
+            screenshot_png=self._screenshots.get(line_id),
+        )
+        if not new:
+            return {"ok": True, "message": f"{card.dictionary_form} is already in your words.", "id": saved["id"]}
+        return {"ok": True, "message": f"Saved {card.dictionary_form}.", "id": saved["id"]}
+
+    def words_to_anki(self, word_ids: list[int]) -> dict:
+        """Add saved words to Anki as cards; words already in the deck are skipped."""
+        deck = self.prefs.values["ankiDeck"] or "Horu"
+        added = skipped = 0
+        for word_id in word_ids:
+            w = self.words.get(word_id)
+            if w is None:
+                continue
+            source = " · ".join(filter(None, [w["speaker"], w["game"].removesuffix(".exe"), time.strftime("%Y-%m-%d", time.localtime(w["added"]))]))
+            card = anki.Card(
+                sentence=w["sentence"], word=w["surface"], dictionary_form=w["word"], reading=w["reading"],
+                meaning=w["meaning"], notes=w["notes"], translation=w["translation"], source=source,
+            )
+            try:
+                self.anki.add_card(deck, card, self.words.image(word_id))
+                added += 1
+            except anki.AnkiError as e:
+                if "already in your" not in str(e):
+                    return {"ok": False, "message": str(e), "added": added}
+                skipped += 1
+        message = f"Added {added} {'card' if added == 1 else 'cards'} to {deck}."
+        if skipped:
+            message += f" {skipped} {'was' if skipped == 1 else 'were'} already there."
+        return {"ok": True, "message": message, "added": added}
+
+    def study_summary(self) -> dict:
+        summary = self.words.summary(self.prefs.values["newPerDay"])
+        if self.prefs.values["studyWith"] == "anki":
+            deck = self.prefs.values["ankiDeck"] or "Horu"
+            try:
+                summary["anki"] = {"connected": True, "deck": deck, **self.anki.due_counts(deck)}
+            except anki.AnkiError as e:
+                summary["anki"] = {"connected": False, "deck": deck, "error": str(e)}
+        return summary
 
     def reread(self, line_id: int) -> dict:
         """{"ok", "text"} with a vision model's reading of the line, or {"ok": False, "message"}."""

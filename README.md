@@ -3,8 +3,9 @@
 A Japanese study buddy for video games. Press a hotkey while you play, and Horu reads the
 Japanese on screen and shows it in a side window, Language Reactor style: furigana over the
 kanji, words colour-coded by part of speech, and a click on any word for its dictionary form,
-grammar (conjugations like 〜たら or 〜てしまう), and meaning. Optionally, an AI model can
-translate and explain lines in context, and make Anki cards.
+grammar (conjugations like 〜たら or 〜てしまう), and meaning. Save the words you want to
+learn and review them in Horu, with the screenshot each came from, or send them to Anki.
+Optionally, an AI model can translate and explain lines in context.
 
 The goal is to cut lookup time so you can stay in the game.
 
@@ -45,14 +46,20 @@ The first run creates `config.toml` from `config.example.toml`. Run the tests wi
 
 ## Getting started
 
-1. **Start Horu** and put its window beside your game: on a second monitor, or pinned on top
-   (the pin button).
+1. **Start Horu.** The first time, a short welcome asks how you want to study (in Horu or with
+   Anki), your level, and whether to add AI. Put the window beside your game: on a second
+   monitor, or pinned on top (the pin button).
 2. **Run your game in windowed or borderless windowed mode.** Exclusive fullscreen often
    can't be captured.
 3. **Press `Ctrl+Alt+J` in your game** whenever there's text. Horu captures the game's window,
    finds every line of Japanese, and adds it to the history. There's no capture region to set
    up. To use another key, open settings (the sliders button) and change it under **Capture**.
-4. **Click any word** for its reading, dictionary form, grammar notes, and meanings.
+4. **Click any word** for its reading, dictionary form, grammar notes, JLPT level, and meanings.
+   **Save** keeps it for the Study tab.
+
+Horu has three tabs: **Read** (the lines from your game), **Words** (everything you saved), and
+**Study** (today's reviews). Settings has the colours (Horu, Indigo, or Matcha, each light or
+dark) under **Appearance**.
 
 ### What you see
 
@@ -102,12 +109,28 @@ Set one up under **Settings → AI** (see [AI providers](#ai-providers)). Then:
   uses the AI's reading when it's confident (marked "corrected"; click to undo), or asks
   "Did you mean …?".
 
+### Studying in Horu
+
+**Save** in a word's popup keeps the word with its moment: the line, the speaker, the
+translation, the game, and a picture of the line. Then:
+
+- **Words** lists everything saved, newest first, with the line each came from. Search in
+  Japanese or English, or filter by game and by new, learning, or known.
+- **Study** shows today's reviews and new words (10 new a day by default, in
+  **Settings → Study**), a streak, the last week, and progress per game. A review shows the
+  line with the word marked and its screenshot; press Space to see the answer, then rate how
+  well you knew it (or press 1 to 4). Reviews are scheduled with
+  [FSRS](https://github.com/open-spaced-repetition/py-fsrs), the algorithm Anki uses.
+
+Your words stay on your PC, in `data/words.db`.
+
 ### Anki
 
-With Anki open and the [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on
-installed:
+To study in Anki instead, choose **With Anki** in the welcome screen or in
+**Settings → Study**. With Anki open and the
+[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on installed:
 
-- **Add to Anki** in a word's popup adds a card: the line with the word in bold, its reading,
+- **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the line with the word in bold, its reading,
   meaning, grammar notes, translation, and a screenshot. With an AI provider, the meaning and a
   usage note are written for that line.
 - **Cards** on a line lets the AI pick the words worth learning at your level, skip those
@@ -115,13 +138,16 @@ installed:
   OpenAI, or an Ollama model such as qwen3).
 - Optionally (off by default), Horu adds cards automatically from every new dialogue line.
 
-The deck is set in settings.
+- The Study tab shows how many cards are due in your deck, with a button to review them in
+  Anki. **Words** can add words you saved in Horu to Anki.
+
+The deck is set in **Settings → Study**.
 
 ### When Horu gets something wrong
 
 - A line filed wrongly: use its **⋯** menu to treat it as dialogue or other text, or to mark or
   unmark a speaker name. Corrections are remembered per game.
-- Something else: in the line's **⋯** menu (or **Settings → Problems** for the last capture,
+- Something else: in the line's **⋯** menu (or **Settings → Help** for the last capture,
   even one where Horu found nothing), choose **Save debug bundle**. It saves a zip with the
   screenshot and what Horu made of it, and shows it in Explorer. Look at the screenshot, then
   attach the zip to an [issue](https://github.com/LukasRuprecht/Horu/issues) with what you
@@ -130,7 +156,7 @@ The deck is set in settings.
 ## Privacy
 
 Horu runs on your PC. It has no account, sends no usage data, and keeps what it learns
-(speaker names, corrections, settings) in its `data` folder.
+(speaker names, corrections, settings, saved words and reviews) in its `data` folder.
 
 Things that leave your PC:
 
@@ -274,7 +300,7 @@ Hotkey, auto-capture, or a text hooker
         Line history window (clickable words) ◄──► AI translations, explanations, checks (optional)
             │
             ▼
-        Optional: Anki cards
+        Saved words ──► Study tab (FSRS reviews), or Anki cards
 ```
 
 ## Roadmap
@@ -284,11 +310,12 @@ Hotkey, auto-capture, or a text hooker
 - [x] **Phase 3:** AI translations, explanations, and follow-up questions
 - [x] **Phase 4:** auto-capture and text hooking
 - [x] **Phase 5:** Anki export
-- [ ] **Phase 6:** first release: one-step install, debug bundles, and docs are done; still to
-  come: more games in the regression tests (a visual novel, a modern 16:9 game, a game with
-  small subtitles)
-- [ ] **Phase 7:** learning features: study stats, spaced review inside Horu, per-game
-  vocabulary lists, JLPT and frequency tags
+- [ ] **Phase 6:** first release: one-step install, debug bundles, docs, and an app layout
+  (Read, Words, Study, a welcome screen, themes) are done; still to come: an exe installer, and
+  more games in the regression tests (a visual novel, a modern 16:9 game, a game with small
+  subtitles)
+- [ ] **Phase 7:** learning features: spaced review inside Horu, per-game word lists, and JLPT
+  tags are done; still to come: frequency tags and recommendations
 
 ## License and credits
 
@@ -304,3 +331,10 @@ Horu is MIT licensed. See [LICENSE](LICENSE).
   under the Apache License 2.0.
 - OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
   [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
+- Review scheduling: [py-fsrs](https://github.com/open-spaced-repetition/py-fsrs), MIT.
+- JLPT levels: [open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks)
+  (MIT), based on Jonathan Waller's JLPT lists ([tanos.co.uk](https://www.tanos.co.uk/jlpt/),
+  CC BY).
+- Fonts: [DM Sans](https://github.com/googlefonts/dm-fonts) and
+  [Noto Sans JP](https://github.com/notofonts/noto-cjk), under the SIL Open Font License
+  (bundled in `src/horu/ui/fonts`).

@@ -8,12 +8,25 @@
 </head>
 <body>
   <header class="bar">
-    <div class="brand">Horu</div>
+    <div class="brand"><span class="logo" aria-hidden="true">ほ</span><span>Horu</span></div>
     <div id="status" class="status loading" role="status">
       <span class="dot" aria-hidden="true"></span>
       <span id="status-text">Starting...</span>
     </div>
-    <div class="actions">
+    <button id="open-settings" class="icon-btn" type="button" aria-pressed="false" aria-controls="settings" title="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button id="tab-read" class="tab" type="button" role="tab" data-view="read" aria-selected="true">Read</button>
+    <button id="tab-words" class="tab" type="button" role="tab" data-view="words" aria-selected="false">Words</button>
+    <button id="tab-study" class="tab" type="button" role="tab" data-view="study" aria-selected="false">Study <span id="due-count" class="tab-count" hidden></span></button>
+  </nav>
+
+  <!-- Read: captured lines -->
+  <div id="view-read" class="view read-view">
+    <div class="toolbar">
       <button id="toggle-auto" class="toggle" type="button" aria-pressed="false" title="Auto-capture: read the game's dialogue box whenever it changes">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         <span class="auto-dot" aria-hidden="true"></span>
@@ -27,167 +40,325 @@
       <button id="toggle-top" class="toggle" type="button" aria-pressed="false" title="Keep window on top">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v8"/></svg>
       </button>
-      <button id="clear" class="icon" type="button" title="Clear history">
+      <button id="clear" class="toggle" type="button" title="Clear history">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
       </button>
-      <button id="open-settings" class="toggle" type="button" aria-pressed="false" aria-controls="settings" title="Settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-      </button>
+      <span class="spacer"></span>
+      <kbd id="hotkey-chip" class="hotkey-chip" title="Press this in your game to capture"></kbd>
     </div>
-  </header>
-
-  <section id="settings" class="settings" aria-label="Settings" hidden>
-    <h2>Display</h2>
-    <label class="setting">
-      <span>Text size</span>
-      <input id="text-size" type="range" min="16" max="48" step="1">
-      <output id="text-size-value" for="text-size"></output>
-    </label>
-    <label class="setting">
-      <span>Furigana size</span>
-      <input id="furigana-scale" type="range" min="0.4" max="0.8" step="0.05">
-      <output id="furigana-scale-value" for="furigana-scale"></output>
-    </label>
-    <div class="preview text" lang="ja" aria-hidden="true">
-      <ruby>日本語<rt>にほんご</rt></ruby>を<ruby>読<rt>よ</rt></ruby>む
-    </div>
-    <div class="settings-actions">
-      <button id="reset-display" type="button">Reset to defaults</button>
-    </div>
-
-    <h2>Capture</h2>
-    <div class="field">
-      <span>Capture hotkey</span>
-      <div class="field-row">
-        <kbd id="hotkey-name" class="hotkey-name"></kbd>
-        <button id="hotkey-change" type="button">Change</button>
+    <main id="lines">
+      <div id="empty" class="empty">
+        <p class="empty-title">No text yet</p>
+        <p>Switch to your game and press the capture hotkey. Each line shows up here; click any word to look it up.</p>
       </div>
-      <span id="hotkey-status" class="field-hint"></span>
-    </div>
-    <label class="check"><input id="hide-from-capture" type="checkbox"> Hide Horu from screen capture</label>
-    <p class="check-hint">Stops Horu reading itself when it overlaps the game. Turn off to show Horu
-      when streaming or sharing your screen.</p>
-    <p class="check-hint">Auto-capture (the eye button) reads the game by itself whenever new text
-      settles on screen, and shows the dialogue it finds: lines, choices, thought bubbles. Text that
-      stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's HUD keeps
-      changing, limit it to parts of the picture: open a line's ⋯ menu and pick "Set auto-read regions".</p>
+    </main>
+  </div>
 
-    <h2>Text hooker</h2>
-    <label class="field">
-      <span>Read lines from</span>
-      <select id="hook-source">
-        <option value="">Off</option>
-        <option value="clipboard">The clipboard</option>
-        <option value="websocket">A WebSocket</option>
-      </select>
-    </label>
-    <label id="hook-url-row" class="field" hidden>
-      <span>WebSocket address</span>
-      <input id="hook-url" type="text" placeholder="ws://127.0.0.1:6677" spellcheck="false">
-    </label>
-    <p id="hook-status" class="ai-status" hidden></p>
-    <p class="check-hint flush">For PC games a text hooker can attach to (most visual novels): exact text,
-      no OCR. Run the hooker (Textractor, LunaHook, ...) and pick the game's text thread there.
-      Clipboard: turn on the hooker's copy-to-clipboard option (in Textractor, the Copy to Clipboard
-      extension); anything Japanese you copy shows up too. WebSocket: a hooker that sends lines to
-      texthooker pages, such as Textractor with the textractor_websocket extension.</p>
-
-    <h2>Problems</h2>
-    <div class="test-row">
-      <button id="bundle-last" type="button">Save a debug bundle of the last capture…</button>
+  <!-- Words: everything saved in Horu -->
+  <section id="view-words" class="view words-view" aria-label="Saved words" hidden>
+    <input id="word-search" class="search" type="search" placeholder="Search saved words, in Japanese or English" autocomplete="off" spellcheck="false">
+    <div id="word-filters" class="filters" role="group" aria-label="Filter"></div>
+    <div class="list-head">
+      <span id="words-total"></span>
+      <button id="words-to-anki" class="pill-btn" type="button" hidden>Add these to Anki</button>
     </div>
-    <p class="check-hint flush">When Horu reads a screen wrongly: a zip with the screenshot and what Horu made
-      of it, to attach to a bug report. A line's ⋯ menu saves the capture that line came from.</p>
-
-    <h2>Anki</h2>
-    <label class="field">
-      <span>Deck for new cards</span>
-      <input id="anki-deck" type="text" placeholder="Horu" spellcheck="false">
-    </label>
-    <div class="test-row">
-      <button id="anki-check" type="button">Check connection</button>
-    </div>
-    <p id="anki-status" class="ai-status"></p>
-    <label class="check"><input id="auto-cards" type="checkbox"> Automatically add cards from every capture</label>
-    <p class="check-hint">Off by default. For each new dialogue line, the AI picks the words worth
-      learning at your level and adds those not already in your deck (up to 3 per line). Uses one
-      AI task per line and needs a model with tool support.</p>
-    <p class="check-hint">Needs Anki open with the AnkiConnect add-on (Tools → Add-ons → Get Add-ons,
-      code 2055492159). Cards use a "Horu Sentence" note type: the line with the word in bold, then
-      its reading, meaning, grammar, translation, and a screenshot.</p>
-
-    <h2>AI</h2>
-    <label class="field">
-      <span>Provider</span>
-      <select id="ai-provider"></select>
-    </label>
-    <div id="ai-key-row" class="field">
-      <span>API key</span>
-      <div class="field-row">
-        <input id="ai-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
-        <button id="ai-key-save" type="button">Save</button>
-      </div>
-      <div class="field-hint">
-        <span id="ai-key-status"></span>
-        <button id="ai-key-link" class="link" type="button">Get a key</button>
-      </div>
-    </div>
-    <label id="ai-baseurl-row" class="field">
-      <span>Server address</span>
-      <input id="ai-baseurl" type="text" placeholder="https://example.com/v1" spellcheck="false">
-    </label>
-    <label id="ai-model-row" class="field">
-      <span>Model for explanations</span>
-      <input id="ai-model" type="text" list="ai-model-list" placeholder="Model name" spellcheck="false">
-      <span id="ai-model-warning" class="field-warning" hidden>This is a translation-only model; it can't explain grammar. Use it for translations instead.</span>
-    </label>
-    <label id="ai-translation-row" class="field">
-      <span>Model for translations (optional)</span>
-      <input id="ai-translation-model" type="text" list="ai-model-list" placeholder="Same as above" spellcheck="false">
-    </label>
-    <datalist id="ai-model-list"></datalist>
-
-    <div id="ollama-box" class="ollama-box" hidden>
-      <div class="ollama-head">
-        <span id="ollama-status"></span>
-        <button id="ollama-refresh" class="link" type="button">Refresh</button>
-      </div>
-      <p class="ollama-note">Small local models translate well, but their grammar explanations can be
-        confidently wrong. Horu's own word popups (dictionary form and grammar notes) don't use AI
-        and are reliable.</p>
-      <div id="ollama-suggestions" class="suggestions"></div>
-    </div>
-
-    <div id="ai-test-row" class="test-row">
-      <button id="ai-test" type="button">Test</button>
-      <span id="ai-test-result" class="test-result"></span>
-    </div>
-    <p id="ai-status" class="ai-status"></p>
-    <div id="ai-options">
-      <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>
-      <label class="check"><input id="ai-checks" type="checkbox"> Check new dialogue against the screenshot</label>
-      <p class="check-hint">The AI reads each new dialogue line (and a name tag OCR wasn't sure of) from a
-        picture of it, to catch OCR misreads. One request with an image per line; models that can't
-        read images are skipped. Lines from a text hooker are never checked.</p>
-      <label class="check"><input id="apply-ai-readings" type="checkbox"> Fix likely misreads with the AI's reading</label>
-      <p class="check-hint">When OCR may have misread a line or a speaker's name, the AI reads it from the
-        screenshot and Horu uses that reading, marked "corrected" (click to undo). Off: Horu asks
-        "Did you mean …?" instead, unless another OCR model read the same thing.</p>
-      <label class="check"><input id="blur-translations" type="checkbox"> Blur translations until clicked</label>
-      <label class="setting-text">
-        <span>Your level (explanations are pitched to this)</span>
-        <input id="learner-level" type="text" placeholder="e.g. Beginner (studying with Genki I)">
-      </label>
+    <div id="word-list" class="word-list"></div>
+    <div id="words-empty" class="empty" hidden>
+      <p class="empty-title">No saved words yet</p>
+      <p>Click a word in the Read tab and choose Save. It's kept here with the line and screenshot it came from.</p>
     </div>
   </section>
 
-  <main id="lines">
-    <div id="empty" class="empty">
-      <p class="empty-title">No text yet</p>
-      <p>Switch to your game and press the capture hotkey. Each line shows up here; click any word to look it up.</p>
-      <p class="credit">Dictionaries: JMdict and JMnedict by the EDRDG, CC BY-SA 4.0</p>
+  <!-- Study: today's reviews -->
+  <section id="view-study" class="view study-view" aria-label="Study" hidden>
+    <div id="study-home" class="study-home">
+      <div class="panel today">
+        <div class="today-head">
+          <h2>Today</h2>
+          <span id="streak" class="streak"></span>
+        </div>
+        <div class="nums">
+          <div class="num"><b id="num-due">0</b><span>reviews due</span></div>
+          <div class="num"><b id="num-new">0</b><span>new words</span></div>
+          <div class="num"><b id="num-saved">0</b><span>saved</span></div>
+        </div>
+        <div id="week" class="week" aria-label="Reviews in the last 7 days"></div>
+        <button id="start-review" class="primary-btn wide" type="button">Start review</button>
+        <p id="study-note" class="study-note"></p>
+      </div>
+      <div id="anki-study" class="panel anki-study" hidden>
+        <div>
+          <b>Anki</b>
+          <span id="anki-due"></span>
+        </div>
+        <button id="review-in-anki" class="pill-btn" type="button">Review in Anki</button>
+      </div>
+      <div id="study-games" class="games"></div>
     </div>
-  </main>
+
+    <div id="review" class="review" hidden>
+      <div class="review-top">
+        <span id="review-left"></span>
+        <button id="end-review" class="link" type="button">End review</button>
+      </div>
+      <article class="panel review-card">
+        <img id="review-shot" class="review-shot" alt="The game screen this word was saved from" hidden>
+        <div class="review-body">
+          <p id="review-meta" class="review-meta"></p>
+          <p id="review-sentence" class="review-sentence" lang="ja"></p>
+          <div id="review-answer" class="review-answer" hidden>
+            <div class="review-word" lang="ja"><b id="review-word"></b> <span id="review-reading"></span> <span id="review-jlpt" class="jlpt-tag" hidden></span></div>
+            <p id="review-meaning" class="review-meaning"></p>
+            <p id="review-notes" class="review-notes"></p>
+            <p id="review-translation" class="review-translation"></p>
+          </div>
+          <button id="show-answer" class="primary-btn wide" type="button">Show answer <kbd>Space</kbd></button>
+          <div id="grades" class="grades" hidden>
+            <button class="grade again" type="button" data-rating="again">Again<small></small></button>
+            <button class="grade hard" type="button" data-rating="hard">Hard<small></small></button>
+            <button class="grade good" type="button" data-rating="good">Good<small></small></button>
+            <button class="grade easy" type="button" data-rating="easy">Easy<small></small></button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div id="review-done" class="empty" hidden>
+      <p class="empty-title">Done for now</p>
+      <p id="review-done-text"></p>
+      <button id="review-back" class="pill-btn" type="button">Back to Study</button>
+    </div>
+  </section>
+
+  <!-- Settings: a page of its own, in sections -->
+  <section id="settings" class="view settings-page" aria-label="Settings" hidden>
+    <nav class="settings-nav" aria-label="Settings sections">
+      <button type="button" data-pane="appearance" aria-current="true">Appearance</button>
+      <button type="button" data-pane="capture">Capture</button>
+      <button type="button" data-pane="study">Study</button>
+      <button type="button" data-pane="ai">AI</button>
+      <button type="button" data-pane="hooker">Text hooker</button>
+      <button type="button" data-pane="help">Help</button>
+    </nav>
+
+    <div class="settings-panes">
+      <section class="pane" data-pane="appearance">
+        <h2>Appearance</h2>
+        <div class="group">
+          <div class="field">
+            <span>Colours</span>
+            <div id="theme-picker" class="segmented" role="radiogroup" aria-label="Colours">
+              <button type="button" role="radio" data-theme="horu"><i class="swatch horu"></i>Horu</button>
+              <button type="button" role="radio" data-theme="indigo"><i class="swatch indigo"></i>Indigo</button>
+              <button type="button" role="radio" data-theme="matcha"><i class="swatch matcha"></i>Matcha</button>
+            </div>
+          </div>
+          <div class="field">
+            <span>Light or dark</span>
+            <div id="mode-picker" class="segmented" role="radiogroup" aria-label="Light or dark">
+              <button type="button" role="radio" data-mode="system">System</button>
+              <button type="button" role="radio" data-mode="light">Light</button>
+              <button type="button" role="radio" data-mode="dark">Dark</button>
+            </div>
+          </div>
+        </div>
+        <div class="group">
+          <label class="setting">
+            <span>Text size</span>
+            <input id="text-size" type="range" min="16" max="48" step="1">
+            <output id="text-size-value" for="text-size"></output>
+          </label>
+          <label class="setting">
+            <span>Furigana size</span>
+            <input id="furigana-scale" type="range" min="0.4" max="0.8" step="0.05">
+            <output id="furigana-scale-value" for="furigana-scale"></output>
+          </label>
+          <div class="preview text" lang="ja" aria-hidden="true">
+            <ruby>日本語<rt>にほんご</rt></ruby>を<ruby>読<rt>よ</rt></ruby>む
+          </div>
+          <div class="settings-actions">
+            <button id="reset-display" type="button">Reset to defaults</button>
+          </div>
+        </div>
+        <div class="group">
+          <label class="check"><input id="blur-translations" type="checkbox"> Blur translations until clicked</label>
+          <p class="check-hint">So you read the Japanese first.</p>
+        </div>
+      </section>
+
+      <section class="pane" data-pane="capture" hidden>
+        <h2>Capture</h2>
+        <div class="group">
+          <div class="field">
+            <span>Capture hotkey</span>
+            <div class="field-row">
+              <kbd id="hotkey-name" class="hotkey-name"></kbd>
+              <button id="hotkey-change" type="button">Change</button>
+            </div>
+            <span id="hotkey-status" class="field-hint"></span>
+          </div>
+        </div>
+        <div class="group">
+          <label class="check"><input id="hide-from-capture" type="checkbox"> Hide Horu from screen capture</label>
+          <p class="check-hint">Stops Horu reading itself when it overlaps the game. Turn off to show Horu
+            when streaming or sharing your screen.</p>
+        </div>
+        <p class="pane-note">Auto-capture (the eye button in Read) reads the game by itself whenever new text
+          settles on screen, and shows the dialogue it finds: lines, choices, thought bubbles. Text that
+          stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's HUD keeps
+          changing, limit it to parts of the picture: open a line's ⋯ menu and pick "Set auto-read regions".</p>
+      </section>
+
+      <section class="pane" data-pane="study" hidden>
+        <h2>Study</h2>
+        <div class="group">
+          <label class="field">
+            <span>Study the words you save</span>
+            <select id="study-with">
+              <option value="horu">In Horu (the Study tab)</option>
+              <option value="anki">With Anki</option>
+            </select>
+          </label>
+          <p class="check-hint flush">In Horu: Save keeps a word here with its line and screenshot, for review in
+            the Study tab. With Anki: the word popup adds cards to Anki, and can still save a word in Horu.</p>
+          <label class="field inline">
+            <span>New words per day</span>
+            <input id="new-per-day" type="number" min="0" max="100" step="1">
+          </label>
+        </div>
+        <div class="group">
+          <h3>Anki</h3>
+          <label class="field">
+            <span>Deck for new cards</span>
+            <input id="anki-deck" type="text" placeholder="Horu" spellcheck="false">
+          </label>
+          <div class="test-row">
+            <button id="anki-check" type="button">Check connection</button>
+          </div>
+          <p id="anki-status" class="ai-status"></p>
+          <label class="check"><input id="auto-cards" type="checkbox"> Automatically add cards from every capture</label>
+          <p class="check-hint">Off by default. For each new dialogue line, the AI picks the words worth
+            learning at your level and adds those not already in your deck (up to 3 per line). Uses one
+            AI task per line and needs a model with tool support.</p>
+          <p class="check-hint">Needs Anki open with the AnkiConnect add-on (Tools → Add-ons → Get Add-ons,
+            code 2055492159). Cards use a "Horu Sentence" note type: the line with the word in bold, then
+            its reading, meaning, grammar, translation, and a screenshot.</p>
+        </div>
+      </section>
+
+      <section class="pane" data-pane="ai" hidden>
+        <h2>AI</h2>
+        <div class="group">
+          <label class="field">
+            <span>Provider</span>
+            <select id="ai-provider"></select>
+          </label>
+          <div id="ai-key-row" class="field">
+            <span>API key</span>
+            <div class="field-row">
+              <input id="ai-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+              <button id="ai-key-save" type="button">Save</button>
+            </div>
+            <div class="field-hint">
+              <span id="ai-key-status"></span>
+              <button id="ai-key-link" class="link" type="button">Get a key</button>
+            </div>
+          </div>
+          <label id="ai-baseurl-row" class="field">
+            <span>Server address</span>
+            <input id="ai-baseurl" type="text" placeholder="https://example.com/v1" spellcheck="false">
+          </label>
+          <label id="ai-model-row" class="field">
+            <span>Model for explanations</span>
+            <input id="ai-model" type="text" list="ai-model-list" placeholder="Model name" spellcheck="false">
+            <span id="ai-model-warning" class="field-warning" hidden>This is a translation-only model; it can't explain grammar. Use it for translations instead.</span>
+          </label>
+          <label id="ai-translation-row" class="field">
+            <span>Model for translations (optional)</span>
+            <input id="ai-translation-model" type="text" list="ai-model-list" placeholder="Same as above" spellcheck="false">
+          </label>
+          <datalist id="ai-model-list"></datalist>
+
+          <div id="ollama-box" class="ollama-box" hidden>
+            <div class="ollama-head">
+              <span id="ollama-status"></span>
+              <button id="ollama-refresh" class="link" type="button">Refresh</button>
+            </div>
+            <p class="ollama-note">Small local models translate well, but their grammar explanations can be
+              confidently wrong. Horu's own word popups (dictionary form and grammar notes) don't use AI
+              and are reliable.</p>
+            <div id="ollama-suggestions" class="suggestions"></div>
+          </div>
+
+          <div id="ai-test-row" class="test-row">
+            <button id="ai-test" type="button">Test</button>
+            <span id="ai-test-result" class="test-result"></span>
+          </div>
+          <p id="ai-status" class="ai-status"></p>
+        </div>
+        <div id="ai-options" class="group">
+          <label class="check"><input id="auto-translate" type="checkbox"> Translate new dialogue automatically</label>
+          <label class="check"><input id="ai-checks" type="checkbox"> Check new dialogue against the screenshot</label>
+          <p class="check-hint">The AI reads each new dialogue line (and a name tag OCR wasn't sure of) from a
+            picture of it, to catch OCR misreads. One request with an image per line; models that can't
+            read images are skipped. Lines from a text hooker are never checked.</p>
+          <label class="check"><input id="apply-ai-readings" type="checkbox"> Fix likely misreads with the AI's reading</label>
+          <p class="check-hint">When OCR may have misread a line or a speaker's name, the AI reads it from the
+            screenshot and Horu uses that reading, marked "corrected" (click to undo). Off: Horu asks
+            "Did you mean …?" instead, unless another OCR model read the same thing.</p>
+          <label class="setting-text">
+            <span>Your level (explanations are pitched to this)</span>
+            <input id="learner-level" type="text" placeholder="e.g. Beginner (studying with Genki I)">
+          </label>
+        </div>
+      </section>
+
+      <section class="pane" data-pane="hooker" hidden>
+        <h2>Text hooker</h2>
+        <div class="group">
+          <label class="field">
+            <span>Read lines from</span>
+            <select id="hook-source">
+              <option value="">Off</option>
+              <option value="clipboard">The clipboard</option>
+              <option value="websocket">A WebSocket</option>
+            </select>
+          </label>
+          <label id="hook-url-row" class="field" hidden>
+            <span>WebSocket address</span>
+            <input id="hook-url" type="text" placeholder="ws://127.0.0.1:6677" spellcheck="false">
+          </label>
+          <p id="hook-status" class="ai-status" hidden></p>
+        </div>
+        <p class="pane-note">For PC games a text hooker can attach to (most visual novels): exact text,
+          no OCR. Run the hooker (Textractor, LunaHook, ...) and pick the game's text thread there.
+          Clipboard: turn on the hooker's copy-to-clipboard option (in Textractor, the Copy to Clipboard
+          extension); anything Japanese you copy shows up too. WebSocket: a hooker that sends lines to
+          texthooker pages, such as Textractor with the textractor_websocket extension.</p>
+      </section>
+
+      <section class="pane" data-pane="help" hidden>
+        <h2>Help</h2>
+        <div class="group">
+          <h3>Problems</h3>
+          <div class="test-row">
+            <button id="bundle-last" type="button">Save a debug bundle of the last capture…</button>
+          </div>
+          <p class="check-hint flush">When Horu reads a screen wrongly: a zip with the screenshot and what Horu made
+            of it, to attach to a bug report. A line's ⋯ menu saves the capture that line came from.</p>
+        </div>
+        <div class="group">
+          <h3>Getting started</h3>
+          <div class="test-row">
+            <button id="show-welcome" type="button">Show the welcome screen again</button>
+          </div>
+        </div>
+        <p class="pane-note credit">Dictionaries: JMdict and JMnedict by the EDRDG, CC BY-SA 4.0.
+          JLPT levels: open-anki-jlpt-decks, based on Jonathan Waller's JLPT lists (tanos.co.uk), CC BY.
+          Fonts: DM Sans and Noto Sans JP, SIL Open Font License.</p>
+      </section>
+    </div>
+  </section>
 
   <section id="tutor" class="tutor" aria-label="Tutor" hidden>
     <header class="tutor-head">
@@ -203,6 +374,81 @@
 
   <div id="popover" class="popover" role="dialog" hidden></div>
   <div id="line-menu" class="line-menu" role="menu" hidden></div>
+
+  <!-- First start: how to study, level, AI, hotkey -->
+  <div id="welcome" class="welcome" hidden>
+    <section class="welcome-box" role="dialog" aria-labelledby="welcome-title">
+      <div id="welcome-steps" class="steps" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+
+      <div class="welcome-step" data-step="0">
+        <h2 id="welcome-title">How do you want to study the words you save?</h2>
+        <p>You can change this later in Settings.</p>
+        <div class="choices">
+          <button class="choice" type="button" data-study="horu">
+            <span class="choice-icon horu" aria-hidden="true">ほ</span>
+            <b>In Horu</b>
+            <small>Review in the Study tab, with the screenshot each word came from. Nothing else to install.</small>
+          </button>
+          <button class="choice" type="button" data-study="anki">
+            <span class="choice-icon anki" aria-hidden="true">A</span>
+            <b>With Anki</b>
+            <small>Words become cards in your Anki deck. Needs Anki open with the AnkiConnect add-on.</small>
+          </button>
+        </div>
+        <div id="welcome-anki" class="welcome-anki" hidden>
+          <label class="field">
+            <span>Deck for new cards</span>
+            <input id="welcome-deck" type="text" placeholder="Horu" spellcheck="false">
+          </label>
+          <div class="test-row">
+            <button id="welcome-anki-check" type="button">Check connection</button>
+            <span id="welcome-anki-status" class="test-result"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="welcome-step" data-step="1" hidden>
+        <h2>What's your Japanese level?</h2>
+        <p>AI explanations are pitched to this. Horu's dictionary works the same for everyone.</p>
+        <div id="welcome-levels" class="choices compact"></div>
+      </div>
+
+      <div class="welcome-step" data-step="2" hidden>
+        <h2>Add AI explanations?</h2>
+        <p>Optional. Translations, grammar breakdowns and fixes for misread lines use an AI provider with
+          your own key. Gemini has a free tier. Everything else works without it.</p>
+        <label class="field">
+          <span>Gemini API key</span>
+          <div class="field-row">
+            <input id="welcome-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+            <button id="welcome-key-save" type="button">Save</button>
+          </div>
+          <div class="field-hint">
+            <span id="welcome-key-status"></span>
+            <button id="welcome-key-link" class="link" type="button">Get a free key</button>
+          </div>
+        </label>
+        <p class="check-hint flush">Other providers (Claude, OpenAI, Ollama on this PC) are in Settings → AI.</p>
+      </div>
+
+      <div class="welcome-step" data-step="3" hidden>
+        <h2>Capture your game</h2>
+        <p>Switch to your game and press the hotkey. The text on screen shows up in Read, and you can click any word.</p>
+        <div class="welcome-hotkey">
+          <kbd id="welcome-hotkey" class="hotkey-name big"></kbd>
+          <button id="welcome-hotkey-change" class="pill-btn" type="button">Change in Settings</button>
+        </div>
+        <p class="check-hint flush">Or turn on auto-capture (the eye button in Read) to read new dialogue by itself.</p>
+      </div>
+
+      <footer class="welcome-actions">
+        <button id="welcome-skip" class="link" type="button">Skip</button>
+        <span class="spacer"></span>
+        <button id="welcome-back" class="pill-btn" type="button">Back</button>
+        <button id="welcome-next" class="primary-btn" type="button">Continue</button>
+      </footer>
+    </section>
+  </div>
 
   <div id="region-editor" class="modal" hidden>
     <section class="modal-box" role="dialog" aria-labelledby="region-title">

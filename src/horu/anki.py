@@ -93,6 +93,16 @@ class AnkiClient:
         query = f'"deck:{_quote(deck)}" "note:{NOTE_TYPE}" "Word:{_quote(word)}"'
         return bool(self.call("findNotes", query=query))
 
+    def due_counts(self, deck: str) -> dict:
+        """{"due", "new"}: cards in the deck due for review today, and cards not yet studied."""
+        due = self.call("findCards", query=f'"deck:{_quote(deck)}" is:due')
+        new = self.call("findCards", query=f'"deck:{_quote(deck)}" is:new')
+        return {"due": len(due), "new": len(new)}
+
+    def review_deck(self, deck: str) -> None:
+        """Bring Anki to the front, reviewing the deck."""
+        self.call("guiDeckReview", name=deck)
+
     def add_card(self, deck: str, card: Card, screenshot_png: bytes | None = None) -> int:
         """Add a card and return its note id. Refuses duplicates within the deck."""
         self._ensure_note_type()

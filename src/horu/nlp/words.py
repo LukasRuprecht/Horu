@@ -16,6 +16,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
+from horu import jlpt
 from horu.nlp.kana import Segment, furigana, to_hiragana, unstretched
 
 # Part of speech (UniDic's tags, which Sudachi uses) -> simple label used by the UI (and for colouring).
@@ -177,6 +178,7 @@ class Word:
             "grammar": self.grammar,
             "dictionary_form": self.dictionary_form,
             "dictionary_reading": self.dictionary_reading,
+            "jlpt": None if self.pos in _NO_LEVEL else jlpt.level(self.dictionary_form, self.dictionary_reading),
             "lookup_forms": self.lookup_forms,
             "lemma": self.dictionary_form if self._prefix or self.joined else _strip_origin(self.tokens[0].lemma),
             "parts": [Word([part], _pos_label(part)).to_dict() for part in self.parts],
@@ -188,6 +190,9 @@ class Word:
         head = self._prefix and self.tokens[1] or self.tokens[0]
         return head.parts
 
+
+# Grammar words: the JLPT lists' levels for these are about one use of many (の is N3 there).
+_NO_LEVEL = {"symbol", "particle", "auxiliary", "conjunction", "prefix", "suffix"}
 
 _lock = threading.RLock()  # a Sudachi tokenizer is used by one thread at a time
 
