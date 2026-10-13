@@ -151,9 +151,9 @@ function renderLine(line) {
   }
   meta.append(
     el("span", "spacer"),
-    button("line-btn", "Explain", () => explainLine(line), "Break this line down with AI"),
-    button("line-btn", "Cards", () => makeCards(line), "Let AI pick words worth learning and add them to Anki"),
-    button("line-btn", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
+    button("line-btn foldable", "Explain", () => explainLine(line), "Break this line down with AI"),
+    button("line-btn foldable", "Cards", () => makeCards(line), "Let AI pick words worth learning and add them to Anki"),
+    button("line-btn foldable", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
     button("line-btn", "⋯", (e) => openLineMenu(e.currentTarget, line, row), "Correct how this line was read"),
   );
 
@@ -204,6 +204,19 @@ function openGuessMenu(anchor, line) {
   }]);
   showMenu(anchor, items, `Remembered for ${line.game}.`);
 }
+
+// --- The game window this session captures ------------------------------------------------
+
+$("#game-chip").addEventListener("click", async (e) => {
+  const anchor = e.currentTarget;
+  const { windows, current } = await api().game_windows();
+  const items = windows.map((w) => {
+    const label = `${w.id === current ? "✓ " : ""}${w.title}`;
+    return [label, () => api().set_game_window(w.id), w.process];
+  });
+  items.push(["Choose automatically", () => api().set_game_window(null), "The window in front when you press the hotkey"]);
+  showMenu(anchor, items, "Horu captures this window even when another one is in front.");
+});
 
 // One capture (one hotkey press) is one card; its lines are rows inside it, in screen order.
 function renderCapture(capture) {
@@ -257,6 +270,9 @@ function openLineMenu(anchor, line, row) {
   if (line.capture) {
     items.push(["Set auto-read regions…", () => openRegionEditor(line)]);
   }
+  // Buttons folded away in a narrow window come first.
+  const folded = [...row.querySelectorAll(".line-btn.foldable")].filter((b) => getComputedStyle(b).display === "none");
+  items.unshift(...folded.map((b) => [b.textContent, () => b.click()]));
   if (line.captureId) {
     items.push(["Save debug bundle…", () => openBundleDialog(line)]);
   }
@@ -265,10 +281,14 @@ function openLineMenu(anchor, line, row) {
 
 function showMenu(anchor, items, note) {
   closePopover();
-  lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
-    closeLineMenu();
-    action();
-  })));
+  lineMenu.replaceChildren(...items.map(([label, action, detail]) => {
+    const item = button("menu-item", label, () => {
+      closeLineMenu();
+      action();
+    });
+    if (detail) item.append(el("small", null, detail));
+    return item;
+  }));
   lineMenu.append(el("p", "menu-note", note));
   lineMenu.hidden = false;
   const rect = anchor.getBoundingClientRect();
@@ -1146,6 +1166,7 @@ const FIELDS = [
   ["#anki-deck", "ankiDeck", "Horu"],
   ["#auto-cards", "autoCards", false],
   ["#hide-from-capture", "hideFromCapture", true],
+  ["#minimize-to-tray", "minimizeToTray", true],
   ["#auto-translate", "autoTranslate", false],
   ["#ai-checks", "aiChecks", true],
   ["#apply-ai-readings", "applyAiReadings", true],
@@ -1442,18 +1463,109 @@ linesEl.addEventListener("scroll", () => {
 });
 window.addEventListener("resize", closePopover);
 
-async function checkAnki() {
-  const status = $("#anki-status");
-  status.className = "ai-status";
-  status.textContent = "Checking...";
-  const result = await api().anki_status();
-  status.classList.toggle("ok", result.connected);
-  status.classList.toggle("error", !result.connected);
-  status.textContent = result.connected
-    ? `Connected. Cards go to the "${result.deck}" deck (created if needed).`
-    : result.error;
+// --- Anki setup: AnkiWeb (no Anki app needed) or Anki on this PC (AnkiConnect) ------------
+// The same controls in the welcome screen and in Settings → Study.
+
+const ANKI_SETUP = `
+  <div class="via-choices" role="radiogroup" aria-label="How Horu reaches Anki">
+    <button type="button" class="via" data-via="web" role="radio">
+      <b>AnkiWeb</b><small>No Anki app needed. Review at ankiweb.net, on your phone, or in Anki on any computer.</small>
+    </button>
+    <button type="button" class="via" data-via="connect" role="radio">
+      <b>Anki on this PC</b><small>Needs Anki open, with the AnkiConnect add-on.</small>
+    </button>
+  </div>
+  <div class="via-web">
+    <div class="web-account" hidden>
+      <span class="web-who"></span>
+      <div class="test-row"><button type="button" class="web-sync">Sync now</button><button type="button" class="web-out">Sign out</button></div>
+    </div>
+    <form class="web-sign-in">
+      <label class="field"><span>AnkiWeb email</span><input class="web-email" type="email" autocomplete="username" spellcheck="false"></label>
+      <label class="field"><span>Password</span><input class="web-password" type="password" autocomplete="current-password"></label>
+      <div class="test-row"><button type="submit">Sign in</button><button type="button" class="link web-signup">Create a free AnkiWeb account</button></div>
+    </form>
+    <p class="web-status test-result"></p>
+    <p class="check-hint flush">Your password goes only to AnkiWeb; Horu keeps the sign-in key AnkiWeb returns in
+      Windows Credential Manager. Cards sync as you add them.</p>
+  </div>
+  <div class="via-connect">
+    <div class="test-row"><button type="button" class="connect-check">Check connection</button></div>
+    <p class="connect-status test-result"></p>
+    <p class="check-hint flush">Install AnkiConnect in Anki: Tools → Add-ons → Get Add-ons, code 2055492159.</p>
+  </div>`;
+
+function ankiSetup(root) {
+  root.innerHTML = ANKI_SETUP;
+  const find = (selector) => root.querySelector(selector);
+  const show = (status) => {
+    const via = state.prefs.ankiVia || "connect";
+    for (const b of root.querySelectorAll(".via")) b.setAttribute("aria-checked", String(b.dataset.via === via));
+    find(".via-web").hidden = via !== "web";
+    find(".via-connect").hidden = via !== "connect";
+    if (!status) return;
+    if (via === "web") {
+      const signedIn = Boolean(status.account);
+      find(".web-account").hidden = !signedIn;
+      find(".web-sign-in").hidden = signedIn;
+      find(".web-who").textContent = signedIn ? `Signed in as ${status.account}.` : "";
+      const result = find(".web-status");
+      result.className = `web-status test-result ${status.error && signedIn ? "error" : signedIn ? "ok" : ""}`;
+      result.textContent = signedIn ? (status.error || `Cards go to the "${status.deck}" deck on AnkiWeb.`) : "";
+    } else {
+      const result = find(".connect-status");
+      result.className = `connect-status test-result ${status.connected ? "ok" : "error"}`;
+      result.textContent = status.connected ? `Connected. Cards go to the "${status.deck}" deck (created if needed).` : status.error;
+    }
+  };
+  const refresh = async () => {
+    show(null);
+    if ((state.prefs.ankiVia || "connect") === "connect") find(".connect-status").textContent = "Checking...";
+    show(await api().anki_status());
+  };
+  for (const b of root.querySelectorAll(".via")) {
+    b.addEventListener("click", () => {
+      setPref("ankiVia", b.dataset.via);
+      refreshAnkiSetups();
+    });
+  }
+  find(".web-sign-in").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = find(".web-email").value.trim();
+    const password = find(".web-password").value;
+    if (!email || !password) return;
+    const result = find(".web-status");
+    result.className = "web-status test-result";
+    result.textContent = "Signing in and downloading your collection...";
+    const reply = await api().anki_sign_in(email, password);
+    find(".web-password").value = "";
+    if (reply.ok) refreshAnkiSetups();
+    else {
+      result.className = "web-status test-result error";
+      result.textContent = reply.message;
+    }
+  });
+  find(".web-signup").addEventListener("click", () => openExternal("https://ankiweb.net/account/signup"));
+  find(".web-sync").addEventListener("click", async () => {
+    find(".web-status").textContent = "Syncing...";
+    const reply = await api().anki_sync();
+    show(reply.ok ? { ...reply, error: null } : { ...(await api().anki_status()), error: reply.message });
+    if (reply.ok) find(".web-status").textContent = "Synced with AnkiWeb.";
+  });
+  find(".web-out").addEventListener("click", async () => show(await api().anki_sign_out()));
+  root.refresh = refresh;
+  return root;
 }
-$("#anki-check").addEventListener("click", checkAnki);
+
+const ankiSetups = [ankiSetup($("#settings-anki-setup")), ankiSetup($("#welcome-anki-setup"))];
+
+function refreshAnkiSetups() {
+  for (const setup of ankiSetups) if (!setup.closest("[hidden]")) setup.refresh();
+}
+
+function checkAnki() {
+  refreshAnkiSetups();
+}
 
 async function loadFromPython() {
   state.prefs = await api().get_prefs();
@@ -1516,6 +1628,7 @@ function showPane(name) {
   for (const b of document.querySelectorAll(".settings-nav [data-pane]")) b.setAttribute("aria-current", String(b.dataset.pane === name));
   for (const pane of document.querySelectorAll(".pane")) pane.hidden = pane.dataset.pane !== name;
   $(".settings-panes").scrollTop = 0;
+  if (name === "study") refreshAnkiSetups();
 }
 
 // The Study tab's count: reviews due plus new words left today.
@@ -1659,9 +1772,11 @@ function renderStudy(s) {
   const anki = s.anki;
   $("#anki-study").hidden = !anki;
   if (anki) {
+    const web = anki.via === "web";
     $("#anki-due").textContent = anki.connected
       ? `${anki.due} due, ${anki.new} new in ${anki.deck}`
-      : "Not connected. Open Anki to see your deck.";
+      : web ? anki.error : "Not connected. Open Anki to see your deck.";
+    $("#review-in-anki").textContent = web ? "Review on AnkiWeb" : "Review in Anki";
     $("#review-in-anki").disabled = !anki.connected;
   }
 
@@ -1806,7 +1921,9 @@ function renderWelcome() {
   for (const step of document.querySelectorAll(".welcome-step")) step.hidden = Number(step.dataset.step) !== welcome.step;
   [...document.querySelectorAll("#welcome-steps i")].forEach((bar, i) => bar.classList.toggle("on", i <= welcome.step));
   for (const choice of document.querySelectorAll(".choice[data-study]")) choice.setAttribute("aria-pressed", String(choice.dataset.study === welcome.study));
+  const ankiWasHidden = $("#welcome-anki").hidden;
   $("#welcome-anki").hidden = welcome.study !== "anki";
+  if (ankiWasHidden && welcome.study === "anki") $("#welcome-anki-setup").refresh();
   $("#welcome-back").hidden = welcome.step === 0;
   $("#welcome-next").textContent = welcome.step === 3 ? "Start" : "Continue";
   $("#welcome-next").disabled = welcome.step === 0 && !welcome.study;
@@ -1835,23 +1952,14 @@ for (const choice of document.querySelectorAll(".choice[data-study]")) {
     setPref("studyWith", welcome.study);
     applyFields();
     renderWelcome();
-    if (welcome.study === "anki") checkWelcomeAnki();
   });
 }
 
-async function checkWelcomeAnki() {
-  const status = $("#welcome-anki-status");
-  status.className = "test-result";
-  status.textContent = "Checking...";
-  const deck = $("#welcome-deck").value.trim() || "Horu";
-  setPref("ankiDeck", deck);
+$("#welcome-deck").addEventListener("change", () => {
+  setPref("ankiDeck", $("#welcome-deck").value.trim() || "Horu");
   applyFields();
-  const result = await api().anki_status();
-  status.className = `test-result ${result.connected ? "ok" : "error"}`;
-  status.textContent = result.connected ? `Connected. Cards go to "${deck}".` : result.error;
-}
-$("#welcome-anki-check").addEventListener("click", checkWelcomeAnki);
-$("#welcome-deck").addEventListener("change", checkWelcomeAnki);
+  refreshAnkiSetups();
+});
 
 $("#welcome-key-save").addEventListener("click", async () => {
   const key = $("#welcome-key").value.trim();
@@ -2005,6 +2113,13 @@ window.horu = {
     status.textContent = message;
     status.classList.toggle("ok", hookState === "listening");
     status.classList.toggle("error", hookState === "error");
+  },
+
+  // The game window this session captures (null: the next one the hotkey is pressed in).
+  setGame(game) {
+    $("#game-name").textContent = game ? game.label : "Choose game";
+    $("#game-chip").classList.toggle("set", Boolean(game));
+    $("#game-chip").title = game ? `Capturing ${game.title} (${game.game}). Click to change.` : "Choose the game window Horu captures";
   },
 
   setAutoState({ state: autoState, message }) {

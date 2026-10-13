@@ -391,6 +391,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   white-space: nowrap;
 }
 .hotkey-chip:empty { display: none; }
+.game-chip {
+  min-width: 0; max-width: 45%; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px;
+  background: none; color: var(--muted); font-size: 12px; cursor: pointer;
+  display: inline-flex; white-space: nowrap;
+}
+.game-chip:hover { color: var(--text); border-color: var(--muted); }
+.game-chip.set { color: var(--text); }
+#game-name { overflow: hidden; text-overflow: ellipsis; }
+.menu-item small { display: block; color: var(--faint); font-size: 11px; }
 
 #lines {
   flex: 1;
@@ -431,6 +440,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .line {
   position: relative;
   padding: 8px 14px 10px;
+  container-type: inline-size;
 }
 .line + .line { border-top: 1px solid var(--border); }
 
@@ -443,6 +453,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: 12px;
 }
 .speaker {
+  /* A name stays on one line: the buttons beside it fold into ⋯ first. */
+  flex: none;
+  white-space: nowrap;
   padding: 1px 10px;
   border-radius: 999px;
   background: var(--soft-bg);
@@ -452,7 +465,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font-size: calc(var(--text-size) * 0.55);
 }
 .speaker .word { font-weight: 600; }
-.speaker-en { color: var(--muted); font-size: 12px; }
+.speaker-en { min-width: 0; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .speaker rt { font-weight: 400; }
 body.no-furigana .speaker rt { display: none; }
 
@@ -570,6 +583,11 @@ body.no-furigana .speaker rt { display: none; }
 }
 .line:hover .line-btn, .line-btn:focus-visible { opacity: 1; }
 .line-btn:hover { color: var(--text); background: var(--sunken); }
+.line-btn, .kind-label, .corrected-tag, .uncertain-flag { flex: none; }
+/* In a narrow window, Explain, Cards, and Edit move into the ⋯ menu. */
+@container (max-width: 460px) {
+  .line-btn.foldable { display: none; }
+}
 
 /* --- Translations ---------------------------------------------------------------- */
 
@@ -1279,6 +1297,18 @@ body.no-furigana .settings-page .preview rt { display: revert; }
 .choice-icon.horu { background: var(--accent); color: var(--accent-ink); }
 .choice-icon.anki { background: var(--soft-bg); color: var(--soft-ink); font-family: var(--ui); }
 .choices.compact .choice { grid-template-columns: minmax(0, 1fr); padding: 10px 14px; }
+.anki-setup { margin-bottom: 8px; }
+.via-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.via {
+  display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 12px;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); cursor: pointer;
+}
+.via:hover { border-color: var(--muted); }
+.via[aria-checked="true"] { border-color: var(--accent); background: var(--card-new); }
+.via b { font-size: 13px; }
+.via small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.web-who { font-size: 13px; }
+.anki-setup .link { background: none; border: none; color: var(--accent); padding: 0; cursor: pointer; font-size: 12px; }
 .welcome-anki { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
 .welcome-hotkey { display: flex; align-items: center; gap: 10px; }
 .hotkey-name.big { flex: none; font-size: 18px; font-weight: 700; padding: 8px 16px; border-bottom-width: 3px; }

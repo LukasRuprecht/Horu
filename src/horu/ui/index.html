@@ -44,6 +44,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>
       </button>
       <span class="spacer"></span>
+      <button id="game-chip" class="game-chip" type="button" title="The game window Horu captures this session">
+        <span id="game-name">Choose game</span><span aria-hidden="true"> ▾</span>
+      </button>
       <kbd id="hotkey-chip" class="hotkey-chip" title="Press this in your game to capture"></kbd>
     </div>
     <main id="lines">
@@ -202,6 +205,9 @@
           <label class="check"><input id="hide-from-capture" type="checkbox"> Hide Horu from screen capture</label>
           <p class="check-hint">Stops Horu reading itself when it overlaps the game. Turn off to show Horu
             when streaming or sharing your screen.</p>
+          <label class="check"><input id="minimize-to-tray" type="checkbox"> Minimize to the tray</label>
+          <p class="check-hint">Minimizing leaves just Horu's icon by the clock: click it to bring Horu back. Its
+            menu can also capture and turn auto-capture on or off.</p>
         </div>
         <p class="pane-note">Auto-capture (the eye button in Read) reads the game by itself whenever new text
           settles on screen, and shows the dialogue it finds: lines, choices, thought bubbles. Text that
@@ -228,21 +234,17 @@
         </div>
         <div class="group">
           <h3>Anki</h3>
+          <div id="settings-anki-setup" class="anki-setup"></div>
           <label class="field">
             <span>Deck for new cards</span>
             <input id="anki-deck" type="text" placeholder="Horu" spellcheck="false">
           </label>
-          <div class="test-row">
-            <button id="anki-check" type="button">Check connection</button>
-          </div>
-          <p id="anki-status" class="ai-status"></p>
           <label class="check"><input id="auto-cards" type="checkbox"> Automatically add cards from every capture</label>
           <p class="check-hint">Off by default. For each new dialogue line, the AI picks the words worth
             learning at your level and adds those not already in your deck (up to 3 per line). Uses one
             AI task per line and needs a model with tool support.</p>
-          <p class="check-hint">Needs Anki open with the AnkiConnect add-on (Tools → Add-ons → Get Add-ons,
-            code 2055492159). Cards use a "Horu Sentence" note type: the line with the word in bold, then
-            its reading, meaning, grammar, translation, and a screenshot.</p>
+          <p class="check-hint flush">Cards use a "Horu Sentence" note type: the line with the word in bold,
+            then its reading, meaning, grammar, translation, and a screenshot.</p>
         </div>
       </section>
 
@@ -392,18 +394,15 @@
           <button class="choice" type="button" data-study="anki">
             <span class="choice-icon anki" aria-hidden="true">A</span>
             <b>With Anki</b>
-            <small>Words become cards in your Anki deck. Needs Anki open with the AnkiConnect add-on.</small>
+            <small>Words become cards in your Anki deck: through AnkiWeb (no Anki app needed), or Anki on this PC.</small>
           </button>
         </div>
         <div id="welcome-anki" class="welcome-anki" hidden>
+          <div id="welcome-anki-setup" class="anki-setup"></div>
           <label class="field">
             <span>Deck for new cards</span>
             <input id="welcome-deck" type="text" placeholder="Horu" spellcheck="false">
           </label>
-          <div class="test-row">
-            <button id="welcome-anki-check" type="button">Check connection</button>
-            <span id="welcome-anki-status" class="test-result"></span>
-          </div>
         </div>
       </div>
 

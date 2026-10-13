@@ -54,12 +54,16 @@ The first run creates `config.toml` from `config.example.toml`. Run the tests wi
 3. **Press `Ctrl+Alt+J` in your game** whenever there's text. Horu captures the game's window,
    finds every line of Japanese, and adds it to the history. There's no capture region to set
    up. To use another key, open settings (the sliders button) and change it under **Capture**.
+   The first press picks the game for the session (shown at the top of the Read tab, where you
+   can also choose it from a list): after that the hotkey captures the game even while Horu
+   or another window is in front.
 4. **Click any word** for its reading, dictionary form, grammar notes, JLPT level, and meanings.
    **Save** keeps it for the Study tab.
 
 Horu has three tabs: **Read** (the lines from your game), **Words** (everything you saved), and
 **Study** (today's reviews). Settings has the colours (Horu, Indigo, or Matcha, each light or
-dark) under **Appearance**.
+dark) under **Appearance**. Minimizing Horu leaves its ほ icon in the tray by the clock: click
+it to bring Horu back, or use its menu to capture or turn auto-capture on or off.
 
 ### What you see
 
@@ -73,7 +77,7 @@ dark) under **Appearance**.
 
 ### Reading by itself: auto-capture
 
-Turn on the eye button, and after one hotkey press (so Horu knows which window is your game)
+Turn on the eye button, and once Horu knows your game (one hotkey press, or the game chooser)
 Horu reads the game whenever new text settles on screen: dialogue, choices, thought bubbles.
 Text that stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's
 HUD keeps changing, limit auto-capture to parts of the picture: open a line's **⋯** menu and
@@ -131,8 +135,18 @@ Your words stay on your PC, in `data/words.db`.
 ### Anki
 
 To study in Anki instead, choose **With Anki** in the welcome screen or in
-**Settings → Study**. With Anki open and the
-[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on installed:
+**Settings → Study**, then how Horu reaches Anki:
+
+- **AnkiWeb** (no Anki app needed): sign in with your [AnkiWeb](https://ankiweb.net) account
+  (free). Cards go into your collection and sync to AnkiWeb as you add them; review them at
+  ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on any computer. Your password goes only to
+  AnkiWeb, and Horu keeps the sign-in key it returns in Windows Credential Manager. Horu keeps a
+  copy of your collection (without its media) in `data/anki`. Screenshots are stored inside the
+  card, so Horu never downloads your media.
+- **Anki on this PC**: with Anki open and the
+  [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on installed.
+
+Either way:
 
 - **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the line with the word in bold, its reading,
   meaning, grammar notes, translation, and a screenshot. With an AI provider, the meaning and a
@@ -143,7 +157,7 @@ To study in Anki instead, choose **With Anki** in the welcome screen or in
 - Optionally (off by default), Horu adds cards automatically from every new dialogue line.
 
 - The Study tab shows how many cards are due in your deck, with a button to review them in
-  Anki. **Words** can add words you saved in Horu to Anki.
+  Anki (or on AnkiWeb). **Words** can add words you saved in Horu to Anki.
 
 The deck is set in **Settings → Study**.
 
@@ -177,6 +191,8 @@ Things that leave your PC:
   - Speaker labels send the speaker's name, once per name per game.
 
   Nothing is sent until you set up a provider. With Ollama, everything stays on your PC.
+- **AnkiWeb, only if you choose it for Anki:** signing in, and syncing your collection with
+  ankiweb.net (cards Horu adds, and the due counts in the Study tab).
 
 API keys are stored in Windows Credential Manager, not in a file. Screenshots are only saved
 to disk if you turn on `debug.save_captures` in `config.toml`, and debug bundles only when you
@@ -339,6 +355,8 @@ Horu is MIT licensed. See [LICENSE](LICENSE).
 - OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
   [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
 - Review scheduling: [py-fsrs](https://github.com/open-spaced-repetition/py-fsrs), MIT.
+- AnkiWeb sync: [fastanki](https://github.com/AnswerDotAI/fastanki), Apache 2.0.
+- Tray icon: [pystray](https://github.com/moses-palmer/pystray), LGPL 3.0.
 - JLPT levels: [open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks)
   (MIT), based on Jonathan Waller's JLPT lists ([tanos.co.uk](https://www.tanos.co.uk/jlpt/),
   CC BY).

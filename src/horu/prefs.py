@@ -20,6 +20,7 @@ DEFAULTS: dict = {
     # Keep Horu's window out of screen captures, so it's never read even when it overlaps the
     # game. Off for people who stream or share their screen with Horu visible.
     "hideFromCapture": True,
+    "minimizeToTray": True,  # minimizing leaves just the tray icon
     "autoTranslate": False,  # one AI request per new dialogue line
     # Use the AI's reading of a possibly misread line (or name tag) straight away, showing
     # what changed, instead of asking "Did you mean ...?".
@@ -36,6 +37,9 @@ DEFAULTS: dict = {
     "aiBaseUrl": "",
     "translationModel": "",  # "" = same model as explanations
     "ankiDeck": "Horu",
+    # How Horu reaches Anki: "web" (AnkiWeb, no Anki app needed) or "connect" (Anki open on
+    # this PC, with the AnkiConnect add-on).
+    "ankiVia": "connect",
     # Run the flashcard agent on every new dialogue line, adding words not yet in the deck.
     "autoCards": False,
     # Read the game's dialogue box by itself whenever its text changes.

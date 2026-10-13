@@ -176,6 +176,56 @@ def focused_process_name() -> str | None:
     return process_name(_user32.GetForegroundWindow())
 
 
+def window_title(hwnd: int) -> str:
+    if sys.platform != "win32" or not hwnd:
+        return ""
+    buffer = ctypes.create_unicode_buffer(256)
+    _user32.GetWindowTextW(hwnd, buffer, 256)
+    return buffer.value
+
+
+def game_windows() -> list[dict]:
+    """Windows a game could be in: visible, titled, on screen, big enough, and not Horu's own.
+    [{"id", "title", "process"}], front-most first."""
+    if sys.platform != "win32":
+        return []
+    found: list[dict] = []
+    cloaked = wintypes.DWORD()
+    DWMWA_CLOAKED, GWL_EXSTYLE, WS_EX_TOOLWINDOW = 14, -20, 0x80
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def visit(hwnd, _):
+        if not _user32.IsWindowVisible(hwnd) or _user32.GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW:
+            return True
+        # Hidden store-app windows report as visible but are "cloaked".
+        if not _dwmapi.DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, ctypes.byref(cloaked), ctypes.sizeof(cloaked)) and cloaked.value:
+            return True
+        title, box = window_title(hwnd), window_box(hwnd)
+        if not title or box is None or box["width"] < 200 or box["height"] < 150:
+            return True
+        pid = wintypes.DWORD()
+        _user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value != os.getpid():
+            found.append({"id": int(hwnd), "title": title, "process": process_name(hwnd) or ""})
+        return True
+
+    _user32.EnumWindows(visit, 0)
+    return found
+
+
+def grab_window(hwnd: int, own_ok: bool = False) -> tuple[Image.Image, float] | None:
+    """A capture of a window's client area wherever it is on screen, with any part another
+    window covers blanked out, and the share covered. None if it's gone or minimized."""
+    box = window_box(hwnd)
+    if box is None:
+        return None
+    share, rects = covered(hwnd, box, (0, 0, box["width"], box["height"]), own_ok=own_ok)
+    image = _grab_box(box)
+    for rect in rects:
+        image.paste((0, 0, 0), rect)
+    return image, share
+
+
 def process_name(hwnd: int) -> str | None:
     """The executable name of a window's program."""
     if sys.platform != "win32" or not hwnd:

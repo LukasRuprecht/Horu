@@ -21,8 +21,8 @@ ANKICONNECT_CODE = "2055492159"
 NOTE_TYPE = "Horu Sentence"
 FIELDS = ["Sentence", "Word", "Reading", "Meaning", "Notes", "Translation", "Screenshot", "Source"]
 
-_FRONT = """<div class="sentence">{{Sentence}}</div>"""
-_BACK = """{{FrontSide}}
+FRONT = """<div class="sentence">{{Sentence}}</div>"""
+BACK = """{{FrontSide}}
 <hr id="answer">
 <div class="word">{{Word}} <span class="reading">{{Reading}}</span></div>
 <div class="meaning">{{Meaning}}</div>
@@ -30,7 +30,7 @@ _BACK = """{{FrontSide}}
 {{#Translation}}<div class="translation">{{Translation}}</div>{{/Translation}}
 <div class="screenshot">{{Screenshot}}</div>
 <div class="source">{{Source}}</div>"""
-_CSS = """.card { font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 22px;
+CSS = """.card { font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", sans-serif; font-size: 22px;
   text-align: center; color: #222; background: #fafafa; }
 .sentence { font-size: 28px; line-height: 1.6; }
 .sentence b { color: #c0392b; }
@@ -117,20 +117,10 @@ class AnkiClient:
                 data=base64.b64encode(screenshot_png).decode(),
             )
             screenshot = f'<img src="{html.escape(filename)}">'
-        fields = {
-            "Sentence": highlight(card.sentence, card.word),
-            "Word": html.escape(card.dictionary_form),
-            "Reading": html.escape(card.reading),
-            "Meaning": html.escape(card.meaning),
-            "Notes": html.escape(card.notes),
-            "Translation": html.escape(card.translation),
-            "Screenshot": screenshot,
-            "Source": html.escape(card.source),
-        }
         note = {
             "deckName": deck,
             "modelName": NOTE_TYPE,
-            "fields": fields,
+            "fields": note_fields(card, screenshot),
             "tags": ["horu"],
             "options": {"allowDuplicate": False, "duplicateScope": "deck"},
         }
@@ -143,10 +133,24 @@ class AnkiClient:
             "createModel",
             modelName=NOTE_TYPE,
             inOrderFields=FIELDS,
-            css=_CSS,
+            css=CSS,
             isCloze=False,
-            cardTemplates=[{"Name": "Sentence", "Front": _FRONT, "Back": _BACK}],
+            cardTemplates=[{"Name": "Sentence", "Front": FRONT, "Back": BACK}],
         )
+
+
+def note_fields(card: Card, screenshot: str = "") -> dict:
+    """The "Horu Sentence" fields for a card, as HTML. `screenshot` is an <img> tag or ""."""
+    return {
+        "Sentence": highlight(card.sentence, card.word),
+        "Word": html.escape(card.dictionary_form),
+        "Reading": html.escape(card.reading),
+        "Meaning": html.escape(card.meaning),
+        "Notes": html.escape(card.notes),
+        "Translation": html.escape(card.translation),
+        "Screenshot": screenshot,
+        "Source": html.escape(card.source),
+    }
 
 
 def highlight(sentence: str, word: str) -> str:

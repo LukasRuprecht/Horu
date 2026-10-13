@@ -20,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, translations, wordbook
+from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -180,6 +180,17 @@ class Api:
         """Read a guessed name tag with the AI."""
         return self._app.check_speaker(line_id)
 
+    def game_windows(self) -> dict:
+        """Open windows to choose the game from, and the one chosen now."""
+        return self._app.game_windows()
+
+    # Not "window": pywebview names the JavaScript function's parameters after these, and one
+    # called window would hide the page's window object from its own bridge code.
+    def set_game_window(self, window_id: int | None) -> None:
+        """Capture this window for the rest of the session (None: the next one the hotkey is
+        pressed in)."""
+        self._app._set_game_window(window_id)
+
     def region_editor(self, line_id: int) -> dict:
         """The game picture this line was captured from, with its auto-read regions."""
         return self._app.region_editor(line_id)
@@ -204,6 +215,8 @@ class Api:
             self._app.apply_capture_exclusion()
         elif key in ("hookSource", "hookUrl"):
             self._app.apply_hook()
+        elif key == "autoCapture" and self._app._tray:
+            self._app._tray.refresh()
 
     def hook_state(self) -> dict:
         return self._app.hook_state
@@ -226,7 +239,26 @@ class Api:
         self._app.translate_speaker(game, text)
 
     def anki_status(self) -> dict:
-        return {**self._app.anki.status(), "deck": self._app.prefs.values["ankiDeck"]}
+        return {**self._app.anki.status(), "deck": self._app.prefs.values["ankiDeck"], "via": self._app.prefs.values["ankiVia"]}
+
+    def anki_sign_in(self, email: str, password: str) -> dict:
+        """Sign in to AnkiWeb (and download the collection)."""
+        try:
+            self._app.anki_web.sign_in(email, password)
+        except anki.AnkiError as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, **self.anki_status()}
+
+    def anki_sign_out(self) -> dict:
+        self._app.anki_web.sign_out()
+        return self.anki_status()
+
+    def anki_sync(self) -> dict:
+        try:
+            self._app.anki_web.sync()
+        except anki.AnkiError as e:
+            return {"ok": False, "message": str(e)}
+        return {"ok": True, **self.anki_status()}
 
     def save_card(self, line_id: int, index: int, part: str = "text") -> dict:
         return self._app.save_card(line_id, index, part)
@@ -288,13 +320,17 @@ class App:
         self.boxes = autocapture.DialogueBoxes()
         self._find_text = None  # text detector for auto-capture, loaded when first needed
         self._pictures = autocapture.PictureFinder()
-        self._game_window: tuple[int, str] | None = None  # (window, game) of the last hotkey capture
+        # (window, game) Horu captures this session: the first one the hotkey was pressed in, or
+        # the one chosen in the Read tab. The hotkey captures it even when another window is in
+        # front; auto-capture watches it.
+        self._game_window: tuple[int, str] | None = None
         self._auto_state: tuple[str, str] | None = None  # last state shown on the auto toggle
         self._last_auto: dict[str, tuple[int, str]] = {}  # region -> (line id, text) of the last line read there
         self._captured_pictures: OrderedDict[int, tuple[bytes, tuple[int, int], str]] = OrderedDict()  # capture id -> (JPEG, picture size, game)
         self._kept_captures: OrderedDict[int, debug_bundle.Capture] = OrderedDict()  # capture id -> the capture, for debug bundles
         self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
-        self.anki = anki.AnkiClient()
+        self._anki_connect = anki.AnkiClient()
+        self.anki_web = anki_web.AnkiWebClient()
         self.words = wordbook.Wordbook()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
@@ -318,11 +354,13 @@ class App:
         self._capture_ids = itertools.count(1)
         self._page_loaded = threading.Event()
         self._stop_hotkey = None
+        self._tray: tray.Tray | None = None
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
     def run(self) -> None:
         import webview
 
+        tray.set_app_id()
         self.window = webview.create_window(
             "Horu",
             url=str(UI_DIR / "index.html"),
@@ -335,13 +373,54 @@ class App:
             background_color="#f4f2ec" if self.prefs.values["colorMode"] == "light" else "#15171d",
         )
         self.window.events.loaded += self._page_loaded.set
+        self.window.events.minimized += self._minimized
+        self._tray = self._start_tray()
         _quit_on_ctrl_c()
         # webview.start blocks on the main thread; _worker runs on a background thread, a
         # daemon one so closing the window ends Horu (it waits for captures forever).
         start_worker = lambda: threading.Thread(target=self._worker, name="horu-worker", daemon=True).start()
         webview.start(start_worker, debug=self.debug)
+        if self._tray:
+            self._tray.stop()
         if self._stop_hotkey:
             self._stop_hotkey()
+
+    def _start_tray(self) -> tray.Tray | None:
+        """The tray icon; Horu works without one (a system with no tray, a failed start)."""
+        try:
+            icon = tray.Tray(
+                show=self.show_window,
+                capture=self._capture_from_tray,
+                auto_on=lambda: bool(self.prefs.values["autoCapture"]),
+                toggle_auto=lambda: self.window.evaluate_js("document.querySelector('#toggle-auto').click()"),
+                quit=lambda: self.window.destroy(),
+            )
+            icon.start()
+            return icon
+        except Exception:
+            traceback.print_exc()
+            return None
+
+    def show_window(self) -> None:
+        self.window.show()
+        self.window.restore()
+
+    def _minimized(self) -> None:
+        if self._tray and self.prefs.values["minimizeToTray"]:
+            self.window.hide()
+
+    def _capture_from_tray(self) -> None:
+        # The tray has focus now, not the game: only a chosen game window can be captured.
+        if self._game_window is None:
+            self.show_window()
+            self._status("error", f"Press {_pretty_hotkey(self.hotkey_spec)} in your game once, or choose your game in the Read tab.")
+        else:
+            self._requests.put(None)
+
+    @property
+    def anki(self) -> anki.AnkiClient | anki_web.AnkiWebClient:
+        """Anki as the learner set it up: through AnkiWeb, or the Anki app on this PC."""
+        return self.anki_web if self.prefs.values["ankiVia"] == "web" else self._anki_connect
 
     def lookup(self, word: dict) -> dict:
         """Dictionary entries for a word, plus name readings for names (or when the dictionary
@@ -472,10 +551,13 @@ class App:
         summary = self.words.summary(self.prefs.values["newPerDay"])
         if self.prefs.values["studyWith"] == "anki":
             deck = self.prefs.values["ankiDeck"] or "Horu"
+            via = self.prefs.values["ankiVia"]
             try:
-                summary["anki"] = {"connected": True, "deck": deck, **self.anki.due_counts(deck)}
+                if via == "web" and not self.anki_web.signed_in:
+                    raise anki.AnkiError("Sign in to AnkiWeb in Settings → Study.")
+                summary["anki"] = {"connected": True, "deck": deck, "via": via, **self.anki.due_counts(deck)}
             except anki.AnkiError as e:
-                summary["anki"] = {"connected": False, "deck": deck, "error": str(e)}
+                summary["anki"] = {"connected": False, "deck": deck, "via": via, "error": str(e)}
         return summary
 
     def reread(self, line_id: int) -> dict:
@@ -918,6 +1000,7 @@ class App:
     def _worker(self) -> None:
         self._page_loaded.wait()
         self.apply_capture_exclusion()
+        tray.set_window_icon(self.window.native.Handle.ToInt32())
         if not self._load():
             return
         threading.Thread(target=self._watch, name="horu-watch", daemon=True).start()
@@ -970,6 +1053,8 @@ class App:
                 self._source = text_sources.create(self.cfg.ocr_engine)
             self.apply_ai()  # AI is optional: problems are reported in settings, not fatal
             self.apply_hook()
+            if self.prefs.values["ankiVia"] == "web" and self.anki_web.signed_in:
+                self.anki_web.sync_soon(delay=0)
         except Exception as e:
             traceback.print_exc()
             self._status("error", str(e))
@@ -1011,16 +1096,24 @@ class App:
         auto = request is not None
         if auto:
             image, game = request.image, request.game
+        elif self.cfg.capture.mode == "window" and self._game_window and capture.window_box(self._game_window[0]):
+            window, game = self._game_window
+            grabbed = capture.grab_window(window, own_ok=self.prefs.values["hideFromCapture"])
+            if grabbed is None or grabbed[1] > _MOST_COVERED:
+                self._status("error", f"Something is covering {_game_label(game)}. Bring it to the front, then press the hotkey.")
+                return
+            self._status("busy", "Reading...")
+            image = grabbed[0]
         else:
             if self.cfg.capture.mode == "window" and capture.focused_window_is_own():
-                self._status("error", "Horu has focus. Click your game, then press the hotkey.")
+                self._status("error", "Horu has focus. Click your game, then press the hotkey (or choose the game in the Read tab).")
                 return
             self._status("busy", "Reading...")
             image = capture.grab(self.cfg.capture)
             game = (capture.focused_process_name() if self.cfg.capture.mode == "window" else None) or corrections.DEFAULT_GAME
             window = capture.foreground_window() if self.cfg.capture.mode == "window" else None
             if window:
-                self._game_window = (window, game)
+                self._set_game_window(window, game)
         if self.cfg.save_captures:
             capture.save(image, self.cfg.captures_dir)
         hints = dataclasses.replace(self.corrections.hints(game), known_speakers=self.speakers.known(game))
@@ -1264,7 +1357,7 @@ class App:
             return None
         hotkey_name = _pretty_hotkey(self.hotkey_spec)
         if self._game_window is None:
-            self._set_auto("waiting", f"Press {hotkey_name} in your game once, so Horu knows which window to watch.")
+            self._set_auto("waiting", f"Press {hotkey_name} in your game once, or choose your game in the Read tab, so Horu knows which window to watch.")
             return None
         window, game = self._game_window
         box = capture.window_box(window)
@@ -1295,6 +1388,20 @@ class App:
         for rect in blanks:
             image.paste((0, 0, 0), rect)
         return (game, picture, tuple(boxes)), image, picture, game, boxes
+
+    def _set_game_window(self, window: int | None, game: str | None = None) -> None:
+        """The window this session captures (None: the next one the hotkey is pressed in)."""
+        if window:
+            game = game or capture.process_name(window) or corrections.DEFAULT_GAME
+            self._game_window = (window, game)
+            self._call("setGame", {"id": window, "game": game, "label": _game_label(game), "title": capture.window_title(window)})
+        else:
+            self._game_window = None
+            self._call("setGame", None)
+
+    def game_windows(self) -> dict:
+        current = self._game_window[0] if self._game_window else None
+        return {"windows": capture.game_windows(), "current": current}
 
     def _time(self, line_id: int, event: str) -> None:
         """Log how long after its capture began a line reached `event`, to find slow steps."""
@@ -1564,6 +1671,11 @@ class App:
     def _call(self, function: str, *args) -> None:
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
+
+
+def _game_label(game: str) -> str:
+    """P5R for P5R.exe."""
+    return game[:-4] if game.lower().endswith(".exe") else game
 
 
 def _same_line(a: str, b: str) -> bool:
