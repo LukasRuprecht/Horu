@@ -23,6 +23,8 @@ if sys.platform == "win32":
     _user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
     _user32.GetAncestor.restype = wintypes.HWND
     _GA_ROOT = 2
+    _dwmapi = ctypes.WinDLL("dwmapi")
+    _DWMWA_EXTENDED_FRAME_BOUNDS = 9
     # Work in physical pixels so window coordinates match what mss captures.
     try:
         _user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))  # PER_MONITOR_AWARE_V2
@@ -98,23 +100,52 @@ def grab_part(box: dict, part: tuple[int, int, int, int]) -> Image.Image:
     return _grab_box({"left": box["left"] + left, "top": box["top"] + top, "width": right - left, "height": bottom - top})
 
 
-def shows_part(hwnd: int, box: dict, part: tuple[int, int, int, int], own_ok: bool = False) -> bool:
-    """True when nothing covers `part` of the window's box on screen: its corners and centre
-    show the window itself (or Horu's own window, with `own_ok`, when Horu hides from captures)."""
+def covered(hwnd: int, box: dict, part: tuple[int, int, int, int], own_ok: bool = False, grid: tuple[int, int] = (8, 6)) -> tuple[float, list[tuple[int, int, int, int]]]:
+    """How much of `part` (in pixels of the window's box) other windows cover on screen: the
+    share of a grid of points across it that show another window, and those windows'
+    rectangles (in the same pixels, clipped to `part`). Horu's own window doesn't count with
+    `own_ok` (when it hides from captures, the game shows through it in captures). Nor do the
+    invisible resize borders Windows 10 and 11 put around windows: a window beside the game
+    reaches a few pixels over it without covering anything."""
     if sys.platform != "win32":
-        return True
+        return 0.0, []
     left, top, right, bottom = part
-    points = [(left, top), (right - 1, top), (left, bottom - 1), (right - 1, bottom - 1), ((left + right) // 2, (top + bottom) // 2)]
+    columns, rows = grid
+    points = [
+        (left + (right - left) * (2 * c + 1) // (2 * columns), top + (bottom - top) * (2 * r + 1) // (2 * rows))
+        for r in range(rows)
+        for c in range(columns)
+    ]
+    hidden, rects = 0, {}
     for x, y in points:
-        shown = _user32.WindowFromPoint(wintypes.POINT(box["left"] + x, box["top"] + y))
+        screen_x, screen_y = box["left"] + x, box["top"] + y
+        shown = _user32.WindowFromPoint(wintypes.POINT(screen_x, screen_y))
         root = _user32.GetAncestor(shown, _GA_ROOT) if shown else None
-        if root and root & 0xFFFFFFFF == hwnd & 0xFFFFFFFF:  # handles fit in 32 bits
+        if not root or root & 0xFFFFFFFF == hwnd & 0xFFFFFFFF:
             continue
         pid = wintypes.DWORD()
         _user32.GetWindowThreadProcessId(root, ctypes.byref(pid))
-        if not (own_ok and pid.value == os.getpid()):
-            return False
-    return True
+        if own_ok and pid.value == os.getpid():
+            continue
+        frame = _visible_frame(root)
+        if frame and not (frame[0] <= screen_x < frame[2] and frame[1] <= screen_y < frame[3]):
+            continue  # its invisible border
+        hidden += 1
+        if frame and root not in rects and frame[2] - box["left"] > left and frame[3] - box["top"] > top:
+            rects[root] = (
+                max(frame[0] - box["left"], left), max(frame[1] - box["top"], top),
+                min(frame[2] - box["left"], right), min(frame[3] - box["top"], bottom),
+            )
+    return hidden / len(points), list(rects.values())
+
+
+def _visible_frame(hwnd: int) -> tuple[int, int, int, int] | None:
+    """A window's rectangle on screen as drawn, without its invisible resize borders."""
+    rect = wintypes.RECT()
+    if _dwmapi.DwmGetWindowAttribute(wintypes.HWND(hwnd), _DWMWA_EXTENDED_FRAME_BOUNDS, ctypes.byref(rect), ctypes.sizeof(rect)):
+        if not _user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(rect)):
+            return None
+    return rect.left, rect.top, rect.right, rect.bottom
 
 
 def focused_window_is_own() -> bool:

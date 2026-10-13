@@ -4609,6 +4609,418 @@
      "text": "回ログ"
     }
    ]
+  },
+  {
+   "name": "three_choices_tilted_highlight",
+   "size": [
+    990,
+    688
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      0,
+      1,
+      25,
+      11
+     ],
+     "style": {
+      "ink": [
+       37,
+       129,
+       37
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.984
+    },
+    {
+     "text": "￥800",
+     "box": [
+      191,
+      163,
+      234,
+      182
+     ],
+     "style": {
+      "ink": [
+       65,
+       68,
+       60
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.938
+    },
+    {
+     "text": "そろそろ行った方がいいだろ。",
+     "box": [
+      192,
+      536,
+      446,
+      560
+     ],
+     "style": {
+      "ink": [
+       64,
+       64,
+       64
+      ],
+      "light_on_dark": true
+     },
+     "score": 1.0
+    },
+    {
+     "text": "旨かった",
+     "box": [
+      609,
+      425,
+      692,
+      455
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.978
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      904,
+      529,
+      968,
+      559
+     ],
+     "style": {
+      "ink": [
+       246,
+       246,
+       246
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.841
+    },
+    {
+     "text": "佐倉惣治郎",
+     "box": [
+      152,
+      457,
+      271,
+      514
+     ],
+     "style": {
+      "ink": [
+       6,
+       5,
+       5
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.887,
+     "slant_height": 29.8
+    },
+    {
+     "text": "ごちそうさま",
+     "box": [
+      541,
+      347,
+      660,
+      393
+     ],
+     "style": {
+      "ink": [
+       12,
+       10,
+       10
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.989,
+     "slant_height": 26.3
+    },
+    {
+     "text": "目が覚めた",
+     "box": [
+      566,
+      469,
+      670,
+      504
+     ],
+     "style": {
+      "ink": [
+       239,
+       239,
+       239
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.998,
+     "slant_height": 27.1
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "ごちそうさま"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "旨かった"
+    },
+    {
+     "speaker": "佐倉惣治郎",
+     "kind": "dialogue",
+     "text": "そろそろ行った方がいいだろ。"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "目が覚めた"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    }
+   ],
+   "note": "Three tilted choices; the highlighted one (dark on light) above an untilted OCR box was read as a name tag"
+  },
+  {
+   "name": "three_tilted_choices_noun_last",
+   "size": [
+    1340,
+    1000
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      0,
+      0,
+      29,
+      13
+     ],
+     "style": {
+      "ink": [
+       41,
+       144,
+       41
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.95
+    },
+    {
+     "text": "…どうだった、学校?　やってけそうか？",
+     "box": [
+      285,
+      755,
+      724,
+      788
+     ],
+     "style": {
+      "ink": [
+       63,
+       63,
+       63
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.975
+    },
+    {
+     "text": "大変そうだ",
+     "box": [
+      812,
+      612,
+      949,
+      649
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.984
+    },
+    {
+     "text": "F早送り",
+     "box": [
+      1224,
+      751,
+      1308,
+      790
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.832
+    },
+    {
+     "text": "10",
+     "box": [
+      0,
+      70,
+      321,
+      295
+     ],
+     "style": {
+      "ink": [
+       108,
+       108,
+       108
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.771,
+     "slant_height": 142.7
+    },
+    {
+     "text": "昼間SU",
+     "box": [
+      17,
+      241,
+      156,
+      353
+     ],
+     "style": {
+      "ink": [
+       105,
+       105,
+       105
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.728,
+     "slant_height": 73.7
+    },
+    {
+     "text": "SUNDAY",
+     "box": [
+      103,
+      174,
+      292,
+      291
+     ],
+     "style": {
+      "ink": [
+       108,
+       108,
+       108
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.862,
+     "slant_height": 70.6
+    },
+    {
+     "text": "佐倉　惣治郎",
+     "box": [
+      206,
+      653,
+      365,
+      731
+     ],
+     "style": {
+      "ink": [
+       6,
+       6,
+       5
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.926,
+     "slant_height": 39.3
+    },
+    {
+     "text": "面白そうだ",
+     "box": [
+      751,
+      508,
+      888,
+      565
+     ],
+     "style": {
+      "ink": [
+       22,
+       22,
+       21
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.998,
+     "slant_height": 34.5
+    },
+    {
+     "text": "とくに何も",
+     "box": [
+      772,
+      669,
+      901,
+      714
+     ],
+     "style": {
+      "ink": [
+       238,
+       238,
+       238
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.999,
+     "slant_height": 36.1
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "昼間SU"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "面白そうだ"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "大変そうだ"
+    },
+    {
+     "speaker": "佐倉　惣治郎",
+     "kind": "dialogue",
+     "text": "…どうだった、学校?　やってけそうか？"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "とくに何も"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送り"
+    }
+   ],
+   "note": "とくに何も has no verb, but it is tilted in a stack of tilted choices: a choice, not other text"
   }
  ]
 }

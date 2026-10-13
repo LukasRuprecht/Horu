@@ -221,16 +221,17 @@ def _choices_follow(blocks: list[TextBlock]) -> list[TextBlock]:
     (道を訊きたい), or they follow a question, the others that are phrases are dialogue too
     (用は無い ends like a menu label would). So are stacked phrases offered while someone
     is speaking (気をつける／適当にやる under 佐倉惣治郎's line): menus don't come with a name
-    tag."""
+    tag. A tilted line in a stack of choices is one too, phrase or not (ごちそうさま over
+    旨かった／目が覚めた): menus aren't drawn at an angle among them."""
     blocks = list(blocks)
 
-    def could_be_choice(block: TextBlock) -> bool:
+    def could_be_choice(block: TextBlock, tilted_ok: bool = False) -> bool:
         return (
             block.kind == "other"
             and block.speaker is None
             and len(block.lines) == 1
             and not is_legend(block.text)
-            and _is_phrase(block.text)
+            and (_is_phrase(block.text) or (tilted_ok and bool(block.lines[0].slant_height)))
         )
 
     if any(b.kind == "dialogue" and b.speaker for b in blocks):
@@ -242,8 +243,9 @@ def _choices_follow(blocks: list[TextBlock]) -> list[TextBlock]:
     while changed:
         changed = False
         said = [b for b in blocks if b.kind == "dialogue" and b.speaker is None]
+        tilted = any(l.slant_height for b in said for l in b.lines)
         for i, block in enumerate(blocks):
-            if could_be_choice(block) and any(
+            if could_be_choice(block, tilted) and any(
                 _stacked(block.lines[0], other.lines[-1]) or _stacked(block.lines[0], other.lines[0]) for other in said
             ):
                 blocks[i] = replace(block, kind="dialogue")
@@ -299,6 +301,15 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     # A speaker says something: the line below must read like dialogue, not be another menu
     # item or label.
     if not _reads_like_dialogue(lines[body].text):
+        return False
+    # Tilted choices (P5R's ごちそうさま／旨かった／目が覚めた): the line below is the next
+    # choice, not what a tilted name tag's speaker says, when a line stacked under it is
+    # tilted too. Text under a tilted name tag is level. (OCR finds some choices level.)
+    if candidate.slant_height and any(
+        lines[j].slant_height and lines[j].box[1] > lines[body].box[1] and _stacked(lines[body], lines[j])
+        for j in range(len(lines))
+        if j not in (i, body) and j not in legends
+    ):
         return False
 
     score = 0

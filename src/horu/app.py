@@ -51,6 +51,8 @@ _SCREENSHOT_MAX_WIDTH = 900
 _FLUSH_SECONDS = 0.05
 # How often auto-capture looks at the dialogue box.
 _WATCH_SECONDS = 0.25
+# Share of the game picture other windows may cover before auto-capture pauses.
+_MOST_COVERED = 0.5
 # Hotkey captures whose game picture is kept, for drawing auto-read regions on.
 _PICTURES_KEPT = 10
 _PICTURE_MAX_WIDTH = 1280
@@ -1276,17 +1278,23 @@ class App:
         picture = self._pictures.find(size, lambda: capture.grab_part(box, (0, 0, *size)))
         picture_size = (picture[2] - picture[0], picture[3] - picture[1])
         regions = self.boxes.regions(game, picture_size)
-        # With regions, only they need to be uncovered.
+        # Watched while most of it shows: what covers the rest (a notification, the edge of
+        # Horu's window) is blanked out, so it's never read. With regions, only they count.
         parts = [autocapture.to_pixels(r.box, picture) for r in regions] or [picture]
-        if not all(capture.shows_part(window, box, part, own_ok=self.prefs.values["hideFromCapture"]) for part in parts):
+        covers = [capture.covered(window, box, part, own_ok=self.prefs.values["hideFromCapture"]) for part in parts]
+        if any(share > _MOST_COVERED for share, _ in covers):
             self._set_auto("paused", f"Paused: something is covering {game}.")
             return None
+        blanks = [rect for _, rects in covers for rect in rects]
         if regions:
             self._set_auto("watching", f"Watching {game}: {', '.join(r.name for r in regions)}.")
         else:
             self._set_auto("watching", f"Watching {game} for new dialogue.")
         boxes = [r.box for r in regions]
-        return (game, picture, tuple(boxes)), capture.grab_part(box, (0, 0, *size)), picture, game, boxes
+        image = capture.grab_part(box, (0, 0, *size))
+        for rect in blanks:
+            image.paste((0, 0, 0), rect)
+        return (game, picture, tuple(boxes)), image, picture, game, boxes
 
     def _time(self, line_id: int, event: str) -> None:
         """Log how long after its capture began a line reached `event`, to find slow steps."""
