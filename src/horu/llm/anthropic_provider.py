@@ -27,7 +27,9 @@ class AnthropicProvider:
 
             # Without an explicit key the SDK reads the environment (ANTHROPIC_API_KEY). A
             # missing key only surfaces when the first request is made.
-            client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
+            # No automatic retries: each is another request, and a failed line shows Retry.
+            options = {"max_retries": 0, "timeout": anthropic.Timeout(60, connect=10)}
+            client = anthropic.Anthropic(api_key=api_key, **options) if api_key else anthropic.Anthropic(**options)
         self._client = client
 
     def chat(
@@ -36,12 +38,9 @@ class AnthropicProvider:
         # `temperature` is ignored: current Claude models reject sampling parameters.
         return AnthropicChat(self, system, effort, history)
 
-    def read_image(self, prompt: str, png: bytes) -> str:
-        import base64
-
-        image = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": base64.b64encode(png).decode()}}
-        request = self._request("", "low")
-        messages = [{"role": "user", "content": [image, {"type": "text", "text": prompt}]}]
+    def read_image(self, prompt: str, png: bytes, effort: str = "low") -> str:
+        request = self._request("", effort)
+        messages = [{"role": "user", "content": _with_image(prompt, png)}]
         with _errors(self.model):
             if self.model in _FALLBACK_MODELS:
                 response = self._client.beta.messages.create(
@@ -105,7 +104,7 @@ class AnthropicProvider:
         # Thinking is left at the model's default (adaptive where supported); effort is the
         # control. Low effort keeps replies quick, which matters mid-game.
         if not self.model.startswith(_NO_EFFORT_PREFIXES):
-            request["output_config"] = {"effort": effort}
+            request["output_config"] = {"effort": "low" if effort == "none" else effort}
         return request
 
 
@@ -120,9 +119,9 @@ class AnthropicChat:
     def cancel(self) -> None:
         self._cancelled = True
 
-    def send(self, text: str) -> Iterator[str]:
+    def send(self, text: str, image: bytes | None = None) -> Iterator[str]:
         model = self._provider.model
-        user_message = {"role": "user", "content": text}
+        user_message = {"role": "user", "content": _with_image(text, image) if image else text}
         request = self._provider._request(self._system, self._effort)
         request["messages"] = [*self._messages, user_message]
 
@@ -148,6 +147,13 @@ class AnthropicChat:
         self._messages += [user_message, {"role": "assistant", "content": final.content}]
 
 
+def _with_image(text: str, png: bytes) -> list[dict]:
+    import base64
+
+    data = base64.b64encode(png).decode()
+    return [{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": data}}, {"type": "text", "text": text}]
+
+
 @contextmanager
 def _errors(model: str):
     """Turn SDK errors into messages a player can act on."""
@@ -164,7 +170,11 @@ def _errors(model: str):
     except anthropic.RateLimitError as e:
         raise AIError("Claude's rate limit was hit. Wait a moment and try again.") from e
     except anthropic.APIStatusError as e:
+        if e.status_code in (500, 502, 503, 504, 529):
+            raise AIError(f"Claude is busy right now ({e.status_code}). Try again in a moment.") from e
         raise AIError(f"Claude returned an error ({e.status_code}): {e.message}") from e
+    except anthropic.APITimeoutError as e:
+        raise AIError("Claude didn't answer in time. Try again in a moment.") from e
     except anthropic.APIConnectionError as e:
         raise AIError("Couldn't reach Claude. Check your internet connection.") from e
     except TypeError as e:

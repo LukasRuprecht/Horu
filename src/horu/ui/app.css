@@ -486,6 +486,10 @@ body.no-furigana .speaker rt { display: none; }
   color: var(--text);
 }
 
+.speaker-guess {
+  white-space: nowrap;
+}
+
 .fix-chip {
   display: flex;
   flex-wrap: wrap;

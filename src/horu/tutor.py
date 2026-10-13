@@ -6,6 +6,7 @@ follow-up questions continue the same chat.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 from dataclasses import dataclass, field
@@ -36,7 +37,33 @@ TRANSLATE = """\
 {context}Translate this line into natural English that fits the scene:
 {line}
 
-Reply with only the translation: no quotes, notes, or romaji."""
+Reply with only the English translation of what is said, without the speaker's name: no \
+quotes, Japanese, notes, explanations, or romaji."""
+
+# With the line's screenshot: the translation and the check of OCR's reading in one request.
+# The "OCR: " line is the same one explanations use, so it's handled the same way.
+TRANSLATE_CHECKED = """\
+{context}The image shows this line in the game. OCR read it as:
+{line}
+
+First check OCR's reading against the image. If OCR misread anything, make the very first \
+line of your reply "OCR: " followed by the whole line as the image shows it (the Japanese \
+only, without the speaker or readings). Then translate the line, as the image shows it, into \
+natural English that fits the scene. If OCR read it correctly, start straight with the \
+translation.
+
+Reply with only that: no speaker name, quotes, other Japanese, notes, explanations, or \
+romaji."""
+
+# Several lines that appeared together (a choice under a line, a menu of replies): one
+# request, one numbered reply line each.
+TRANSLATE_LINES = """\
+{context}These lines are on screen together:
+{lines}
+
+Translate each into natural English that fits the scene. Reply with one line per number, \
+like "1. <translation>", and nothing else: no speaker names, quotes, Japanese, notes, or \
+romaji."""
 
 # Text without a speaker may be narration, but is often help, menu, or tutorial text, which
 # shouldn't be rewritten as speech.
@@ -46,7 +73,7 @@ menu, or tutorial text; keep its tone, and keep any line breaks and lists.
 
 {text}
 
-Reply with only the translation: no quotes, notes, or romaji."""
+Reply with only the English translation: no quotes, Japanese, notes, explanations, or romaji."""
 
 # For a dedicated translation model (e.g. Google's Japanese-English Gemma fine-tune): no
 # system prompt, so it keeps the instruction it was built with, and the task given as its own
@@ -125,6 +152,12 @@ class Line:
         return "".join(parts)
 
 
+# Effort for quick tasks (translations, transcriptions, names): no thinking first, where the
+# model allows. On DeepSeek's flash model this halves the wait and cuts output tokens tenfold,
+# with translations as good.
+QUICK = "none"
+
+
 class Tutor:
     def __init__(self, provider: Provider, level: str, translator: Provider | None = None) -> None:
         self.provider = provider
@@ -134,20 +167,35 @@ class Tutor:
     def _chat(self, effort: str = "low", temperature: float | None = None) -> Chat:
         return self.provider.chat(SYSTEM.format(level=self.level), effort=effort, temperature=temperature)
 
-    def translate(self, line: Line) -> Iterator[str]:
+    def translate(self, line: Line, png: bytes | None = None) -> Iterator[str]:
+        """The line's translation. With its screenshot `png`, the reply starts with an "OCR: "
+        line when the image shows different text. The image needs a model that reads images
+        (a separate translation model gets none)."""
         # Temperature 0 where supported: the same line should get the same translation.
         if self.translator:
-            return self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
+            return self.translator.chat("", QUICK, history=TRANSLATE_ONLY_SETUP, temperature=0).send(line.text)
+        if png is not None:
+            return self._chat(QUICK, 0).send(TRANSLATE_CHECKED.format(context=line.context(), line=line.quoted()), png)
         if line.speaker is None and not line.previous:
-            return self._chat(temperature=0).send(TRANSLATE_TEXT.format(context=line.context(), text=line.text))
-        return self._chat(temperature=0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
+            return self._chat(QUICK, 0).send(TRANSLATE_TEXT.format(context=line.context(), text=line.text))
+        return self._chat(QUICK, 0).send(TRANSLATE.format(context=line.context(), line=line.quoted()))
+
+    def translate_lines(self, lines: list[Line]) -> Iterator[str] | None:
+        """Translations of lines shown together, as numbered reply lines (see
+        numbered_lines). None with a separate translation model, which translates one line
+        at a time. Context comes from the first line."""
+        if self.translator:
+            return None
+        numbered = "\n".join(f"{i}. {line.quoted()}" for i, line in enumerate(lines, 1))
+        prompt = TRANSLATE_LINES.format(context=dataclasses.replace(lines[0], alternatives=[]).context(), lines=numbered)
+        return self._chat(QUICK, 0).send(prompt)
 
     def translate_speaker(self, text: str) -> str:
         """Short English for a speaker label, e.g. 謎の通信 -> "Mysterious transmission"."""
         if self.translator:
-            chunks = self.translator.chat("", history=TRANSLATE_ONLY_SETUP, temperature=0).send(text)
+            chunks = self.translator.chat("", QUICK, history=TRANSLATE_ONLY_SETUP, temperature=0).send(text)
         else:
-            chunks = self.provider.chat("", temperature=0).send(SPEAKER.format(text=text))
+            chunks = self.provider.chat("", QUICK, temperature=0).send(SPEAKER.format(text=text))
         return _clean_label("".join(chunks))
 
     def card_note(self, line: Line, word: dict) -> tuple[str, str]:
@@ -177,7 +225,7 @@ class Tutor:
         if line.alternatives:
             alternatives = "Other OCR models read it as: " + " / ".join(f"「{a}」" for a in line.alternatives) + "\n"
         prompt = REREAD.format(text=line.text, alternatives=alternatives)
-        return clean_reading(self.provider.read_image(prompt, png))
+        return clean_reading(self.provider.read_image(prompt, png, QUICK))
 
     def explain_line(self, line: Line) -> tuple[Chat, Iterator[str]]:
         chat = self._chat()
@@ -186,6 +234,19 @@ class Tutor:
 
 _JAPANESE_CHAR = "　-ヿ㐀-鿿！-｠…"
 _SPACE_BY_JAPANESE = re.compile(f"(?<=[{_JAPANESE_CHAR}])[ 　]+|[ 　]+(?=[{_JAPANESE_CHAR}])")
+
+
+_NUMBERED = re.compile(r"^\s*(\d+)\s*[.)．：:]\s*(.*\S)\s*$")
+
+
+def numbered_lines(reply: str) -> dict[int, str]:
+    """{number: translation} from a reply to TRANSLATE_LINES, ignoring anything else."""
+    found = {}
+    for text in reply.splitlines():
+        match = _NUMBERED.match(text)
+        if match and not match.group(2).startswith("OCR:"):
+            found.setdefault(int(match.group(1)), match.group(2).strip("\"「」"))
+    return found
 
 
 def clean_reading(reply: str) -> str:

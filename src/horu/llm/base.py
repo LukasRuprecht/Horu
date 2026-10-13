@@ -13,8 +13,9 @@ class AIError(Exception):
 class Chat(Protocol):
     """One conversation. History is kept by the chat in its provider's own format."""
 
-    def send(self, text: str) -> Iterator[str]:
-        """Send a user message and yield the reply as text chunks.
+    def send(self, text: str, image: bytes | None = None) -> Iterator[str]:
+        """Send a user message (with a PNG `image`, for vision models) and yield the reply as
+        text chunks. Raises AIError if the model can't take images.
 
         The exchange is added to the history only once the reply completes.
         """
@@ -35,10 +36,12 @@ class Provider(Protocol):
 
         `history` pre-fills earlier turns ({"role", "content"} dicts with text content).
         `effort` and `temperature` are hints; providers that don't support one ignore it.
+        Effort "none" is for quick tasks (translations, transcriptions): answer without
+        thinking first, where the model allows.
         """
         ...
 
-    def read_image(self, prompt: str, png: bytes) -> str:
+    def read_image(self, prompt: str, png: bytes, effort: str = "low") -> str:
         """Answer `prompt` about a PNG image (for vision models). Raises AIError if the model
         can't take images."""
         ...

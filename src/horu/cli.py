@@ -88,10 +88,11 @@ def cmd_setup() -> None:
 
 def cmd_reset_learned() -> None:
     """Forget what Horu learned while playing; settings, the dictionary, and API keys stay."""
-    from horu import autocapture, corrections, speakers
+    from horu import autocapture, corrections, speakers, translations
 
     learned = [
         (speakers.DEFAULT_PATH, "speaker names and their English"),
+        (translations.DEFAULT_PATH, "translations kept for lines seen again"),
         (autocapture.DEFAULT_PATH, "auto-read regions"),
         (corrections.DEFAULT_PATH, "corrections made from a line's menu"),
     ]

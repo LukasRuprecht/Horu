@@ -138,6 +138,7 @@ function renderLine(line) {
     speaker.lang = "ja";
     renderWords(line, speaker, "speaker");
     meta.append(speaker, speakerEnglish(line));
+    if (line.speaker.guessed) meta.append(guessTag(line));
   }
   if (KIND_LABEL[line.kind]) meta.append(el("span", "kind-label", KIND_LABEL[line.kind]));
   if (line.uncertain && line.kind === "dialogue") {
@@ -176,6 +177,32 @@ function speakerEnglish(line) {
   node.dataset.speaker = line.speaker.text;
   node.title = "Speaker in English";
   return node;
+}
+
+// A name tag OCR was unsure of, matched to a name the AI confirmed earlier. Quiet unless the
+// learner thinks it's wrong.
+function guessTag(line) {
+  const tag = button("corrected-tag speaker-guess", "wrong name?", (e) => openGuessMenu(e.currentTarget, line));
+  tag.title = `OCR read 「${line.speaker.was}」; Horu took it for ${line.speaker.text}, a name it checked earlier. Click if that's wrong.`;
+  return tag;
+}
+
+function openGuessMenu(anchor, line) {
+  const id = line.id;
+  const items = [];
+  if (state.ai.enabled) {
+    items.push(["Check the name with AI", async () => {
+      horu.setStatus({ state: "busy", message: "Checking the name..." });
+      const result = await api().check_speaker(id);
+      horu.setStatus({ state: result.ok ? "ready" : "error", message: result.message });
+    }]);
+  }
+  items.push([`It's 「${line.speaker.was}」, as OCR read it`, () => api().fix_speaker(id, line.speaker.was)]);
+  items.push(["Type the name…", () => {
+    const name = window.prompt(`Speaker's name, as the game shows it (OCR read 「${line.speaker.was}」):`, line.speaker.text);
+    if (name !== null && name.trim()) api().fix_speaker(id, name.trim());
+  }]);
+  showMenu(anchor, items, `Remembered for ${line.game}.`);
 }
 
 // One capture (one hotkey press) is one card; its lines are rows inside it, in screen order.
@@ -233,11 +260,16 @@ function openLineMenu(anchor, line, row) {
   if (line.captureId) {
     items.push(["Save debug bundle…", () => openBundleDialog(line)]);
   }
+  showMenu(anchor, items, `Remembered for ${line.game}.`);
+}
+
+function showMenu(anchor, items, note) {
+  closePopover();
   lineMenu.replaceChildren(...items.map(([label, action]) => button("menu-item", label, () => {
     closeLineMenu();
     action();
   })));
-  lineMenu.append(el("p", "menu-note", `Remembered for ${line.game}.`));
+  lineMenu.append(el("p", "menu-note", note));
   lineMenu.hidden = false;
   const rect = anchor.getBoundingClientRect();
   lineMenu.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - lineMenu.offsetHeight - 8)}px`;
@@ -1894,6 +1926,8 @@ window.horu = {
     const english = row.querySelector(".speaker-en");
     english.dataset.speaker = speaker.text;
     english.textContent = speaker.english || "";
+    const guess = row.querySelector(".speaker-guess");
+    if (guess) guess.remove();
     let tag = row.querySelector(".speaker-fixed");
     if (!speaker.was) {
       if (tag) tag.remove();
@@ -1932,13 +1966,14 @@ window.horu = {
     }, 2500);
   },
 
-  lineCorrected({ id, text, words, was }) {
+  // `translated`: the fix came with the translation of the fixed text (already shown).
+  lineCorrected({ id, text, words, was, translated }) {
     const line = state.lines.get(id);
     const row = rowFor(id);
     if (!line || !row) return;
     setLineText(line, row, text, words);
     markCorrected(line, row, was);
-    refreshTranslation(line, row);
+    if (!translated) refreshTranslation(line, row);
   },
 
   // A line auto-capture read while it was still typing out, now read in full.

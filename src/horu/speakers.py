@@ -14,20 +14,30 @@ With an AI that reads images, each new name is read again from the screenshot on
 name it settles on is "confirmed": confirmed names are matched first, and a misread the AI
 corrected (初の男性客 for 初老の男性客) maps straight to the right name from then on.
 
+Decorated tags are misread in many ways (佐倉惣治郎 as 佐唐超治郎, 佐官惣治郎, 佐惣治郎, ...),
+too many to check each with the AI. `guess` matches an unsure read that's close to one
+confirmed name to it; the page offers to fix a wrong guess.
+
 Each speaker's English is worked out once and cached, so repeats cost nothing.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import threading
 from pathlib import Path
+
+from horu.text_sources.vote import edit_distance
 
 DEFAULT_PATH = Path("data/speakers.json")
 # OCR confidence needed to remember a name, and below which a one-character substitution is
 # treated as a misread.
 CONFIDENT = 0.9
 UNSURE = 0.85
+# Share of a confirmed name's characters a read may get wrong and still be guessed as it.
+_GUESS_SLACK = 0.4
+_SPACES = re.compile(r"[ \u3000]+")
 
 
 class SpeakerBook:
@@ -57,6 +67,42 @@ class SpeakerBook:
                 entry["seen"] = entry.get("seen", 0) + 1
             self._save()
         return text
+
+    def guess(self, game: str, text: str, score: float, alternatives: tuple[str, ...] = ()) -> str | None:
+        """A confirmed name this read is most likely a misread of, or None. Only when one
+        confirmed name fits: the read (ignoring spaces) or another OCR model's reading is
+        that name, or the read is close to it and OCR was unsure or dropped characters. A
+        confident read the same length as a name but different (真代 for 貞代, or 少年の声
+        beside 少女の声) may be another speaker, so it's left for the AI to check, and so may a
+        read that's part of a name (貞代 in 川上貞代): a tag can show a shorter name."""
+        if self.confirmed(game, text):
+            return None
+        confirmed = [
+            name for name, entry in self._data.get(game, {}).items()
+            if entry.get("confirmed") and not entry.get("misread_of") and name != text
+        ]
+        if not confirmed:
+            return None
+        read = _SPACES.sub("", text)
+        exact = {name for name in confirmed if _SPACES.sub("", name) in {read, *(_SPACES.sub("", a) for a in alternatives)}}
+        if exact:
+            return exact.pop() if len(exact) == 1 else None
+        if score >= CONFIDENT and not any(len(read) < len(_SPACES.sub("", n)) for n in confirmed):
+            return None
+        close = []
+        for name in confirmed:
+            plain = _SPACES.sub("", name)
+            if len(plain) < 2 or (score >= CONFIDENT and len(read) >= len(plain)):
+                continue
+            distance = edit_distance(read, plain)
+            if distance > 1 and read in plain:
+                continue
+            if distance <= max(1, round(_GUESS_SLACK * len(plain))):
+                close.append((distance, name))
+        close.sort()
+        if not close or (len(close) > 1 and close[1][0] == close[0][0]):
+            return None
+        return close[0][1]
 
     def confirm(self, game: str, text: str, was: str | None = None) -> None:
         """The AI read the name tag as `text`: known from now on, so later misreads of it are

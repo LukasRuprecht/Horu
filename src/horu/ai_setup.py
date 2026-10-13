@@ -49,6 +49,13 @@ PRESETS: dict[str, dict] = {
         "key_env": "GEMINI_API_KEY",
         "key_url": "https://aistudio.google.com/apikey",
     },
+    "deepseek": {
+        "label": "DeepSeek",
+        "kind": "openai_compat",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY",
+        "key_url": "https://platform.deepseek.com/api_keys",
+    },
     "ollama": {"label": "Ollama (free, runs on this PC)", "kind": "openai_compat", "base_url": OLLAMA_URL},
     "custom": {"label": "Other OpenAI-compatible server", "kind": "openai_compat", "needs_key": "optional"},
 }

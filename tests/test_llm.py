@@ -141,3 +141,63 @@ def test_openai_compat_streams_and_keeps_history():
     ]
     assert client.calls[0]["stream"] is True
     assert provider.label == "qwen3:8b (localhost)"
+
+
+def _bad_request():
+    import httpx2
+    import openai
+
+    request = httpx2.Request("POST", "https://example.com/v1/chat/completions")
+    return openai.BadRequestError("invalid argument", response=httpx2.Response(400, request=request), body=None)
+
+
+def test_quick_requests_skip_thinking_where_the_server_allows():
+    client = FakeOpenAIClient(["Hi"], ["Hi"])
+    provider = OpenAICompatProvider("m", "https://example.com/v1", client=client)
+    list(provider.chat("", "none").send("text"))
+    list(provider.chat("", "low").send("text"))
+    assert client.calls[0]["reasoning_effort"] == "none" and "reasoning_effort" not in client.calls[1]
+
+
+def test_a_server_that_rejects_the_effort_setting_gets_the_request_without_it():
+    client = FakeOpenAIClient(["Hi"], ["Again"])
+    create = client.chat.completions.create
+
+    def rejecting(**kwargs):
+        if "reasoning_effort" in kwargs:
+            raise _bad_request()
+        return create(**kwargs)
+
+    client.chat.completions.create = rejecting
+    provider = OpenAICompatProvider("m", "https://example.com/v1", client=client)
+    assert "".join(provider.chat("", "none").send("text")) == "Hi"
+    assert "".join(provider.chat("", "none").send("text")) == "Again"
+    assert not provider._takes_effort
+
+
+def test_other_bad_requests_still_fail_and_keep_the_setting():
+    client = FakeOpenAIClient()
+
+    def rejecting(**kwargs):
+        raise _bad_request()
+
+    client.chat.completions.create = rejecting
+    provider = OpenAICompatProvider("m", "https://example.com/v1", client=client)
+    with pytest.raises(AIError):
+        list(provider.chat("", "none").send("text"))
+    assert provider._takes_effort
+
+
+def test_a_busy_provider_says_so():
+    import httpx2
+    import openai
+
+    client = FakeOpenAIClient()
+    request = httpx2.Request("POST", "https://example.com/v1/chat/completions")
+
+    def busy(**kwargs):
+        raise openai.InternalServerError("busy", response=httpx2.Response(503, request=request), body=None)
+
+    client.chat.completions.create = busy
+    with pytest.raises(AIError, match="busy right now"):
+        list(OpenAICompatProvider("m", "https://example.com/v1", client=client).chat("").send("text"))

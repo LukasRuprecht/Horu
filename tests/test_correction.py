@@ -35,7 +35,7 @@ def test_propose_applies_agreeing_fixes_and_suggests_the_rest():
     app, line, calls = fake_app("マツプ", ["マップ"])
     assert App.propose(app, 1, "マップ", "vision") == correction.APPLY
     assert line["text"] == "マップ" and line["was"] == "マツプ"
-    assert calls == [("lineCorrected", {"id": 1, "text": "マップ", "words": ["words"], "was": "マツプ"})]
+    assert calls == [("lineCorrected", {"id": 1, "text": "マップ", "words": ["words"], "was": "マツプ", "translated": False})]
 
     app, line, calls = fake_app("足につまりなさい。")
     assert App.propose(app, 1, "足にすがりなさい。", "explain") == correction.SUGGEST

@@ -105,9 +105,13 @@ Set one up under **Settings → AI** (see [AI providers](#ai-providers)). Then:
 - **Explain** on a line gives a grammar breakdown pitched at your level; **Explain in context**
   in a word's popup explains that word in that line. Ask follow-up questions in the panel that
   opens.
-- New dialogue lines are checked against a picture of the line, to catch OCR misreads. Horu
+- Lines OCR wasn't sure of (marked **?**) are checked against a picture of the line, to catch
+  misreads. With automatic translation, the check and the translation are one request. Horu
   uses the AI's reading when it's confident (marked "corrected"; click to undo), or asks
   "Did you mean …?".
+- New speaker names are checked once. After that, a name tag OCR misreads (佐唐超治郎 for
+  佐倉惣治郎) is matched to the checked name; if Horu matched the wrong one, click
+  **wrong name?** beside it.
 
 ### Studying in Horu
 
@@ -166,8 +170,8 @@ Things that leave your PC:
   under your own key and their privacy terms:
   - Translations and explanations send the line, the few dialogue lines before it (for
     context), and your level.
-  - Checks send a picture of each new dialogue line, cropped to the line, and of other text or
-    a name tag OCR wasn't sure of. Turn checks off in **Settings → AI**.
+  - Checks send a picture of a line, cropped to the line, when OCR wasn't sure of it, and of
+    each new name tag. Turn checks off in **Settings → AI**.
   - **Re-read with AI** sends a picture of that line.
   - Making cards sends the line and the words in it.
   - Speaker labels send the speaker's name, once per name per game.
@@ -185,16 +189,18 @@ offline. With a cloud AI provider, each request is billed to your account:
 
 | What | When | Requests |
 |---|---|---|
-| Checks against the screenshot | Each new dialogue line, while AI is set up (can be turned off) | 1 with an image |
-| Translation | When you click **Translate**, or each new dialogue line with automatic translation on | 1 |
+| Translation | When you click **Translate**, or each new dialogue line with automatic translation on (lines that appear together share one request) | 1, with a picture of the line if OCR wasn't sure of it |
+| Checks against the screenshot | Lines OCR wasn't sure of, when they aren't translated automatically; other text OCR wasn't sure of (can be turned off) | 1 with an image |
+| Speaker names | Once per new name per game: a check of the name tag and its English | 2 |
 | Explanations and follow-ups | When you ask | 1 each |
 | Cards | When you click **Cards**, or each new dialogue line with automatic cards on | several (the agent looks words up) |
-| Speaker labels | Once per new speaker description per game | 1 |
 
-With checks on, expect at least one request per line of dialogue you read; automatic
-translation adds a second. To keep costs down, choose a small, cheap model for translations
-(settings has a separate field for it), or use Ollama, which is free. With Claude, Horu asks for
-low effort to keep replies fast and cheap.
+With automatic translation on, expect about one request per new line of dialogue. A line
+already translated in the same game (an NPC repeating themselves, a scene replayed) reuses
+that translation for free. Horu doesn't retry failed requests by itself, and gives up on a
+provider that hasn't answered in 30 seconds: the line shows **Retry** instead. To keep costs
+down, choose a small, cheap model, or use Ollama, which is free. With Claude, Horu asks for low
+effort to keep replies fast and cheap.
 
 ## AI providers
 
@@ -208,6 +214,7 @@ Open settings and pick a provider under **AI**:
 | **Claude** | An API key from the [Anthropic Console](https://console.anthropic.com/settings/keys). Default model `claude-opus-5-5`. |
 | **OpenAI** | An API key from the [OpenAI dashboard](https://platform.openai.com/api-keys) and a model name. |
 | **Google Gemini** | An API key from [Google AI Studio](https://aistudio.google.com/apikey) and a model name. |
+| **DeepSeek** | An API key from the [DeepSeek platform](https://platform.deepseek.com/api_keys) and a model name, e.g. `deepseek-flash`. |
 | **Ollama** | Free and runs on your PC: install [Ollama](https://ollama.com/download), then download a model from inside Horu. No key. |
 | **Other** | Any OpenAI-compatible server (OpenRouter, LM Studio, ...): its address, model, and key if it needs one. |
 

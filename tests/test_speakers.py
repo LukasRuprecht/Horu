@@ -68,3 +68,42 @@ def test_a_confirmed_name_beats_a_remembered_misread(tmp_path):
     book = book_with(tmp_path, "顔色悪い男性")  # a confident misread, remembered before the AI checked
     book.confirm("P5R.exe", "顔色の悪い男性")
     assert book.resolve("P5R.exe", "顔色悪い男性", score=0.93) == "顔色の悪い男性"
+
+
+def confirmed_book(tmp_path, *names):
+    book = SpeakerBook(tmp_path / "speakers.json")
+    for name in names:
+        book.confirm("P5R.exe", name)
+    return book
+
+
+def test_unsure_misreads_are_guessed_as_a_confirmed_name(tmp_path):
+    book = confirmed_book(tmp_path, "佐倉惣治郎", "坂本竜司")
+    # Real P5R misreads of 佐倉惣治郎's tag, with their OCR scores and alternatives.
+    assert book.guess("P5R.exe", "佐唐超治郎", 0.79, ("佐唐惣治郎", "佐盾超治郎")) == "佐倉惣治郎"
+    assert book.guess("P5R.exe", "佐官惣治郎", 0.78, ("佐信惣治郎",)) == "佐倉惣治郎"
+    assert book.guess("P5R.exe", "佐唐 惣治郎", 0.71) == "佐倉惣治郎"
+    assert book.guess("P5R.exe", "佐倉\u3000惣治郎", 0.96) == "佐倉惣治郎"  # just a space
+    assert book.guess("P5R.exe", "佐唐治郎", 0.82, ("佐膚惣治郎",)) == "佐倉惣治郎"
+    assert book.guess("P5R.exe", "佐惣治郎", 0.91) == "佐倉惣治郎"  # confident, but characters dropped
+    assert book.guess("P5R.exe", "佐唐惣治郎", 0.95, ("佐倉惣治郎",)) == "佐倉惣治郎"  # an alternative is the name
+
+
+def test_confident_different_names_are_not_guessed(tmp_path):
+    book = confirmed_book(tmp_path, "貞代", "少女の声")
+    assert book.guess("P5R.exe", "真代", 0.96) is None
+    assert book.guess("P5R.exe", "少年の声", 0.99) is None
+    assert book.guess("P5R.exe", "高巻杏", 0.7) is None  # nothing close
+    assert book.guess("P5R.exe", "貞代", 0.7) is None  # already the name
+
+
+def test_part_of_a_name_is_not_guessed(tmp_path):
+    book = confirmed_book(tmp_path, "川上貞代")
+    assert book.guess("P5R.exe", "貞代", 0.75) is None  # the tag may show her given name
+    assert book.guess("P5R.exe", "川上貞", 0.8) == "川上貞代"  # one character dropped
+
+
+def test_guesses_need_one_clear_match(tmp_path):
+    book = confirmed_book(tmp_path, "少女の声", "少年の声")
+    assert book.guess("P5R.exe", "少回の声", 0.7) is None
+    assert SpeakerBook(tmp_path / "other.json").guess("P5R.exe", "佐唐超治郎", 0.7) is None  # nothing confirmed

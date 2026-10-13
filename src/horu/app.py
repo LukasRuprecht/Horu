@@ -20,11 +20,11 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, wordbook
+from horu import ai_setup, anki, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, translations, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
-from horu.tutor import Line, Tutor
+from horu.tutor import Line, Tutor, clean_reading, numbered_lines
 
 UI_DIR = Path(__file__).parent / "ui"
 # Blocks already shown recently are skipped, so persistent text (HUD, menus) and repeated
@@ -56,6 +56,12 @@ _PICTURES_KEPT = 10
 _PICTURE_MAX_WIDTH = 1280
 # Captures kept whole (screenshot and OCR lines), for saving as a debug bundle.
 _BUNDLES_KEPT = 5
+# Name tags guessed as a known name, kept so a wrong guess can be checked with the AI.
+_GUESSES_KEPT = 50
+# AI requests nobody clicked for (see _Jobs): translations of new lines first, then checks of
+# what OCR was unsure of and speaker names. Requests the learner asks for don't wait.
+_AUTO, _BACKGROUND = 1, 2
+_AI_WORKERS = 2
 # Text hookers' own windows: a line copied while one is in front belongs to the game before.
 _HOOKERS = {"textractor.exe", "lunatranslator.exe", "lunahost32.exe", "lunahost64.exe", "agent.exe", "ith.exe"}
 
@@ -75,6 +81,34 @@ class HookedText:
 
     text: str
     game: str
+
+
+class _Jobs:
+    """AI requests made without the learner asking, run a couple at a time, most important
+    and newest first: a burst of lines doesn't flood the provider (or the learner's quota),
+    and the line on screen now isn't stuck behind older ones."""
+
+    def __init__(self, workers: int = _AI_WORKERS) -> None:
+        self._queue: queue.PriorityQueue = queue.PriorityQueue()
+        self._order = itertools.count()
+        for _ in range(workers):
+            threading.Thread(target=self._work, name="horu-ai-jobs", daemon=True).start()
+
+    def put(self, priority: int, job) -> None:
+        self._queue.put((priority, -next(self._order), job))
+
+    def busy(self) -> bool:
+        return self._queue.unfinished_tasks > 0
+
+    def _work(self) -> None:
+        while True:
+            _, _, job = self._queue.get()
+            try:
+                job()
+            except Exception:
+                traceback.print_exc()
+            finally:
+                self._queue.task_done()
 
 
 class Api:
@@ -135,6 +169,14 @@ class Api:
     def set_speaker(self, line_id: int, text: str) -> None:
         """Replace a line's speaker name (undoing a correction)."""
         self._app.set_speaker(line_id, text)
+
+    def fix_speaker(self, line_id: int, text: str) -> None:
+        """The learner's name for a line's speaker (after a wrong guess): remembered."""
+        self._app.fix_speaker(line_id, text)
+
+    def check_speaker(self, line_id: int) -> dict:
+        """Read a guessed name tag with the AI."""
+        return self._app.check_speaker(line_id)
 
     def region_editor(self, line_id: int) -> dict:
         """The game picture this line was captured from, with its auto-read regions."""
@@ -256,6 +298,9 @@ class App:
         self._card_worker: threading.Thread | None = None
         self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
         self._speaker_shots: dict[int, bytes] = {}  # line id -> PNG of a doubtful name tag, until checked
+        self._guessed_shots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG of a guessed name tag
+        self.translations = translations.TranslationMemory()
+        self._jobs = _Jobs()
         self._speakers_pending: set[tuple[str, str]] = set()  # AI speaker translations in flight
         self.recent: deque[tuple[str, int]] = deque(maxlen=_RECENT_LINES)  # (text, line id) shown recently
         self.lines: dict[int, dict] = {}  # every line shown, in order, by id
@@ -289,8 +334,10 @@ class App:
         )
         self.window.events.loaded += self._page_loaded.set
         _quit_on_ctrl_c()
-        # webview.start blocks on the main thread; _worker runs on a background thread.
-        webview.start(self._worker, debug=self.debug)
+        # webview.start blocks on the main thread; _worker runs on a background thread, a
+        # daemon one so closing the window ends Horu (it waits for captures forever).
+        start_worker = lambda: threading.Thread(target=self._worker, name="horu-worker", daemon=True).start()
+        webview.start(start_worker, debug=self.debug)
         if self._stop_hotkey:
             self._stop_hotkey()
 
@@ -638,7 +685,7 @@ class App:
             finally:
                 self._speakers_pending.discard((game, text))
 
-        threading.Thread(target=run, name="horu-speaker", daemon=True).start()
+        self._jobs.put(_BACKGROUND, run)
 
     def set_speaker_english(self, game: str, text: str, english: str) -> None:
         self.speakers.set_english(game, text, english.strip(), "user")
@@ -668,16 +715,97 @@ class App:
             parts.append(person["names"][0]["det"][0])
         return " ".join(parts)
 
-    def translate(self, line_id: int) -> None:
-        if self._provider and line_id in self.lines:
-            chunks = self._tutor().translate(self._line_context(line_id))
-            # Numbered, so the page and the stored translation keep only the latest one when
-            # a fixed line is translated again while the first translation still streams.
-            generation = self.lines[line_id]["translationGen"] = self.lines[line_id].get("translationGen", 0) + 1
-            self._stream({"target": "translation", "lineId": line_id, "gen": generation}, chunks)
-            line = self.lines[line_id]
-            if line["speaker"]:
-                self.translate_speaker(line["game"], line["speaker"]["text"])
+    def translate(self, line_id: int, check: bool = False, priority: int | None = None, cards: bool = False) -> None:
+        """Translate a line. `check`: send its screenshot too, so the same request checks
+        OCR's reading (and the translation follows what the image shows). `priority`: queued
+        (see _Jobs) rather than sent now. `cards`: make automatic cards once it's done."""
+        if not (self._provider and line_id in self.lines):
+            return
+        png = self._screenshots.get(line_id) if check and self._can_check(line_id) else None
+        chunks = self._tutor().translate(self._line_context(line_id), png)
+        meta = {"target": "translation", "lineId": line_id, "gen": self._next_translation(line_id)}
+        self._stream({**meta, "check": png is not None, "cards": cards}, chunks, priority)
+        self._translate_name(line_id)
+
+    def _next_translation(self, line_id: int) -> int:
+        # Numbered, so the page and the stored translation keep only the latest one when a
+        # fixed line is translated again while the first translation still streams.
+        line = self.lines[line_id]
+        line["translationGen"] = line.get("translationGen", 0) + 1
+        return line["translationGen"]
+
+    def _translate_name(self, line_id: int) -> None:
+        """The speaker's English, unless the name tag is still to be checked: a misread
+        name would get its own translation."""
+        line = self.lines[line_id]
+        if line["speaker"] and not (line_id in self._speaker_shots and self._can_check(line_id)):
+            self.translate_speaker(line["game"], line["speaker"]["text"])
+
+    def _translate_together(self, line_ids: list[int]) -> None:
+        """Lines that appeared together (a choice under a line): one request, a numbered
+        reply line each. Lines missing from the reply are translated on their own."""
+        chunks = self._tutor().translate_lines([self._line_context(i) for i in line_ids])
+        if chunks is None:
+            for line_id in line_ids:
+                self.translate(line_id, priority=_AUTO)
+            return
+        metas = {
+            n: {"target": "translation", "lineId": line_id, "gen": self._next_translation(line_id)}
+            for n, line_id in enumerate(line_ids, 1)
+        }
+        for line_id in line_ids:
+            self._translate_name(line_id)
+
+        def run() -> None:
+            reply, done = [], set()
+
+            def finish(text: str) -> None:
+                for n, translation in numbered_lines(text).items():
+                    if n in metas and n not in done:
+                        done.add(n)
+                        meta = metas[n]
+                        self._call("aiChunk", {**meta, "text": translation})
+                        self._keep_translation(meta, translation, verified=False)
+                        self._call("aiDone", meta)
+                        self._time(meta["lineId"], "translated")
+
+            try:
+                for chunk in chunks:
+                    reply.append(chunk)
+                    text = "".join(reply)
+                    if "\n" in text:
+                        finish(text.rsplit("\n", 1)[0])  # lines complete so far
+                finish("".join(reply))
+            except llm.AIError as e:
+                for n, meta in metas.items():
+                    if n not in done:
+                        self._call("aiError", {**meta, "message": str(e)})
+                return
+            for n, meta in metas.items():
+                if n not in done:
+                    self.translate(meta["lineId"], priority=_AUTO)
+
+        self._jobs.put(_AUTO, run)
+
+    def _keep_translation(self, meta: dict, translation: str, verified: bool) -> None:
+        """Store a finished translation on its line, and remember it for this game."""
+        line = self.lines.get(meta["lineId"])
+        if line is None or meta["gen"] != line.get("translationGen"):
+            return
+        line["translation"] = translation
+        speaker = line["speaker"]["text"] if line["speaker"] else None
+        self.translations.put(line["game"], speaker, line["text"], translation, verified or not line["uncertain"])
+
+    def _remembered(self, line: dict) -> bool:
+        """Show a translation made earlier for the same line in this game, if there is one.
+        A line OCR was unsure of takes only one made after the AI checked that same text."""
+        speaker = line["speaker"]["text"] if line["speaker"] else None
+        found = self.translations.get(line["game"], speaker, line["text"])
+        if found is None or (line["uncertain"] and not found[1]):
+            return False
+        line["translation"] = found[0]
+        line["uncertain"] = False  # read exactly as text the AI checked before
+        return True
 
     def explain_word(self, line_id: int, index: int, session: int, part: str = "text") -> None:
         if self._provider and line_id in self.lines:
@@ -715,8 +843,10 @@ class App:
             previous = [Line(l["text"], _speaker_text(l)).quoted() for l in earlier[-_CONTEXT_LINES:]]
         return Line(line["text"], _speaker_text(line), previous, line.get("alternatives", []))
 
-    def _stream(self, meta: dict, chunks) -> None:
-        """Push an AI reply to the page as it arrives, on a background thread."""
+    def _stream(self, meta: dict, chunks, priority: int | None = None) -> None:
+        """Push an AI reply to the page as it arrives, on a background thread (or queued, with
+        `priority`). A translation with "check" set had the line's screenshot: its reply also
+        settles OCR's reading."""
 
         def run() -> None:
             buffer: list[str] = []
@@ -738,22 +868,48 @@ class App:
                 # A reply about a line can start with the model's fix for a misread
                 # ("OCR: ..."); the page hides that line.
                 proposal = correction.proposed_in(reply) if "lineId" in meta else None
-                if meta.get("target") == "translation" and meta["lineId"] in self.lines:
+                outcome = None
+                if meta.get("check"):
+                    outcome = self._checked(meta["lineId"], proposal)
+                elif proposal:
+                    outcome = self.propose(meta["lineId"], proposal, "explain")
+                if meta.get("target") == "translation" and outcome != correction.SUGGEST:
+                    self._keep_translation(meta, correction.without_proposal(reply), verified=bool(meta.get("check")))
+                elif meta.get("target") == "translation" and meta["lineId"] in self.lines:
                     line = self.lines[meta["lineId"]]
                     if meta["gen"] == line.get("translationGen"):
-                        line["translation"] = correction.without_proposal(reply)
+                        line["translation"] = correction.without_proposal(reply)  # of the suggested text
                 self._call("aiDone", meta)
                 if meta.get("target") == "translation":
                     self._time(meta["lineId"], "translated")
-                if proposal:
-                    self.propose(meta["lineId"], proposal, "explain")
             except llm.AIError as e:
+                if meta.get("check") and "can't read images" in str(e):
+                    # A text-only model: translate without the screenshot, and stop sending them.
+                    self._vision = False
+                    self.translate(meta["lineId"], priority=priority, cards=meta.get("cards", False))
+                    return
                 self._call("aiError", {**meta, "message": str(e)})
             except Exception as e:
                 traceback.print_exc()
                 self._call("aiError", {**meta, "message": f"Something went wrong: {e}"})
+            if meta.get("cards"):
+                self._auto_cards([meta["lineId"]])
 
-        threading.Thread(target=run, name="horu-ai", daemon=True).start()
+        if priority is None:
+            threading.Thread(target=run, name="horu-ai", daemon=True).start()
+        else:
+            self._jobs.put(priority, run)
+
+    def _checked(self, line_id: int, proposal: str | None) -> str | None:
+        """Act on a translation made with the line's screenshot: no "OCR:" line means the
+        model read what OCR read."""
+        line = self.lines.get(line_id)
+        if line is None:
+            return None
+        reading = clean_reading(proposal) if proposal else line["text"]
+        line["aiReading"] = reading
+        self._time(line_id, "checked")
+        return self.propose(line_id, reading, "vision", translated=True)
 
     # --- background work -------------------------------------------------------------
 
@@ -874,11 +1030,19 @@ class App:
             self._kept_captures[capture_id] = kept
             while len(self._kept_captures) > _BUNDLES_KEPT:
                 self._kept_captures.popitem(last=False)
-        # Correct misread name tags against names already seen in this game.
-        blocks = [
-            dataclasses.replace(b, speaker=self.speakers.resolve(game, b.speaker, b.speaker_score)) if b.speaker else b
-            for b in blocks
-        ]
+        # Correct misread name tags against names already seen in this game, and guess the
+        # name an unsure read is close to (the page offers to fix a wrong guess).
+        guessed: dict[int, str] = {}  # block index -> what OCR read
+        for k, b in enumerate(blocks):
+            if not b.speaker:
+                continue
+            name = self.speakers.resolve(game, b.speaker, b.speaker_score)
+            if not self.speakers.confirmed(game, name):
+                alternatives = tuple(b.speaker_line.alternatives) if b.speaker_line else ()
+                guess = self.speakers.guess(game, name, b.speaker_score, alternatives)
+                if guess:
+                    guessed[k], name = b.speaker, guess
+            blocks[k] = dataclasses.replace(b, speaker=name)
 
         picture = autocapture.picture_box(image) if not auto else None
         if auto:
@@ -889,7 +1053,7 @@ class App:
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
         lines = []
-        for block in blocks:
+        for k, block in enumerate(blocks):
             earlier = next((i for text, i in self.recent if _same_line(block.text, text)), None)
             repeat = earlier is not None or _pieces_of(block.text, [text for text, _ in self.recent])
             line = self._line(block, repeat, game)
@@ -903,6 +1067,8 @@ class App:
                 line["capture"], line["box"], line["frame"], line["rows"] = capture_id, list(box), list(size), len(block.lines)
             if line["speaker"]:
                 line["speaker"]["english"] = self.speaker_english(game, block.speaker)
+                if k in guessed:
+                    line["speaker"].update(was=guessed[k], guessed=True)
             lines.append(line)
         kept.shown = lines
         new = [l for l in lines if not l["repeat"]]
@@ -924,6 +1090,12 @@ class App:
                 self._keep_screenshot(line["id"], image, block.box)
                 if line["speaker"] and line["speaker"]["uncertain"]:
                     self._speaker_shots[line["id"]] = _png(image, block.speaker_line.box, margin=8)
+                elif line["speaker"] and line["speaker"].get("guessed") and block.speaker_line:
+                    self._guessed_shots[line["id"]] = _png(image, block.speaker_line.box, margin=8)
+                    while len(self._guessed_shots) > _GUESSES_KEPT:
+                        self._guessed_shots.popitem(last=False)
+                if line["kind"] == "dialogue" and self._provider and self.prefs.values["autoTranslate"]:
+                    self._remembered(line)
         self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
         for line in new:
             self._started[line["id"]] = started
@@ -935,21 +1107,50 @@ class App:
                 self._last_auto[request.region] = (dialogue_new[-1]["id"], dialogue_new[-1]["text"])
             else:
                 self._last_auto.pop(request.region, None)
-        # A vision model checks every dialogue line against its screenshot, while the line is
-        # translated; a line it fixes is translated again. Cards for lines Horu may have
-        # misread wait for the check, so they never teach a misreading.
-        # Other text (menus, labels) is checked only when flagged: a menu screen has many
-        # short items.
+        self._ai_for(new)
+
+    def _ai_for(self, new: list[dict]) -> None:
+        """Ask the AI what new lines need, in as few requests as possible:
+        - dialogue is translated; a line OCR was unsure of goes with its screenshot, so the
+          same request checks the reading (and the translation follows what the image shows);
+          lines that appeared together go in one request; lines translated before in this
+          game reuse that translation;
+        - other text (menus, labels) OCR was unsure of, and dialogue it was unsure of when
+          translations are off, is checked from its screenshot;
+        - name tags not yet confirmed are checked (names close to a confirmed one were
+          guessed instead).
+        Lines OCR was sure of aren't checked: on the truth screens its sure lines were right
+        but for a dropped 。 or ぉ, and the translation can still propose a fix. Cards for
+        lines OCR was unsure of wait for the check, so they never teach a misreading."""
+        if not self._provider:
+            return
         dialogue = [line["id"] for line in new if line["kind"] == "dialogue"]
-        flagged_other = [line["id"] for line in new if line["kind"] != "dialogue" and line["uncertain"]]
-        checkable = [i for i in dialogue + flagged_other if self._can_check(i)]
-        waiting = [i for i in checkable if self.lines[i]["uncertain"] and i in dialogue]
+        unsure = {i for i in dialogue if self.lines[i]["uncertain"] and self._can_check(i)}
+        checks = [line["id"] for line in new if line["kind"] != "dialogue" and line["uncertain"]]
         if self.prefs.values["autoTranslate"]:
-            for line_id in dialogue:
-                self.translate(line_id)
-        self._auto_cards([i for i in dialogue if i not in waiting])
-        if checkable:
-            threading.Thread(target=self._check_lines, args=(checkable, waiting), name="horu-check", daemon=True).start()
+            todo = [i for i in dialogue if not self.lines[i].get("translation")]
+            plain = [i for i in todo if i not in unsure]
+            if len(plain) > 1:
+                self._translate_together(plain)
+            elif plain:
+                self.translate(plain[0], priority=_AUTO)
+            for line_id in todo:
+                if line_id in unsure:
+                    self.translate(line_id, check=True, priority=_AUTO, cards=True)
+            self._auto_cards([i for i in dialogue if i not in unsure or i not in todo])
+        else:
+            checks = sorted(unsure) + checks
+            self._auto_cards([i for i in dialogue if i not in unsure])
+        for line_id in checks:
+            if self._can_check(line_id):
+                self._jobs.put(_BACKGROUND, lambda i=line_id: self._check_lines([i], [i] if i in unsure else []))
+        for line in new:
+            if line["id"] in self._speaker_shots and self._can_check(line["id"]):
+                self._jobs.put(_BACKGROUND, lambda i=line["id"]: self._check_name(i))
+
+    def _ai_busy(self) -> bool:
+        """Whether queued AI work is waiting or running (for evals/eval_ai.py)."""
+        return self._jobs.busy()
 
     def _extends_last(self, region: str, new: list[dict], blocks, lines: list[dict], image) -> bool:
         """Text read while it was still typing out (paused at 、 or …) and read again in full:
@@ -966,9 +1167,9 @@ class App:
         self._keep_screenshot(last_id, image, blocks[lines.index(new[0])].box)
         self._last_auto[region] = (last_id, text)
         self._call("lineUpdated", {"id": last_id, "text": text, "words": words, "uncertain": line["uncertain"]})
-        # The full line needs its own check (the partial one was checked before).
-        if self._can_check(last_id):
-            threading.Thread(target=self._check_lines, args=([last_id], []), name="horu-check", daemon=True).start()
+        # The page translates the full line again; a line OCR was unsure of needs its own check.
+        if line["uncertain"] and self._can_check(last_id):
+            self._jobs.put(_BACKGROUND, lambda: self._check_lines([last_id], []))
         return True
 
     # --- text hookers ------------------------------------------------------------------
@@ -1022,9 +1223,10 @@ class App:
             line["speaker"]["english"] = self.speaker_english(game, hooked.speaker)
         self.recent.append((hooked.text, line["id"]))
         self.lines[line["id"]] = line
+        remembered = bool(self._provider) and self.prefs.values["autoTranslate"] and self._remembered(line)
         self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": [line], "auto": True, "hooked": True})
-        if self.prefs.values["autoTranslate"]:
-            self.translate(line["id"])
+        if self.prefs.values["autoTranslate"] and self._provider and not remembered:
+            self.translate(line["id"], priority=_AUTO)
         self._auto_cards([line["id"]])
 
     # --- auto-capture ------------------------------------------------------------------
@@ -1193,13 +1395,53 @@ class App:
                 self._auto_cards([line_id])
 
     def _check(self, line_id: int) -> None:
-        """Have a vision model read the line (and a doubtful name tag) from its screenshot."""
+        """Have a vision model read the line from its screenshot."""
         self._check_text(line_id)
-        if line_id in self._speaker_shots:
-            try:
-                self._check_speaker(line_id)
-            except llm.AIError as e:
-                self._time(line_id, f"speaker check failed: {e}")
+
+    def _check_name(self, line_id: int) -> None:
+        """Check a doubtful name tag, then translate the name it settles on."""
+        try:
+            self._check_speaker(line_id)
+        except llm.AIError as e:
+            self._time(line_id, f"speaker check failed: {e}")
+        line = self.lines.get(line_id)
+        if line and line["speaker"] and self.prefs.values["autoTranslate"]:
+            self.translate_speaker(line["game"], line["speaker"]["text"])
+
+    def check_speaker(self, line_id: int) -> dict:
+        """Read a guessed name tag with the AI (the learner thinks the guess is wrong)."""
+        line = self.lines.get(line_id)
+        png = self._guessed_shots.get(line_id)
+        if not line or not line["speaker"]:
+            return {"ok": False, "message": "That line is gone."}
+        if not self._provider:
+            return {"ok": False, "message": "Set up an AI provider in Settings to check names."}
+        if png is None:
+            return {"ok": False, "message": "The screenshot of this name is no longer kept."}
+        speaker, game = line["speaker"], line["game"]
+        try:
+            reading = self._tutor().reread(Line(speaker["was"], alternatives=[speaker["text"]]), png)
+        except llm.AIError as e:
+            return {"ok": False, "message": str(e)}
+        if not reading:
+            return {"ok": False, "message": "The AI didn't return a name."}
+        self._guessed_shots.pop(line_id, None)
+        self.speakers.confirm(game, reading, was=speaker["was"])
+        self.set_speaker(line_id, reading, was=speaker["was"] if reading != speaker["was"] else None)
+        same = reading == speaker["text"]
+        return {"ok": True, "message": f"The AI read 「{reading}」{' too' if same else ''}."}
+
+    def fix_speaker(self, line_id: int, text: str) -> None:
+        """The learner's own name for this line's speaker: remembered, so the same misread
+        maps to it from now on."""
+        line = self.lines.get(line_id)
+        text = text.strip()
+        if not line or not line["speaker"] or not text:
+            return
+        ocr = line["speaker"].get("was") or line["speaker"]["text"]
+        self._guessed_shots.pop(line_id, None)
+        self.speakers.confirm(line["game"], text, was=ocr)
+        self.set_speaker(line_id, text, was=ocr if ocr != text else None)
 
     def _check_speaker(self, line_id: int) -> None:
         """Read a name tag OCR wasn't sure of again with a vision model, and use that reading
@@ -1222,7 +1464,9 @@ class App:
         if not line or not line["speaker"]:
             return
         game = line["game"]
-        line["speaker"].update(text=text, words=self._words(text), english=self.speaker_english(game, text), was=was)
+        line["speaker"].update(
+            text=text, words=self._words(text), english=self.speaker_english(game, text), was=was, guessed=False
+        )
         self._call("speakerCorrected", {"id": line_id, "speaker": line["speaker"]})
         if not line["speaker"]["english"] and self.prefs.values["autoTranslate"]:
             self.translate_speaker(game, text)
@@ -1241,9 +1485,10 @@ class App:
         self.lines[line_id]["aiReading"] = reading
         self.propose(line_id, reading, "vision")
 
-    def propose(self, line_id: int, text: str, source: str) -> str:
+    def propose(self, line_id: int, text: str, source: str, translated: bool = False) -> str:
         """Act on a proposed fix for a line: apply it when another source agrees, otherwise
-        offer it to the learner. `source` is "vision" or "explain"."""
+        offer it to the learner. `source` is "vision" or "explain". `translated`: the fix
+        came with a translation of the fixed text, so the page needn't translate again."""
         line = self.lines.get(line_id)
         if line is None:
             return correction.SAME
@@ -1264,7 +1509,7 @@ class App:
             line["was"] = line.get("was") or was
             line["suggestion"] = None
             line["uncertain"] = False  # two sources agree on the new text
-            self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"]})
+            self._call("lineCorrected", {"id": line_id, "text": text, "words": words, "was": line["was"], "translated": translated})
         elif outcome == correction.SUGGEST and text != line.get("suggestion"):
             line["suggestion"] = text
             self._call("lineSuggestion", {"id": line_id, "text": text, "source": source})
