@@ -197,8 +197,9 @@ class PictureFinder:
 
 # --- Noticing new text -------------------------------------------------------------------
 
-# The picture is shrunk to this width to look for text in it.
-MAP_WIDTH = 320
+# The picture is shrunk to this width to look for text in it. At 320 the detector missed
+# short lines (P5R's 別に。) and found longer ones in pieces that came and went.
+MAP_WIDTH = 480
 # How much brighter (or darker) than its surroundings a pixel must be to count as a stroke.
 _TEXT_CONTRAST = 100
 # Share of a piece of text's strokes that must differ for it to count as changed, and below
@@ -217,6 +218,10 @@ _FORGET_FRAMES = 40
 _KNOWN_MAX = 200
 # Text this many of its line heights away from text still typing out is in the same box.
 _BESIDE = 1.5
+# Frames new text waits for text beside it to settle, before it's read anyway: what never
+# settles isn't typing out. P5R's name tags are tilted, and their boxes take in the scene
+# moving behind them. (A line read before it finished typing is updated when it's read in full.)
+_PATIENCE = 8
 
 Detector = Callable[[np.ndarray], list[Pixels]]
 
@@ -317,7 +322,7 @@ class TextWatcher:
                 new.append(piece)
         # Wait while text beside it is still changing: the rest of the box typing out.
         typing = [t for t in current if t.still < _STILL_FRAMES]
-        if not new or any(_beside(t.box, n.box) for t in typing for n in new):
+        if not new or any(n.still < _PATIENCE and _beside(t.box, n.box) for t in typing for n in new):
             self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES]
             return False
         self._known += [_Text(n.box, n.strokes, seen=self._frame) for n in new]

@@ -69,8 +69,14 @@ def test_scenery_moving_behind_the_box_is_not_new_text(find_text):
 
 
 def test_with_regions_only_text_inside_them_counts(find_text):
-    line, choices = screen("p5r_watch_line"), screen("p5r_watch_choices")
-    dialogue_box = [(0.1, 0.7, 0.75, 1.0)]  # the choices appear outside it
+    line = screen("p5r_watch_line")
+    # P5R's choices appear above the dialogue box, to the right: only the box is watched.
+    w, h = line.size
+    where = (round(w * 0.55), round(h * 0.4), round(w * 0.75), round(h * 0.76))
+    choices = line.copy()
+    choices.paste(screen("p5r_watch_choices").crop(where), where[:2])
+    dialogue_box = [(0.0, 0.78, 0.8, 1.0)]
+    assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6) == [2, 5]
     assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6, dialogue_box) == [2]
 
 
@@ -150,3 +156,18 @@ def test_text_coming_back_after_something_passed_over_it_is_not_new():
     covered = [drawn.frame(lines, cover=(30, 95, 70, 125))] * 4  # Navi hovers over the first line
     reads = [watcher.update(f) for f in [drawn.frame(lines)] * 3 + covered + [drawn.frame(lines)] * 4]
     assert reads.count(True) <= 2 and not any(reads[7:])  # not again once she's gone
+
+
+def cafe(name: str) -> Image.Image:
+    return Image.open(FIXTURES / f"p5r_cafe_{name}.jpg").convert("RGB")
+
+
+def test_new_lines_are_read_though_the_name_tag_beside_them_keeps_changing(find_text):
+    # P5R, Leblanc: the tilted name tag's box takes in the scene moving behind it, so it never
+    # settles; the line under it was then never read. Frames of a screen alternate as the
+    # scene moves.
+    watcher = TextWatcher(find_text)
+    fired(watcher, [cafe("before")] * 4)
+    assert fired(watcher, [cafe("who_1"), cafe("who_2")] * 6)  # なに、誰の話？
+    # 別に。: three characters, missed by the text finder on a smaller picture.
+    assert fired(watcher, [cafe("nothing_1"), cafe("nothing_2")] * 6)
