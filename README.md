@@ -15,7 +15,27 @@ The goal is to cut lookup time so you can stay in the game.
 
 ## Install
 
-On Windows 10 or 11, open PowerShell and run:
+On Windows 10 or 11, download **Horu-Setup-<version>.exe** from the
+[latest release](https://github.com/LukasRuprecht/Horu/releases/latest) and run it. It installs
+for your Windows account only (no administrator prompt) and adds Horu to the Start menu. It
+needs about 700 MB of disk space; the first start downloads the dictionary (about 25 MB), with
+progress shown in Horu's window.
+
+- **"Windows protected your PC":** the installer isn't code-signed yet, so SmartScreen may
+  warn about it. Click **More info**, then **Run anyway**.
+- **Update:** run a newer installer. It closes Horu if it's open. Your settings, saved words,
+  dictionary, and learned names are kept: they live in `%LOCALAPPDATA%\Horu`, apart from the
+  program.
+- **Uninstall:** from **Settings → Apps → Installed apps**. It asks whether to delete your data
+  too. API keys and the AnkiWeb sign-in stay in Windows Credential Manager (entries named
+  Horu).
+- Horu's window uses Microsoft Edge WebView2, which comes with Windows 11 and most Windows 10
+  PCs. If it's missing, the installer offers Microsoft's download page.
+
+<details>
+<summary>Or install with a script (uv)</summary>
+
+Open PowerShell and run:
 
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/LukasRuprecht/Horu/main/install.ps1 | iex"
@@ -24,11 +44,13 @@ powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/Luk
 This installs [uv](https://docs.astral.sh/uv/) (which manages Horu's Python) if you don't have
 it, puts Horu in `%LOCALAPPDATA%\Horu`, and adds it to the Start menu and desktop. It needs
 about 2 GB of disk space. The first time Horu starts, it downloads the dictionary and OCR
-models (about 150 MB), with progress shown in its window.
+models (about 150 MB), with progress shown in its window. It keeps its settings in the same
+folder as the installer does, so you can switch between the two.
 
 - **Update:** run the same command again. Your settings, dictionary, and learned names are kept.
 - **Uninstall:** save [install.ps1](install.ps1) and run
   `powershell -ExecutionPolicy ByPass -File install.ps1 -Uninstall`.
+</details>
 
 <details>
 <summary>From source (for development)</summary>
@@ -42,6 +64,13 @@ uv run horu
 
 The first run creates `config.toml` from `config.example.toml`. Run the tests with
 `uv run pytest`.
+
+To build the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+(`winget install JRSoftware.InnoSetup`) and run
+`powershell -ExecutionPolicy ByPass -File packaging\build.ps1`. It bundles Horu with
+PyInstaller into `dist\Horu` (`Horu.exe` there runs as is) and writes
+`dist\Horu-Setup-<version>.exe`. Pushing a tag like `v0.1.0` builds it on GitHub and attaches
+it to a draft release.
 </details>
 
 ## Getting started
@@ -277,7 +306,7 @@ AI and are reliable. For trustworthy explanations, use a larger local model or a
 
 ## Command line
 
-From the Horu folder (`uv run horu <command>`):
+With the script install or from source, in the Horu folder (`uv run horu <command>`):
 
 - `horu` opens the window. `horu console` prints captured text to the terminal instead.
 - `horu read <image>` reads the Japanese text in a screenshot. `horu snap` saves a capture to
@@ -333,10 +362,9 @@ Hotkey, auto-capture, or a text hooker
 - [x] **Phase 3:** AI translations, explanations, and follow-up questions
 - [x] **Phase 4:** auto-capture and text hooking
 - [x] **Phase 5:** Anki export
-- [ ] **Phase 6:** first release: one-step install, debug bundles, docs, and an app layout
-  (Read, Words, Study, a welcome screen, themes) are done; still to come: an exe installer, and
-  more games in the regression tests (a visual novel, a modern 16:9 game, a game with small
-  subtitles)
+- [ ] **Phase 6:** first release: an installer, debug bundles, docs, and an app layout
+  (Read, Words, Study, a welcome screen, themes) are done; still to come: more games in the
+  regression tests (a visual novel, a modern 16:9 game, a game with small subtitles)
 - [ ] **Phase 7:** learning features: spaced review inside Horu, per-game word lists, and JLPT
   tags are done; still to come: frequency tags and recommendations
 

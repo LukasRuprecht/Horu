@@ -102,7 +102,7 @@ if (-not $NoShortcuts) {
         $shortcut.TargetPath = $app
         $shortcut.WorkingDirectory = $Dir  # Horu keeps config.toml and data\ here
         $shortcut.Description = "Horu: a Japanese study buddy for games"
-        $icon = Join-Path $Dir "src\horu\ui\horu.ico"
+        $icon = Join-Path $Dir "src\horu\resources\horu.ico"
         if (Test-Path $icon) { $shortcut.IconLocation = $icon }
         $shortcut.Save()
     }
