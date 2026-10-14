@@ -303,8 +303,11 @@ def _is_speaker(i: int, lines: list[TextLine], styles: dict[int, Style], legends
     if not _reads_like_dialogue(lines[body].text):
         return False
     # Tilted choices (P5R's ごちそうさま／旨かった／目が覚めた): the line below is the next
-    # choice, not what a tilted name tag's speaker says, when a line stacked under it is
-    # tilted too. Text under a tilted name tag is level. (OCR finds some choices level.)
+    # choice, not what a tilted name tag's speaker says, when it's tilted too (シュージンのはず
+    # over そっちもシュージンか？), or a line stacked under it is. Text under a tilted name tag
+    # is level. (OCR finds some choices level.)
+    if candidate.slant_height and lines[body].slant_height:
+        return False
     if candidate.slant_height and any(
         lines[j].slant_height and lines[j].box[1] > lines[body].box[1] and _stacked(lines[body], lines[j])
         for j in range(len(lines))

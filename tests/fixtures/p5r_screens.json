@@ -5021,6 +5021,212 @@
     }
    ],
    "note": "とくに何も has no verb, but it is tilted in a stack of tilted choices: a choice, not other text"
+  },
+  {
+   "name": "two_tilted_choices",
+   "size": [
+    1432,
+    1000
+   ],
+   "lines": [
+    {
+     "text": "60 FPS",
+     "box": [
+      0,
+      0,
+      29,
+      13
+     ],
+     "style": {
+      "ink": [
+       41,
+       144,
+       41
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.95
+    },
+    {
+     "text": "お前、シュージンだよな？",
+     "box": [
+      276,
+      778,
+      589,
+      811
+     ],
+     "style": {
+      "ink": [
+       64,
+       64,
+       63
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.959
+    },
+    {
+     "text": "F早送",
+     "box": [
+      1309,
+      770,
+      1396,
+      809
+     ],
+     "style": {
+      "ink": [
+       244,
+       244,
+       244
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.974
+    },
+    {
+     "text": "×オート",
+     "box": [
+      1315,
+      807,
+      1395,
+      844
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.708
+    },
+    {
+     "text": "B",
+     "box": [
+      1325,
+      846,
+      1356,
+      875
+     ],
+     "style": {
+      "ink": [
+       227,
+       227,
+       227
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.912
+    },
+    {
+     "text": "ログ",
+     "box": [
+      1350,
+      844,
+      1392,
+      875
+     ],
+     "style": {
+      "ink": [
+       237,
+       237,
+       237
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.983
+    },
+    {
+     "text": "ガラの悪い少年",
+     "box": [
+      214,
+      656,
+      419,
+      747
+     ],
+     "style": {
+      "ink": [
+       68,
+       67,
+       65
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.998,
+     "slant_height": 40.3
+    },
+    {
+     "text": "シュージンのはず",
+     "box": [
+      728,
+      509,
+      952,
+      587
+     ],
+     "style": {
+      "ink": [
+       13,
+       12,
+       11
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.992,
+     "slant_height": 37.7
+    },
+    {
+     "text": "そっちもシュージンか？",
+     "box": [
+      734,
+      639,
+      1028,
+      705
+     ],
+     "style": {
+      "ink": [
+       242,
+       242,
+       242
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.975,
+     "slant_height": 38.2
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "シュージンのはず"
+    },
+    {
+     "speaker": null,
+     "kind": "dialogue",
+     "text": "そっちもシュージンか？"
+    },
+    {
+     "speaker": "ガラの悪い少年",
+     "kind": "dialogue",
+     "text": "お前、シュージンだよな？"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "F早送"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "×オート"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ログ"
+    }
+   ]
   }
  ]
 }
