@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import queue
 import sys
 import time
@@ -133,11 +134,19 @@ LOG_PATH = Path("data/horu.log")
 def gui() -> None:
     """The Start-menu shortcut's entry point: the window, with no console. What Horu prints
     goes to data/horu.log (the run before is kept as horu.log.1), and a problem that stops it
-    starting is shown in a message box."""
+    starting is shown in a message box. If Horu is already running, its window comes to the
+    front instead."""
+    if not _first_instance():
+        _show_running_window()
+        return
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    if LOG_PATH.exists():
-        LOG_PATH.replace(LOG_PATH.with_name(LOG_PATH.name + ".1"))
-    sys.stdout = sys.stderr = LOG_PATH.open("w", encoding="utf-8", buffering=1)
+    log = LOG_PATH
+    try:
+        if LOG_PATH.exists():
+            LOG_PATH.replace(LOG_PATH.with_name(LOG_PATH.name + ".1"))
+    except OSError:  # still open (a Horu that is closing): keep it, log beside it
+        log = LOG_PATH.with_name(f"horu-{os.getpid()}.log")
+    sys.stdout = sys.stderr = log.open("w", encoding="utf-8", buffering=1)
     try:
         main()
     except SystemExit as e:
@@ -148,6 +157,65 @@ def gui() -> None:
         traceback.print_exc()
         _message_box(f"Horu stopped: {e}\n\nDetails are in {LOG_PATH.resolve()}")
         raise
+
+
+_instance_lock = None  # held while Horu runs
+PID_PATH = Path("data/horu.pid")
+
+
+def _first_instance() -> bool:
+    """Claim this data folder for this process. False if a Horu using it is already running
+    (a second one would fight it for the hotkey and its files)."""
+    global _instance_lock
+    if sys.platform != "win32":
+        return True
+    import ctypes
+    import hashlib
+
+    folder = hashlib.sha1(str(Path.cwd().resolve()).lower().encode()).hexdigest()[:16]
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    _instance_lock = kernel32.CreateMutexW(None, False, f"Local\\Horu-{folder}")
+    if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+        return False
+    PID_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PID_PATH.write_text(str(os.getpid()))
+    return True
+
+
+def _show_running_window() -> None:
+    """Bring the running Horu's window to the front, also when it's hidden in the tray. It may
+    still be starting: give its window a few seconds to appear."""
+    import ctypes
+    from ctypes import wintypes
+
+    try:
+        pid = int(PID_PATH.read_text())
+    except (OSError, ValueError):
+        return
+    user32 = ctypes.windll.user32
+    found = []
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def visit(hwnd, _):
+        owner = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
+        title = ctypes.create_unicode_buffer(16)
+        user32.GetWindowTextW(hwnd, title, 16)
+        if owner.value == pid and title.value == "Horu":
+            found.append(hwnd)
+        return not found
+
+    for _ in range(20):
+        user32.EnumWindows(visit, 0)
+        if found:
+            hwnd = found[0]
+            user32.ShowWindow(hwnd, 5)  # SW_SHOW
+            if user32.IsIconic(hwnd):
+                user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+            user32.SetForegroundWindow(hwnd)
+            return
+        time.sleep(0.5)
 
 
 def _message_box(text: str) -> None:
