@@ -135,8 +135,9 @@ Hooked lines show up as dialogue, with the speaker split off when the hooker inc
 
 Set one up under **Settings → AI** (see [AI providers](#ai-providers)). Then:
 
-- **Translate** under a line, or turn on automatic translation. Translations stay blurred until
-  you click them, so you try reading first.
+- New dialogue is translated automatically (to translate only when you click **Translate**
+  under a line, turn that off in **Settings → AI**). Translations stay blurred until you click
+  them, so you try reading first.
 - **Explain** on a line gives a grammar breakdown pitched at your level; **Explain in context**
   in a word's popup explains that word in that line. Ask follow-up questions in the panel that
   opens.

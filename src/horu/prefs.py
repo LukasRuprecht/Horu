@@ -24,7 +24,7 @@ DEFAULTS: dict = {
     # Minimizing leaves just the tray icon. Off by default: a window gone from the taskbar,
     # with its icon tucked under the tray's ^, looks like Horu quit.
     "minimizeToTray": False,
-    "autoTranslate": False,  # one AI request per new dialogue line
+    "autoTranslate": True,  # one AI request per new dialogue line (once an AI provider is set up)
     # Use the AI's reading of a possibly misread line (or name tag) straight away, showing
     # what changed, instead of asking "Did you mean ...?".
     "applyAiReadings": True,
