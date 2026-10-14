@@ -355,6 +355,7 @@ class App:
         self._page_loaded = threading.Event()
         self._stop_hotkey = None
         self._tray: tray.Tray | None = None
+        self._told_tray = False
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
     def run(self) -> None:
@@ -408,6 +409,9 @@ class App:
     def _minimized(self) -> None:
         if self._tray and self.prefs.values["minimizeToTray"]:
             self.window.hide()
+            if not self._told_tray:  # once a run: say where the window went
+                self._told_tray = True
+                self._tray.notify("Horu is still running. Click its icon by the clock (under ^) to bring it back.")
 
     def _capture_from_tray(self) -> None:
         # The tray has focus now, not the game: only a chosen game window can be captured.

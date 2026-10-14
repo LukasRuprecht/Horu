@@ -18,9 +18,12 @@ DEFAULTS: dict = {
     "screenText": True,
     "onTop": False,
     # Keep Horu's window out of screen captures, so it's never read even when it overlaps the
-    # game. Off for people who stream or share their screen with Horu visible.
-    "hideFromCapture": True,
-    "minimizeToTray": True,  # minimizing leaves just the tray icon
+    # game. Off by default: it also hides Horu from streams, remote desktops (Parsec), and
+    # screenshots, which looks like Horu vanished. Parts of the game Horu covers are blanked.
+    "hideFromCapture": False,
+    # Minimizing leaves just the tray icon. Off by default: a window gone from the taskbar,
+    # with its icon tucked under the tray's ^, looks like Horu quit.
+    "minimizeToTray": False,
     "autoTranslate": False,  # one AI request per new dialogue line
     # Use the AI's reading of a possibly misread line (or name tag) straight away, showing
     # what changed, instead of asking "Did you mean ...?".

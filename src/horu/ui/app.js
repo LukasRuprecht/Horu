@@ -1165,8 +1165,8 @@ for (const key of Object.keys(TOGGLES)) {
 const FIELDS = [
   ["#anki-deck", "ankiDeck", "Horu"],
   ["#auto-cards", "autoCards", false],
-  ["#hide-from-capture", "hideFromCapture", true],
-  ["#minimize-to-tray", "minimizeToTray", true],
+  ["#hide-from-capture", "hideFromCapture", false],
+  ["#minimize-to-tray", "minimizeToTray", false],
   ["#auto-translate", "autoTranslate", false],
   ["#ai-checks", "aiChecks", true],
   ["#apply-ai-readings", "applyAiReadings", true],

@@ -91,8 +91,10 @@ it to a draft release.
 
 Horu has three tabs: **Read** (the lines from your game), **Words** (everything you saved), and
 **Study** (today's reviews). Settings has the colours (Horu, Indigo, or Matcha, each light or
-dark) under **Appearance**. Minimizing Horu leaves its ほ icon in the tray by the clock: click
-it to bring Horu back, or use its menu to capture or turn auto-capture on or off.
+dark) under **Appearance**. Horu's ほ icon sits in the tray by the clock (under the ^ arrow
+until you drag it out): click it to bring Horu back, or use its menu to capture or turn
+auto-capture on or off. To have minimizing leave just that icon, turn on **Minimize to the
+tray** in **Settings → Capture**.
 
 ### What you see
 

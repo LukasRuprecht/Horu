@@ -39,6 +39,12 @@ class Tray:
     def stop(self) -> None:
         self._icon.stop()
 
+    def notify(self, message: str) -> None:
+        try:
+            self._icon.notify(message, "Horu")
+        except Exception:  # notifications are a nicety; some systems refuse them
+            pass
+
     def refresh(self) -> None:
         """Redraw the menu's check marks (after auto-capture changed in the window)."""
         self._icon.update_menu()
