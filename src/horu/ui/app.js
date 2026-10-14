@@ -218,12 +218,16 @@ $("#game-chip").addEventListener("click", async (e) => {
   showMenu(anchor, items, "Horu captures this window even when another one is in front.");
 });
 
+// Captures are numbered as they're shown: Horu's own ids also count auto-capture reads that
+// found nothing new, which left gaps (Capture 1, 2, 5, 9).
+let capturesShown = 0;
+
 // One capture (one hotkey press) is one card; its lines are rows inside it, in screen order.
 function renderCapture(capture) {
   const card = el("section", "capture");
   const head = el("header", "capture-head");
   const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
-  head.append(el("span", "capture-num", capture.hooked ? "Hooked" : `Capture ${capture.id}`), el("span", null, capture.time), el("span", null, count));
+  head.append(el("span", "capture-num", capture.hooked ? "Hooked" : `Capture ${++capturesShown}`), el("span", null, capture.time), el("span", null, count));
   card.append(head);
   // Runs of lines that were already shown are collapsed, so a re-captured backlog page shows
   // what's new without anything silently disappearing.
