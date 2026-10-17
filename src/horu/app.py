@@ -20,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, speakers, text_sources, translations, tray, wordbook
+from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, snip, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -75,6 +75,14 @@ class AutoRead:
     image: object  # PIL image of the game window, as the hotkey would capture it
     game: str
     region: str = "picture"  # where it was watched, for joining a line read while still typing
+
+
+@dataclasses.dataclass
+class Snip:
+    """A box the learner dragged on screen: read like a capture, and translated once."""
+
+    image: object  # PIL image of the box
+    game: str
 
 
 @dataclasses.dataclass
@@ -190,6 +198,10 @@ class Api:
         """Capture this window for the rest of the session (None: the next one the hotkey is
         pressed in)."""
         self._app._set_game_window(window_id)
+
+    def snip(self) -> dict:
+        """Drag a box on screen; what's in it is read and translated once."""
+        return self._app.snip()
 
     def region_editor(self, line_id: int) -> dict:
         """The game picture this line was captured from, with its auto-read regions."""
@@ -356,6 +368,7 @@ class App:
         self._stop_hotkey = None
         self._tray: tray.Tray | None = None
         self._told_tray = False
+        self._snipping = False
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
     def run(self) -> None:
@@ -1095,10 +1108,14 @@ class App:
         self._ready()
         return {"ok": True, "message": f"Capture with {_pretty_hotkey(spec)}.", **self.hotkey_info()}
 
-    def _capture(self, request: AutoRead | None = None) -> None:
+    def _capture(self, request: AutoRead | Snip | None = None) -> None:
         started = time.monotonic()
-        auto = request is not None
-        if auto:
+        auto = isinstance(request, AutoRead)
+        snipped = isinstance(request, Snip)
+        if snipped:
+            image, game = request.image, request.game
+            self._status("busy", "Reading...")
+        elif auto:
             image, game = request.image, request.game
         elif self.cfg.capture.mode == "window" and self._game_window and capture.window_box(self._game_window[0]):
             window, game = self._game_window
@@ -1143,7 +1160,8 @@ class App:
                     guessed[k], name = b.speaker, guess
             blocks[k] = dataclasses.replace(b, speaker=name)
 
-        picture = autocapture.picture_box(image) if not auto else None
+        # A hotkey capture's game picture, for drawing auto-read regions on.
+        picture = autocapture.picture_box(image) if not (auto or snipped) else None
         if auto:
             # Only dialogue: a sign the camera stopped on, a location name, or a menu would be
             # read some of the time. The hotkey reads those.
@@ -1154,14 +1172,17 @@ class App:
         lines = []
         for k, block in enumerate(blocks):
             earlier = next((i for text, i in self.recent if _same_line(block.text, text)), None)
-            repeat = earlier is not None or _pieces_of(block.text, [text for text, _ in self.recent])
+            # A snip is asked for: everything in it is shown, even if seen before.
+            repeat = not snipped and (earlier is not None or _pieces_of(block.text, [text for text, _ in self.recent]))
             line = self._line(block, repeat, game)
             line["game"], line["captureId"] = game, capture_id
-            if not repeat:
+            if snipped:
+                line["snip"] = True
+            if not repeat and earlier is None:
                 self.recent.append((block.text, line["id"]))
-            elif earlier is not None and self.lines.get(earlier, {}).get("translation"):
+            if earlier is not None and self.lines.get(earlier, {}).get("translation"):
                 line["translation"] = self.lines[earlier]["translation"]  # shown with it, no new request
-            if not auto:  # where it was, for drawing auto-read regions
+            if picture is not None:  # where it was, for drawing auto-read regions
                 box, size = autocapture.in_picture(block.box, picture)
                 line["capture"], line["box"], line["frame"], line["rows"] = capture_id, list(box), list(size), len(block.lines)
             if line["speaker"]:
@@ -1181,7 +1202,7 @@ class App:
             return
         if auto and self._extends_last(request.region, new, blocks, lines, image):
             return
-        if not auto:
+        if picture is not None:
             self._keep_picture(capture_id, image, picture, game)
         for line, block in zip(lines, blocks):
             self.lines[line["id"]] = line
@@ -1193,12 +1214,16 @@ class App:
                     self._guessed_shots[line["id"]] = _png(image, block.speaker_line.box, margin=8)
                     while len(self._guessed_shots) > _GUESSES_KEPT:
                         self._guessed_shots.popitem(last=False)
-                if line["kind"] == "dialogue" and self._provider and self.prefs.values["autoTranslate"]:
+                if line["kind"] == "dialogue" and self._provider and self.prefs.values["autoTranslate"] and not snipped:
                     self._remembered(line)
-        self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto})
+        self._call("addCapture", {"id": capture_id, "time": time.strftime("%H:%M:%S"), "lines": lines, "auto": auto, "snip": snipped})
         for line in new:
             self._started[line["id"]] = started
             self._time(line["id"], "shown" + (" (flagged)" if line["uncertain"] else ""))
+        if snipped:
+            self._ready(None if self._provider else "Set up AI in Settings → AI to translate snips.")
+            self._translate_snip(new)
+            return
         self._ready()
         dialogue_new = [l for l in new if l["kind"] == "dialogue"]
         if auto:
@@ -1246,6 +1271,53 @@ class App:
         for line in new:
             if line["id"] in self._speaker_shots and self._can_check(line["id"]):
                 self._jobs.put(_BACKGROUND, lambda i=line["id"]: self._check_name(i))
+
+    def _translate_snip(self, new: list[dict]) -> None:
+        """Every line of a snip is translated, other text too and whatever autoTranslate says:
+        it was asked for. Lines OCR was unsure of go with their screenshot."""
+        if not self._provider:
+            return
+        todo = [line["id"] for line in new if not line.get("translation")]
+        unsure = [i for i in todo if self.lines[i]["uncertain"] and self._can_check(i)]
+        plain = [i for i in todo if i not in unsure]
+        if len(plain) > 1:
+            self._translate_together(plain)
+        elif plain:
+            self.translate(plain[0])
+        for line_id in unsure:
+            self.translate(line_id, check=True)
+
+    def snip(self) -> dict:
+        """Hide Horu, let the learner drag a box on screen, and read what's in it."""
+        if self._source is None:
+            return {"ok": False, "message": "Horu is still starting up. Try again in a moment."}
+        if self._snipping:
+            return {"ok": True}
+        self._snipping = True
+        try:
+            # The screen of the game (or, without one, the one Horu's button was clicked on).
+            point = capture.cursor_position() or (0, 0)
+            if self._game_window and (box := capture.window_box(self._game_window[0])):
+                point = (box["left"] + box["width"] // 2, box["top"] + box["height"] // 2)
+            monitor = capture.monitor_at(*point)
+            self.window.hide()
+            time.sleep(0.35)  # let it fade out
+            image = capture.grab_monitor(monitor)
+            chosen = snip.select(image, monitor)
+        finally:
+            self.show_window()
+            self._snipping = False
+        if chosen is None:
+            return {"ok": True}
+        # The game is the program under the box (a snip can be of anything on screen).
+        x = monitor["left"] + round((chosen[0] + chosen[2]) / 2 * monitor["width"])
+        y = monitor["top"] + round((chosen[1] + chosen[3]) / 2 * monitor["height"])
+        under = capture.window_at(x, y)
+        game = under and capture.process_name(under)
+        if not game or under == self.window.native.Handle.ToInt32():
+            game = self._game_window[1] if self._game_window else corrections.DEFAULT_GAME
+        self._requests.put(Snip(snip.crop(image, chosen), game))
+        return {"ok": True}
 
     def _ai_busy(self) -> bool:
         """Whether queued AI work is waiting or running (for evals/eval_ai.py)."""

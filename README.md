@@ -112,9 +112,15 @@ tray** in **Settings → Capture**.
 Turn on the eye button, and once Horu knows your game (one hotkey press, or the game chooser)
 Horu reads the game whenever new text settles on screen: dialogue, choices, thought bubbles.
 Text that stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's
-HUD keeps changing, limit auto-capture to parts of the picture: click the dashed-box button
-beside the eye and draw boxes on your latest hotkey capture (or use a line's **⋯** menu →
-**Set auto-read regions**).
+HUD keeps changing, limit auto-capture to parts of the picture: **Settings → Capture → Edit
+regions** draws boxes on your latest hotkey capture (so does a line's **⋯** menu → **Set
+auto-read regions**).
+
+### Snip: one bit of the screen
+
+The snip button beside the eye hides Horu and dims the screen: drag a box around any text (a
+sign, a menu, another app) and Horu reads just that and translates all of it once, other text
+included and even with automatic translation off. Esc or a right-click cancels.
 
 ### Exact text from a text hooker
 

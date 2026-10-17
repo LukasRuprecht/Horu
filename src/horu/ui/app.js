@@ -161,7 +161,12 @@ function renderLine(line) {
   text.lang = "ja";
   renderWords(line, text);
   row.append(meta, text);
-  if (state.ai.enabled) {
+  if (state.ai.enabled && line.snip) {
+    // A snip is translated whole, other text too: Python starts it, and it's not blurred.
+    const translation = translationRow(line, { auto: true });
+    translation.dataset.reveal = "true";
+    row.append(translation);
+  } else if (state.ai.enabled) {
     // Repeats were translated (or skipped) when first shown, and other text (menus, signs)
     // isn't translated by itself: those only on request.
     row.append(translationRow(line, line.repeat || line.kind !== "dialogue" ? { auto: false } : undefined));
@@ -227,7 +232,9 @@ function renderCapture(capture) {
   const card = el("section", "capture");
   const head = el("header", "capture-head");
   const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
-  head.append(el("span", "capture-num", capture.hooked ? "Hooked" : `Capture ${++capturesShown}`), el("span", null, capture.time), el("span", null, count));
+  const label = capture.hooked ? "Hooked" : capture.snip ? "Snip" : `Capture ${++capturesShown}`;
+  head.append(el("span", "capture-num", label), el("span", null, capture.time), el("span", null, count));
+  if (capture.snip) card.classList.add("show-other"); // asked for: nothing folded away
   card.append(head);
   // Runs of lines that were already shown are collapsed, so a re-captured backlog page shows
   // what's new without anything silently disappearing.
@@ -1194,8 +1201,13 @@ $("#auto-tip-regions").addEventListener("click", () => {
   openLatestRegions();
 });
 
-// The toolbar's regions button: drawn on the latest hotkey capture (auto-capture doesn't keep
-// the picture), preferring one with dialogue, whose box is the suggested region.
+$("#snip").addEventListener("click", async () => {
+  const result = await api().snip();
+  if (!result.ok) horu.setStatus({ state: "error", message: result.message });
+});
+
+// Auto-read regions are drawn on the latest hotkey capture (auto-capture doesn't keep the
+// picture), preferring one with dialogue, whose box is the suggested region.
 function openLatestRegions() {
   const lines = [...state.lines.values()].filter((l) => l.capture).reverse();
   const line = lines.find((l) => l.kind === "dialogue") || lines[0];
@@ -1205,7 +1217,10 @@ function openLatestRegions() {
   }
   openRegionEditor(line);
 }
-$("#open-regions").addEventListener("click", openLatestRegions);
+$("#edit-regions").addEventListener("click", () => {
+  toggleSettings(false);
+  openLatestRegions();
+});
 
 // Settings-panel checkboxes and text fields: [element, preference, default].
 const FIELDS = [
