@@ -101,7 +101,8 @@ tray** in **Settings → Capture**.
 - Dialogue is shown large, with its speaker above it. Speakers are found from the text (names,
   〜の声), a different text style, or a different size. Names get an English label from the
   names dictionary (順平 · Junpei), or from your AI provider for descriptions like 謎の通信.
-- Other text (button legends, menus, the HUD) is shown small, and the monitor button hides it.
+- Other text (button legends, menus, the HUD) is shown small. The lines button next to 漢 folds
+  it away under each capture, a click from opening again.
 - Lines already shown in an earlier capture are collapsed rather than repeated, so pressing
   the hotkey on a backlog screen shows only what's new.
 - A line Horu may have misread is marked with **?**. Click **Edit** on a line to fix it by hand.
@@ -111,8 +112,9 @@ tray** in **Settings → Capture**.
 Turn on the eye button, and once Horu knows your game (one hotkey press, or the game chooser)
 Horu reads the game whenever new text settles on screen: dialogue, choices, thought bubbles.
 Text that stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's
-HUD keeps changing, limit auto-capture to parts of the picture: open a line's **⋯** menu and
-pick **Set auto-read regions**.
+HUD keeps changing, limit auto-capture to parts of the picture: click the dashed-box button
+beside the eye and draw boxes on your latest hotkey capture (or use a line's **⋯** menu →
+**Set auto-read regions**).
 
 ### Exact text from a text hooker
 

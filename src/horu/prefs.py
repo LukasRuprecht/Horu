@@ -15,7 +15,8 @@ DEFAULTS: dict = {
     "textSize": 26,  # px, dialogue text
     "furiganaScale": 0.5,  # furigana size relative to the text
     "furigana": True,
-    "screenText": True,
+    "screenText": True,  # other text shown (or folded away under each capture)
+    "autoTipSeen": False,  # the one-time tip on what auto-capture reads
     "onTop": False,
     # Keep Horu's window out of screen captures, so it's never read even when it overlaps the
     # game. Off by default: it also hides Horu from streams, remote desktops (Parsec), and

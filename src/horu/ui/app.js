@@ -247,7 +247,22 @@ function renderCapture(capture) {
       card.append(renderLine(line));
     }
   }
+  const fold = button("other-fold", "", () => {
+    card.classList.toggle("show-other");
+    refreshFold(card);
+  });
+  card.append(fold);
+  refreshFold(card);
   return card;
+}
+
+// The row other text is folded behind (when it's folded away, see the toolbar toggle).
+function refreshFold(card) {
+  const fold = card.querySelector(".other-fold");
+  if (!fold) return;
+  const count = card.querySelectorAll(".line.other").length;
+  const what = count === 1 ? "1 line of other text" : `${count} lines of other text`;
+  fold.textContent = card.classList.contains("show-other") ? `▾ Fold ${what}` : `▸ ${what}`;
 }
 
 // --- Corrections ("this is dialogue", "this is a speaker name"), remembered per game --------
@@ -608,6 +623,7 @@ async function mark(line, row, label, part = "text") {
     line.kind = result.kind;
     row.classList.remove("dialogue", "other");
     row.classList.add(line.kind);
+    refreshFold(row.closest(".capture"));
     const kindLabel = row.querySelector(".kind-label");
     if (kindLabel) kindLabel.remove();
     if (KIND_LABEL[line.kind]) row.querySelector(".spacer").before(el("span", "kind-label", KIND_LABEL[line.kind]));
@@ -1160,10 +1176,36 @@ function applyToggle(key) {
 
 for (const key of Object.keys(TOGGLES)) {
   $(TOGGLES[key][0]).addEventListener("click", (e) => {
-    setPref(key, e.currentTarget.getAttribute("aria-pressed") !== "true");
+    const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+    setPref(key, on);
     applyToggle(key);
+    if (key === "autoCapture" && on && !state.prefs.autoTipSeen) $("#auto-tip").hidden = false;
   });
 }
+
+// Shown once, the first time auto-capture is turned on.
+function closeAutoTip() {
+  $("#auto-tip").hidden = true;
+  setPref("autoTipSeen", true);
+}
+$("#auto-tip-close").addEventListener("click", closeAutoTip);
+$("#auto-tip-regions").addEventListener("click", () => {
+  closeAutoTip();
+  openLatestRegions();
+});
+
+// The toolbar's regions button: drawn on the latest hotkey capture (auto-capture doesn't keep
+// the picture), preferring one with dialogue, whose box is the suggested region.
+function openLatestRegions() {
+  const lines = [...state.lines.values()].filter((l) => l.capture).reverse();
+  const line = lines.find((l) => l.kind === "dialogue") || lines[0];
+  if (!line) {
+    horu.setStatus({ state: "error", message: `Regions are drawn on a capture: press ${$("#hotkey-chip").textContent || "the hotkey"} in your game first, then click this again.` });
+    return;
+  }
+  openRegionEditor(line);
+}
+$("#open-regions").addEventListener("click", openLatestRegions);
 
 // Settings-panel checkboxes and text fields: [element, preference, default].
 const FIELDS = [
