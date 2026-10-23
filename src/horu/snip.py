@@ -1,7 +1,7 @@
 """Snip: drag a box anywhere on screen, and Horu reads just that (translated once).
 
-The screen is grabbed first and shown dimmed in a frameless window covering the monitor, so
-what's selected is exactly what was on screen. The box comes back as fractions of the
+The screen (every monitor) is grabbed first and shown dimmed in a frameless window covering
+it, so what's selected is exactly what was on screen. The box comes back as fractions of the
 picture, which keeps it right whatever the display scaling.
 """
 
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import threading
 
 from PIL import Image
@@ -23,16 +24,20 @@ _PAGE = """<!doctype html>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor: crosshair; user-select: none; }
   #shot { position: fixed; inset: 0; width: 100vw; height: 100vh; filter: brightness(0.45); }
   #box { position: fixed; display: none; outline: 2px solid #f2c14e; box-shadow: 0 0 0 1px #000;
-         background-image: var(--shot); background-size: 100vw 100vh; }
+         background-size: 100vw 100vh; }
   #hint { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); padding: 8px 16px;
           border-radius: 999px; background: #15171d; color: #e8e6e1; font: 14px system-ui, sans-serif; }
 </style></head><body>
-<img id="shot" src="__SHOT__" draggable="false" alt="">
+<img id="shot" draggable="false" alt="">
 <div id="box"></div>
 <div id="hint">Drag a box around the text to read it &middot; Esc to cancel</div>
 <script>
   const box = document.getElementById("box"), hint = document.getElementById("hint");
-  document.documentElement.style.setProperty("--shot", 'url("__SHOT__")');
+  // The screenshot comes in after the page loads: a page given as text is capped at 2 MB.
+  window.showShot = (uri) => {
+    document.getElementById("shot").src = uri;
+    box.style.backgroundImage = 'url("' + uri + '")';
+  };
   let start = null, done = false;
   const finish = (result) => {
     if (done) return;
@@ -75,15 +80,16 @@ class _Bridge:
         self._done(box)
 
 
-def select(image: Image.Image, monitor: dict) -> Fractions | None:
-    """Show `image` (a grab of `monitor`) covering that monitor, and wait for a box to be
-    dragged on it: the box as fractions of the image, or None if cancelled."""
+def select(image: Image.Image, area: dict) -> Fractions | None:
+    """Show `image` (a grab of the screen box `area`, in physical pixels) covering that box,
+    and wait for a box to be dragged on it: the box as fractions of the image, or None if
+    cancelled."""
     import webview
 
     buffer = io.BytesIO()
     image.convert("RGB").save(buffer, format="JPEG", quality=90)
     shot = "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
-    page = _PAGE.replace("__SHOT__", shot).replace("__MIN__", str(_MIN_SIDE))
+    page = _PAGE.replace("__MIN__", str(_MIN_SIDE))
 
     chosen: list = []
     finished = threading.Event()
@@ -96,21 +102,17 @@ def select(image: Image.Image, monitor: dict) -> Fractions | None:
         "Horu snip",
         html=page,
         js_api=_Bridge(done),
-        x=monitor["left"],
-        y=monitor["top"],
-        width=monitor["width"],
-        height=monitor["height"],
+        width=min(area["width"], 800),  # placed over the screen once shown
+        height=min(area["height"], 600),
         frameless=True,
         easy_drag=False,
-        fullscreen=True,
         on_top=True,
         focus=True,
         background_color="#000000",
     )
     window.events.closed += finished.set
-    # Keyboard focus, so Esc works straight away: Horu's own window was just hidden, and
-    # Windows doesn't hand focus to a new window by itself then.
-    window.events.shown += lambda: _focus(window)
+    window.events.shown += lambda: _cover(window, area)
+    window.events.loaded += lambda: (_cover(window, area), window.evaluate_js(f"showShot({json.dumps(shot)})"))
     finished.wait(600)
     try:
         window.destroy()
@@ -123,7 +125,10 @@ def select(image: Image.Image, monitor: dict) -> Fractions | None:
     return (left, top, right, bottom) if right > left and bottom > top else None
 
 
-def _focus(window) -> None:
+def _cover(window, area: dict) -> None:
+    """Put the window exactly over `area` (physical pixels: pywebview's own sizes are scaled
+    by the display scaling of one monitor), on top, with keyboard focus so Esc works straight
+    away (Horu's own window was just hidden, and Windows doesn't hand focus on by itself)."""
     import sys
 
     if sys.platform != "win32":
@@ -135,6 +140,10 @@ def _focus(window) -> None:
     except Exception:
         return
     user32 = ctypes.WinDLL("user32")
+    HWND_TOPMOST, SWP_SHOWWINDOW = -1, 0x40
+    user32.SetWindowPos(hwnd, HWND_TOPMOST, area["left"], area["top"], area["width"], area["height"], SWP_SHOWWINDOW)
+    # Square corners: Windows 11 rounds them, which would show the desktop at the edges.
+    ctypes.WinDLL("dwmapi").DwmSetWindowAttribute(hwnd, 33, ctypes.byref(ctypes.c_int(1)), 4)
     # A window may take the foreground only from the foreground thread: borrow its input
     # queue for the moment it takes it.
     foreground = user32.GetWindowThreadProcessId(user32.GetForegroundWindow(), None)

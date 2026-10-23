@@ -65,20 +65,13 @@ def grab_region(region: Region | None, monitor: int = 1) -> Image.Image:
     )
 
 
-def monitor_at(x: int, y: int) -> dict:
-    """The monitor (as mss reports it) showing the screen point, or the main one."""
-    monitors = list_monitors()[1:]
-    for mon in monitors:
-        if mon["left"] <= x < mon["left"] + mon["width"] and mon["top"] <= y < mon["top"] + mon["height"]:
-            return mon
-    return monitors[0]
+def whole_screen() -> dict:
+    """All monitors together, as one box (in physical pixels)."""
+    return list_monitors()[0]
 
 
-def cursor_position() -> tuple[int, int] | None:
-    if sys.platform != "win32":
-        return None
-    point = wintypes.POINT()
-    return (point.x, point.y) if _user32.GetCursorPos(ctypes.byref(point)) else None
+def is_minimized(hwnd: int) -> bool:
+    return sys.platform == "win32" and bool(_user32.IsIconic(hwnd))
 
 
 def window_at(x: int, y: int) -> int | None:
@@ -89,8 +82,8 @@ def window_at(x: int, y: int) -> int | None:
     return (_user32.GetAncestor(hwnd, 2) or None) if hwnd else None  # GA_ROOT
 
 
-def grab_monitor(monitor: dict) -> Image.Image:
-    return _grab_box(monitor)
+def grab_area(box: dict) -> Image.Image:
+    return _grab_box(box)
 
 
 def focused_window_box() -> dict | None:

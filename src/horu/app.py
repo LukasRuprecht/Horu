@@ -417,7 +417,9 @@ class App:
 
     def show_window(self) -> None:
         self.window.show()
-        self.window.restore()
+        # Only from minimized: restoring a maximized (or snapped) window would shrink it.
+        if capture.is_minimized(self.window.native.Handle.ToInt32()):
+            self.window.restore()
 
     def _minimized(self) -> None:
         if self._tray and self.prefs.values["minimizeToTray"]:
@@ -1295,23 +1297,20 @@ class App:
             return {"ok": True}
         self._snipping = True
         try:
-            # The screen of the game (or, without one, the one Horu's button was clicked on).
-            point = capture.cursor_position() or (0, 0)
-            if self._game_window and (box := capture.window_box(self._game_window[0])):
-                point = (box["left"] + box["width"] // 2, box["top"] + box["height"] // 2)
-            monitor = capture.monitor_at(*point)
+            # Every monitor: the game needn't be on the screen Horu is on.
+            screen = capture.whole_screen()
             self.window.hide()
             time.sleep(0.35)  # let it fade out
-            image = capture.grab_monitor(monitor)
-            chosen = snip.select(image, monitor)
+            image = capture.grab_area(screen)
+            chosen = snip.select(image, screen)
         finally:
             self.show_window()
             self._snipping = False
         if chosen is None:
             return {"ok": True}
         # The game is the program under the box (a snip can be of anything on screen).
-        x = monitor["left"] + round((chosen[0] + chosen[2]) / 2 * monitor["width"])
-        y = monitor["top"] + round((chosen[1] + chosen[3]) / 2 * monitor["height"])
+        x = screen["left"] + round((chosen[0] + chosen[2]) / 2 * screen["width"])
+        y = screen["top"] + round((chosen[1] + chosen[3]) / 2 * screen["height"])
         under = capture.window_at(x, y)
         game = under and capture.process_name(under)
         if not game or under == self.window.native.Handle.ToInt32():
