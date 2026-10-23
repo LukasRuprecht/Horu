@@ -1,7 +1,7 @@
 """Snip: drag a box anywhere on screen, and Horu reads just that (translated once).
 
-The screen (every monitor) is grabbed first and shown dimmed in a frameless window covering
-it, so what's selected is exactly what was on screen. The box comes back as fractions of the
+The game's window (or, before Horu knows it, every monitor) is grabbed first and shown dimmed
+in a frameless window covering it, so what's selected is exactly what was on screen. The box comes back as fractions of the
 picture, which keeps it right whatever the display scaling.
 """
 
@@ -139,7 +139,11 @@ def _cover(window, area: dict) -> None:
         hwnd = window.native.Handle.ToInt32()
     except Exception:
         return
+    from ctypes import wintypes
+
     user32 = ctypes.WinDLL("user32")
+    # Typed: HWND_TOPMOST (-1) must go as a full-width handle, or the call is refused.
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND] + [ctypes.c_int] * 4 + [wintypes.UINT]
     HWND_TOPMOST, SWP_SHOWWINDOW = -1, 0x40
     user32.SetWindowPos(hwnd, HWND_TOPMOST, area["left"], area["top"], area["width"], area["height"], SWP_SHOWWINDOW)
     # Square corners: Windows 11 rounds them, which would show the desktop at the edges.

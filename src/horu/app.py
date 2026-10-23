@@ -1296,25 +1296,30 @@ class App:
         if self._snipping:
             return {"ok": True}
         self._snipping = True
+        # Over the game's window once Horu knows it (from a hotkey capture); before that,
+        # every monitor, as the game needn't be on the screen Horu is on.
+        game_box = self._game_window and capture.window_box(self._game_window[0])
+        area = game_box or capture.whole_screen()
         try:
-            # Every monitor: the game needn't be on the screen Horu is on.
-            screen = capture.whole_screen()
             self.window.hide()
             time.sleep(0.35)  # let it fade out
-            image = capture.grab_area(screen)
-            chosen = snip.select(image, screen)
+            image = capture.grab_area(area)
+            chosen = snip.select(image, area)
         finally:
             self.show_window()
             self._snipping = False
         if chosen is None:
             return {"ok": True}
-        # The game is the program under the box (a snip can be of anything on screen).
-        x = screen["left"] + round((chosen[0] + chosen[2]) / 2 * screen["width"])
-        y = screen["top"] + round((chosen[1] + chosen[3]) / 2 * screen["height"])
-        under = capture.window_at(x, y)
-        game = under and capture.process_name(under)
-        if not game or under == self.window.native.Handle.ToInt32():
-            game = self._game_window[1] if self._game_window else corrections.DEFAULT_GAME
+        if game_box:
+            game = self._game_window[1]
+        else:
+            # The game is the program under the box (a snip can be of anything on screen).
+            x = area["left"] + round((chosen[0] + chosen[2]) / 2 * area["width"])
+            y = area["top"] + round((chosen[1] + chosen[3]) / 2 * area["height"])
+            under = capture.window_at(x, y)
+            game = under and capture.process_name(under)
+            if not game or under == self.window.native.Handle.ToInt32():
+                game = corrections.DEFAULT_GAME
         self._requests.put(Snip(snip.crop(image, chosen), game))
         return {"ok": True}
 

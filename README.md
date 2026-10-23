@@ -118,8 +118,9 @@ auto-read regions**).
 
 ### Snip: one bit of the screen
 
-The snip button beside the eye hides Horu and dims the screen: drag a box around any text (a
-sign, a menu, another app) and Horu reads just that and translates all of it once, other text
+The snip button beside the eye hides Horu and dims your game's window (every screen, before
+your first hotkey capture tells Horu which window is the game): drag a box around any text (a
+sign, a menu) and Horu reads just that and translates all of it once, other text
 included and even with automatic translation off. Esc or a right-click cancels.
 
 ### Exact text from a text hooker
