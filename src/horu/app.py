@@ -20,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, snip, speakers, text_sources, translations, tray, wordbook
+from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, recorder, snip, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -203,6 +203,10 @@ class Api:
         """Drag a box on screen; what's in it is read and translated once."""
         return self._app.snip()
 
+    def record(self, on: bool) -> dict:
+        """Start or stop recording what auto-capture sees (for evals/replay.py)."""
+        return self._app.record(on)
+
     def region_editor(self, line_id: int) -> dict:
         """The game picture this line was captured from, with its auto-read regions."""
         return self._app.region_editor(line_id)
@@ -369,6 +373,8 @@ class App:
         self._tray: tray.Tray | None = None
         self._told_tray = False
         self._snipping = False
+        self._recorder: recorder.Recorder | None = None  # while recording what auto-capture sees
+        self._recording = False  # asked for; the recorder is made at the watcher's next look
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
     def run(self) -> None:
@@ -1193,6 +1199,10 @@ class App:
                     line["speaker"].update(was=guessed[k], guessed=True)
             lines.append(line)
         kept.shown = lines
+        if self._recorder and not snipped:
+            self._recorder.note("read", auto=auto, lines=[
+                {"text": l["text"], "kind": l["kind"], "repeat": l["repeat"], "speaker": _speaker_text(l)} for l in lines
+            ])
         new = [l for l in lines if not l["repeat"]]
         if auto and not new:
             return  # an empty box, or text already shown: nothing to say
@@ -1419,13 +1429,16 @@ class App:
                     continue
                 key, image, picture, game, regions = frame
                 # Another game, window size, or set of regions starts afresh.
-                if key != watching:
+                fresh = key != watching
+                if fresh:
                     if self._find_text is None:
                         self._find_text = rapidocr_source.text_finder(autocapture.MAP_WIDTH)
                     watcher, watching = autocapture.TextWatcher(self._find_text), key
-                if watcher.update(image.crop(picture), regions):
+                fired = watcher.update(image.crop(picture), regions)
+                if fired:
                     # Read like a hotkey capture: the whole window, so it reads the same.
                     self._requests.put(AutoRead(image, game))
+                self._record_look(image, picture, regions, fired, fresh, game)
             except Exception:
                 traceback.print_exc()
 
@@ -1492,6 +1505,38 @@ class App:
         if self._auto_state != (state, message):
             self._auto_state = (state, message)
             self._call("setAutoState", {"state": state, "message": message})
+            if self._recorder:
+                self._recorder.note("auto", state=state, message=message)
+
+    def record(self, on: bool) -> dict:
+        """Start or stop recording what auto-capture sees. The recording itself starts with
+        the next look at the game, so its folder is named after the game being watched."""
+        if on and self._recorder is None and not self._recording:
+            self._recording = True
+            if not self.prefs.values["autoCapture"]:
+                return {"ok": True, "recording": True, "message": "Recording starts once auto-capture (the eye button) is on."}
+            return {"ok": True, "recording": True, "message": "Recording what auto-capture sees. Play as usual, then stop it in Settings → Help."}
+        if not on and self._recording:
+            return {"ok": True, "recording": False, "message": self._stop_recording()}
+        return {"ok": True, "recording": self._recording, "message": ""}
+
+    def _record_look(self, image, picture: autocapture.Pixels, regions: list[autocapture.Box], fired: bool, fresh: bool, game: str) -> None:
+        if not self._recording:
+            return
+        if self._recorder is None:
+            self._recorder = recorder.Recorder(game)
+        self._recorder.look(image, picture, regions, fired, fresh)
+        if self._recorder.expired:
+            self._status("ready", self._stop_recording())
+            self._call("setRecording", False)
+
+    def _stop_recording(self) -> str:
+        self._recording = False
+        kept, self._recorder = self._recorder, None
+        if kept is None:
+            return "Nothing was recorded: auto-capture never looked at a game."
+        kept.close()
+        return f"Recording saved: {kept.seconds / 60:.0f} min, {kept.bytes / 1e6:.0f} MB, in {kept.path.resolve()}"
 
     def _keep_picture(self, capture_id: int, image, picture: autocapture.Pixels, game: str) -> None:
         """The game picture of a hotkey capture, for drawing auto-read regions on."""

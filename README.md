@@ -211,6 +211,12 @@ The deck is set in **Settings → Study**.
   screenshot and what Horu made of it, and shows it in Explorer. Look at the screenshot, then
   attach the zip to an [issue](https://github.com/LukasRuprecht/Horu/issues) with what you
   expected. Bundles become test cases, so the fix stays fixed.
+- Auto-capture misses lines or reads too often: **Settings → Help → Record auto-capture**, then
+  play for a while with auto-capture on and stop it there (it stops by itself after 20
+  minutes). The recording, in the `debug/recordings` folder, holds what auto-capture saw of
+  the game and each read it set off: a few hundred MB of game screenshots, nothing else from
+  your PC. `uv run python evals/replay.py <folder>` scores it (how many lines were read, how
+  late, how many reads found nothing new) and tries other rules on the same footage.
 
 ## Privacy
 
@@ -236,8 +242,8 @@ Things that leave your PC:
   ankiweb.net (cards Horu adds, and the due counts in the Study tab).
 
 API keys are stored in Windows Credential Manager, not in a file. Screenshots are only saved
-to disk if you turn on `debug.save_captures` in `config.toml`, and debug bundles only when you
-save one. Neither is ever uploaded by Horu.
+to disk if you turn on `debug.save_captures` in `config.toml`, and debug bundles and
+auto-capture recordings only when you save or start one. None of them is ever uploaded by Horu.
 
 ## Costs
 

@@ -605,6 +605,16 @@ function closeBundleDialog() {
 }
 
 $("#bundle-last").addEventListener("click", () => openBundleDialog(null));
+// Recording lasts only while Horu runs (it's never on at startup), so the button holds the state.
+function setRecording(on) {
+  $("#record").dataset.on = on ? "1" : "";
+  $("#record").textContent = on ? "Stop recording" : "Record auto-capture";
+}
+$("#record").addEventListener("click", async () => {
+  const result = await api().record(!$("#record").dataset.on);
+  setRecording(result.recording);
+  if (result.message) horu.setStatus({ state: "ready", message: result.message });
+});
 $("#bundle-cancel").addEventListener("click", closeBundleDialog);
 $("#bundle-close").addEventListener("click", closeBundleDialog);
 bundleDialog.addEventListener("click", (e) => {
@@ -2182,6 +2192,8 @@ window.horu = {
     $("#game-chip").classList.toggle("set", Boolean(game));
     $("#game-chip").title = game ? `Capturing ${game.title} (${game.game}). Click to change.` : "Choose the game window Horu captures";
   },
+
+  setRecording,
 
   setAutoState({ state: autoState, message }) {
     const toggle = $("#toggle-auto");
