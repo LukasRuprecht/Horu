@@ -84,6 +84,9 @@ it to a draft release.
 
 ## Getting started
 
+New to Horu? The [quick start guide](docs/quick-start.md) walks through installing, capturing,
+looking words up, adding AI, and making Anki cards, one step at a time.
+
 1. **Start Horu.** The first time, a short welcome asks how you want to study (in Horu or with
    Anki) and your level, and points to where AI is set up if you want it. Put the window beside your game: on a second
    monitor, or pinned on top (the pin button).
@@ -204,8 +207,9 @@ To study in Anki instead, choose **With Anki** in the welcome screen or in
 
 Either way:
 
-- **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the line with the word in bold, its reading,
-  meaning, grammar notes, translation, and a screenshot. With an AI provider, the meaning and a
+- **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the
+  word on the front with the line it came from under it; on the back its reading, meaning,
+  grammar notes, translation, and a screenshot. With an AI provider, the meaning and a
   usage note are written for that line.
 - **Cards** on a line lets the AI pick the words worth learning at your level, skip those
   already in your deck, and add the rest. It needs a provider that supports tool use (Claude,

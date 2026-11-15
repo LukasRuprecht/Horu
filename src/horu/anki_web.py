@@ -213,6 +213,7 @@ class _Keyring:
 def _ensure_note_type(col) -> None:
     """Horu's note type, made the way Anki makes one: new (usn -1), so it syncs to AnkiWeb."""
     if anki.NOTE_TYPE in col.notetypes():
+        _update_note_type(col)
         return
     from fastanki.schema import add_notetype, field_cfg, notetype_cfg, template_cfg
 
@@ -221,11 +222,38 @@ def _ensure_note_type(col) -> None:
             col.con, anki.NOTE_TYPE,
             [(name, field_cfg()) for name in anki.FIELDS],
             [("Sentence", template_cfg(anki.FRONT, anki.BACK))],
-            notetype_cfg(css=anki.CSS, reqs=[(0, "any", [0])]),
+            notetype_cfg(css=anki.CSS, reqs=[(0, "any", [0, 1])]),
         )
         now = int(time.time())
         col.con.execute("update notetypes set mtime_secs=?, usn=-1 where id=?", (now, ntid))
         col.con.execute("update templates set mtime_secs=?, usn=-1 where ntid=?", (now, ntid))
+        col._dirty()
+
+
+def _update_note_type(col) -> None:
+    """Give a note type that still has Horu's earlier card front the current one (the word,
+    then its line), marked changed so it syncs. A front edited in Anki is left alone."""
+    from fastanki._proto import notetypes_pb2
+
+    ntid = col.q1("select id from notetypes where name=?", anki.NOTE_TYPE)
+    rows = col.con.execute("select ord, config from templates where ntid=?", (ntid,)).fetchall()
+    changed = []
+    for ord_, blob in rows:
+        config = notetypes_pb2.Notetype.Template.Config()
+        config.ParseFromString(blob)
+        if config.q_format.strip() == anki.OLD_FRONT:
+            config.q_format, config.a_format = anki.FRONT, anki.BACK
+            changed.append((config.SerializeToString(), ord_))
+    if not changed:
+        return
+    with col._tx():
+        now = int(time.time())
+        for blob, ord_ in changed:
+            col.con.execute("update templates set config=?, mtime_secs=?, usn=-1 where ntid=? and ord=?", (blob, now, ntid, ord_))
+        config = notetypes_pb2.Notetype.Config()
+        config.ParseFromString(col.q1("select config from notetypes where id=?", ntid))
+        config.css = anki.CSS
+        col.con.execute("update notetypes set config=?, mtime_secs=?, usn=-1 where id=?", (config.SerializeToString(), now, ntid))
         col._dirty()
 
 

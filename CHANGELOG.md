@@ -16,5 +16,6 @@ The first public release, for Windows 10 and 11.
 - Optional AI, with your own key or a local Ollama model: translations, explanations,
   follow-up questions, checks of lines OCR was unsure of, and cards.
 - Study saved words in Horu (FSRS reviews) or send them to Anki (AnkiWeb or AnkiConnect).
+  Cards show the word, with the line it came from under it, and a screenshot on the back.
 - Debug bundles for reporting a misread screen, and recordings for measuring auto-capture.
 - A Windows installer (per user, no administrator prompt).

@@ -4,7 +4,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from horu.anki import NOTE_TYPE, AnkiClient, AnkiError, Card, highlight
+from horu import anki as horu_anki
+from horu.anki import NOTE_TYPE, AnkiClient, AnkiError, Card, note_fields
 
 
 class FakeAnkiConnect:
@@ -46,6 +47,15 @@ class FakeAnkiConnect:
         if action == "createModel":
             self.models[params["modelName"]] = params
             return {}
+        if action == "modelTemplates":
+            return {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in self.models[params["modelName"]]["cardTemplates"]}
+        if action == "updateModelTemplates":
+            for t in self.models[params["model"]["name"]]["cardTemplates"]:
+                t.update(params["model"]["templates"].get(t["Name"], {}))
+            return None
+        if action == "updateModelStyling":
+            self.models[params["model"]["name"]]["css"] = params["model"]["css"]
+            return None
         if action == "createDeck":
             self.decks.add(params["deck"])
             return 1
@@ -88,8 +98,12 @@ def test_first_card_creates_note_type_and_deck(anki):
     assert NOTE_TYPE in anki.models and "Horu" in anki.decks
     [note] = anki.notes
     assert note["modelName"] == NOTE_TYPE and note["tags"] == ["horu"]
-    assert note["fields"]["Sentence"] == "大きいアパートに<b>住めます</b>からね。"
+    # The word, and the line it came from as it is: nothing marked in it.
+    assert note["fields"]["Sentence"] == "大きいアパートに住めますからね。"
     assert note["fields"]["Word"] == "住む"
+    front = anki.models[NOTE_TYPE]["cardTemplates"][0]["Front"]
+    assert front.index("{{Word}}") < front.index("{{Sentence}}") and "Screenshot" not in front
+    assert "{{Screenshot}}" in anki.models[NOTE_TYPE]["cardTemplates"][0]["Back"]
     assert note["fields"]["Screenshot"].startswith('<img src="horu_')
     assert len(anki.media) == 1
 
@@ -109,5 +123,20 @@ def test_status_lists_decks_or_explains_how_to_connect(anki):
     assert offline["connected"] is False and "AnkiConnect" in offline["error"]
 
 
-def test_highlight_escapes_html():
-    assert highlight("<b>は</b>が", "が") == "&lt;b&gt;は&lt;/b&gt;<b>が</b>"
+def test_fields_escape_html():
+    assert note_fields(card(sentence="<b>は</b>が", word="が"))["Sentence"] == "&lt;b&gt;は&lt;/b&gt;が"
+
+
+def test_a_note_type_with_the_earlier_front_is_brought_up_to_date(anki):
+    old = {"modelName": NOTE_TYPE, "css": "old", "cardTemplates": [{"Name": "Sentence", "Front": horu_anki.OLD_FRONT, "Back": "old back"}]}
+    anki.models[NOTE_TYPE] = old
+    AnkiClient(anki.url).add_card("Horu", card())
+    assert old["cardTemplates"][0] == {"Name": "Sentence", "Front": horu_anki.FRONT, "Back": horu_anki.BACK}
+    assert old["css"] == horu_anki.CSS
+
+
+def test_a_front_edited_in_anki_is_left_alone(anki):
+    mine = {"modelName": NOTE_TYPE, "css": "mine", "cardTemplates": [{"Name": "Sentence", "Front": "{{Word}} my way", "Back": "my back"}]}
+    anki.models[NOTE_TYPE] = mine
+    AnkiClient(anki.url).add_card("Horu", card())
+    assert mine["cardTemplates"][0]["Front"] == "{{Word}} my way" and mine["css"] == "mine"

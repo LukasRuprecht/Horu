@@ -43,12 +43,36 @@ def test_cards_go_into_horus_note_type(client):
     assert client.has_word("Japanese", "顔") and not client.has_word("Japanese", "食う")
     with client._open() as col:
         [note] = col.find_notes(deck="Japanese")
-        assert note.nt.name == anki.NOTE_TYPE and note["Sentence"] == "なんだ、その<b>顔</b>は。"
+        assert note.nt.name == anki.NOTE_TYPE and note["Sentence"] == "なんだ、その顔は。"
         # The screenshot is in the card, shrunk: no media files to sync.
         assert note["Screenshot"].startswith('<img src="data:image/jpeg;base64,') and len(note["Screenshot"]) < 40000
         assert not (client.folder / "collection.media").exists()
         # A new note type is marked to sync, as Anki does.
         assert col.q1("select usn from notetypes where name=?", anki.NOTE_TYPE) == -1
+
+
+def test_a_note_type_with_the_earlier_front_is_brought_up_to_date(client):
+    from fastanki._proto import notetypes_pb2
+    from fastanki.schema import template_cfg
+
+    def front(col):
+        config = notetypes_pb2.Notetype.Template.Config()
+        config.ParseFromString(col.q1("select config from templates where ntid=(select id from notetypes where name=?)", anki.NOTE_TYPE))
+        return config.q_format
+
+    client.add_card("Japanese", card())
+    with client._open() as col:  # as an install from before the change left it, and synced
+        col.con.execute("update templates set config=?, usn=0", (template_cfg(anki.OLD_FRONT, "old back"),))
+        col.con.execute("update notetypes set usn=0")
+    client.add_card("Japanese", card("声", "声"))
+    with client._open() as col:
+        assert front(col) == anki.FRONT
+        assert col.q1("select usn from notetypes where name=?", anki.NOTE_TYPE) == -1  # to sync
+        assert col.q1("select usn from templates") == -1
+        col.con.execute("update templates set config=?, usn=0", (template_cfg("{{Word}} my way", "my back"),))
+    client.add_card("Japanese", card("目", "目"))
+    with client._open() as col:
+        assert front(col) == "{{Word}} my way"  # edited in Anki: left alone
 
 
 def test_duplicates_are_refused(client):
