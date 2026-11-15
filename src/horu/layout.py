@@ -44,6 +44,8 @@ _MAX_WRAP_GAP = 0.35
 # Name tags are moderately bigger than dialogue (about 2-3x); titles and headers are bigger
 # still, so size only counts within this range.
 _NAME_TAG_SIZE = (1.6, 3.2)
+# How far past a name tag's right edge the text under it may start, in line heights.
+_PAST_NAME_TAG = 2.0
 _WRAP_END = re.compile(r"[、。！？!?…‥」』]$")
 # A sentence broken mid-way ends on punctuation or hiragana (a particle or verb ending: に, が,
 # て); a line ending on a katakana or kanji noun is usually a complete label.
@@ -187,7 +189,7 @@ def group_blocks(
             if group["lines"]:
                 # Under a name tag even a short first line wraps (Yakuza's あ、桐生さん over
                 # ちょっと職務質問お願いします！): menus' short stacked labels have no tag.
-                attaches = _continues(lines[group["lines"][-1]], line, ruby[i], short_wraps=group["speaker"] is not None)
+                attaches = _continues(lines[group["lines"][-1]], line, ruby[i], spoken=group["speaker"] is not None)
             else:  # a speaker still waiting for its first line
                 attaches = _under_speaker(lines[group["speaker"]], line)
             if attaches:
@@ -348,7 +350,16 @@ def _under_speaker(speaker: TextLine, line: TextLine) -> bool:
         return False
     gap = top - s_bottom
     close_below = -0.6 * (s_bottom - s_top) <= gap <= 1.5 * height
-    near = min(s_right, right) > max(s_left, left) or abs(left - s_left) <= 3 * height
+    # Starting near it: under it, about level with its left edge, or a little past its right
+    # one. Yakuza's tag sits up and to the left of the text, which starts 2.3 line heights in
+    # from the tag's left edge, further when it opens with a bracket: measured from that edge
+    # alone, whether the name was found turned on a few pixels of the line's box. Only text
+    # wholly below the tag: beside it is something else (a stray reading by an item's name).
+    near = (
+        min(s_right, right) > max(s_left, left)
+        or abs(left - s_left) <= 3 * height
+        or (0 <= left - s_right <= _PAST_NAME_TAG * height and gap >= -0.1 * height)
+    )
     return close_below and near
 
 
@@ -389,7 +400,9 @@ def _reads_like_dialogue(text: str) -> bool:
     )
 
 
-def _continues(prev: TextLine, line: TextLine, ruby: int = 0, short_wraps: bool = False) -> bool:
+def _continues(prev: TextLine, line: TextLine, ruby: int = 0, spoken: bool = False) -> bool:
+    """`line` is `prev` wrapped onto the next row. `spoken`: they're under a name tag, where
+    stacked rows are one speech, not list items."""
     p_left, p_top, p_right, p_bottom = prev.box
     left, top, right, bottom = line.box
     p_height, height = p_bottom - p_top, bottom - top
@@ -398,7 +411,7 @@ def _continues(prev: TextLine, line: TextLine, ruby: int = 0, short_wraps: bool 
     # Measured against the smaller line, since an icon beside a menu item can inflate its box.
     close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height) + ruby
     overlaps = min(p_right, right) > max(p_left, left)
-    wraps = short_wraps or len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
+    wraps = spoken or len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
     # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
     # the same left edge (or is centred).
     right_aligned_list = abs(right - p_right) <= 0.5 * p_height and abs(left - p_left) > p_height
@@ -410,7 +423,9 @@ def _continues(prev: TextLine, line: TextLine, ruby: int = 0, short_wraps: bool 
     # (e.g. skill names in a battle menu).
     runs_past = right - p_right > p_height
     ends_like_label = not _MID_SENTENCE_END.search(prev.text.strip())
-    two_items = runs_past and ends_like_label
+    # (Not under a name tag: a short first line there can end on anything, and its 。 gets
+    # misread as a kanji: あ、桐生さん所.)
+    two_items = runs_past and ends_like_label and not spoken
     return (
         similar_size
         and close_below

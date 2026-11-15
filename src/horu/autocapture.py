@@ -29,6 +29,7 @@ import numpy as np
 from PIL import Image
 
 DEFAULT_PATH = Path("data/dialogue_boxes.json")
+SIZES_PATH = Path("data/dialogue_sizes.json")
 _VERSION = 2  # earlier files held one learned box per game, from mixed layouts: dropped
 
 # Room around text when suggesting a region from it, in line heights: the name tag sits above
@@ -146,18 +147,33 @@ class TextSizes:
     """How tall each game's dialogue text is, learnt from name-tagged lines as they're read,
     so auto-capture can leave out sentences on posters and signs: they read like dialogue,
     and behind a conversation they're read a little differently every time, so they'd be
-    shown again and again. Nothing is left out until the game's size is known."""
+    shown again and again. Nothing is left out until the game's size is known; with a
+    `path` it's remembered between sessions, so that's only at the start of a new game."""
 
-    def __init__(self) -> None:
+    def __init__(self, path: Path | None = None) -> None:
+        self.path = path
         self._heights: dict[str, list[float]] = {}
+        if path is not None:
+            try:
+                self._heights = {g: [float(h) for h in hs] for g, hs in json.loads(path.read_text(encoding="utf-8")).items()}
+            except (OSError, ValueError, AttributeError, TypeError):
+                pass
 
     def learn(self, game: str, blocks: list, picture_height: int) -> None:
+        learnt = False
         for block in blocks:
             sure = block.speaker and block.speaker_score >= _SIZE_SURE and min(l.score for l in block.lines) >= _SIZE_SURE
             if sure and block.kind == "dialogue":
                 heights = self._heights.setdefault(game, [])
-                heights.append(_text_height(block) / picture_height)
+                heights.append(round(_text_height(block) / picture_height, 5))
                 del heights[:-_SIZES_KEPT]
+                learnt = True
+        if learnt and self.path is not None:
+            try:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                self.path.write_text(json.dumps(self._heights, ensure_ascii=False), encoding="utf-8")
+            except OSError:
+                pass  # learnt for this session all the same
 
     def too_small(self, game: str, block, picture_height: int) -> bool:
         heights = self._heights.get(game, [])
@@ -264,6 +280,11 @@ _BESIDE = 1.5
 # moving behind them. (A line read before it finished typing is updated when it's read in full.)
 _PATIENCE = 8
 
+# New text narrower than this many times its height doesn't set off a read by itself: one
+# character at most, which is never shown as a line, and usually no text at all (the detector
+# takes a lamp or a window frame for a character: a third of Yakuza's wasted reads).
+_ONE_CHARACTER = 1.3
+
 Detector = Callable[[np.ndarray], list[Pixels]]
 
 
@@ -329,6 +350,7 @@ class TextWatcher:
         self._frame = 0
         self._current: list[_Text] = []
         self._known: list[_Text] = []  # text that has settled: read, or there all along
+        self.new: list[Pixels] = []  # where the text that set off the last read is, in the shrunk picture
 
     def update(self, image: Image.Image, regions: list[Box] | None = None) -> bool:
         """`regions`: only text inside these parts of the picture counts (all of it if none)."""
@@ -368,6 +390,9 @@ class TextWatcher:
             return False
         self._known += [_Text(n.box, n.strokes, seen=self._frame) for n in new]
         self._known = [t for t in self._known if self._frame - t.seen <= _FORGET_FRAMES][-_KNOWN_MAX:]
+        if all(n.box[2] - n.box[0] < _ONE_CHARACTER * (n.box[3] - n.box[1]) for n in new):
+            return False  # known now, so it won't hold up or set off anything later
+        self.new = [n.box for n in new]
         return True
 
 

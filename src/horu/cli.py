@@ -95,6 +95,7 @@ def cmd_reset_learned() -> None:
         (speakers.DEFAULT_PATH, "speaker names and their English"),
         (translations.DEFAULT_PATH, "translations kept for lines seen again"),
         (autocapture.DEFAULT_PATH, "auto-read regions"),
+        (autocapture.SIZES_PATH, "each game's dialogue text size"),
         (corrections.DEFAULT_PATH, "corrections made from a line's menu"),
     ]
     for path, what in learned:

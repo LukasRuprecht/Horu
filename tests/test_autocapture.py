@@ -201,3 +201,14 @@ def test_the_dialogue_size_is_learnt_only_from_surely_read_name_tagged_lines():
         sizes.learn("yakuza", [block(height=90, score=0.7, speaker="落合ファイナンス"), block(height=90, score=0.99)], 900)
     assert not sizes.too_small("yakuza", block(height=19, score=0.66), 900)
 
+
+def test_new_text_one_character_wide_doesnt_set_off_a_read_by_itself():
+    blank = Image.new("RGB", (480, 270), (30, 30, 30))
+    speck, line = (200, 20, 214, 34), (100, 210, 300, 226)  # as the detector reports them, in the shrunk picture
+    boxes = {"now": [speck]}
+    watcher = TextWatcher(lambda pixels: boxes["now"])
+    assert fired(watcher, [blank] * 6) == []  # a lamp taken for a character: nothing to read
+    boxes["now"] = [speck, line]
+    assert fired(watcher, [blank] * 6) == [2]  # a line appears: read as ever
+    assert watcher.new == [line]
+

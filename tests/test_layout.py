@@ -202,3 +202,24 @@ def test_a_slanted_name_tag_is_a_speaker(tag, tag_box, body):
     lines = [TextLine(tag, tag_box, 0.8, slant_height=30.7), *(line(*b) for b in body)]
     [block] = group_blocks(lines, styles=[white] * len(lines))
     assert block.speaker == tag and block.speaker_line.box == tag_box
+
+
+def test_a_name_tag_up_and_left_of_the_text_is_its_speaker():
+    # Yakuza: the tag sits above the box's left corner, the text starts further in. A line
+    # opening with a bracket starts further still: over 3 line heights from the tag's left edge.
+    tag = line("桐生", 243, 668, 303, 705)
+    blocks = group_blocks([tag, line("（何を渡そうか……?）", 372, 711, 674, 753)])
+    assert [(b.speaker, b.text) for b in blocks] == [("桐生", "（何を渡そうか……?）")]
+    # Text beside the tag rather than below it isn't what the name says.
+    blocks = group_blocks([line("魔法のマメ", 131, 611, 330, 657), line("なにかが起こる？", 360, 649, 600, 682)])
+    assert [b.speaker for b in blocks] == [None, None]
+
+
+def test_lines_under_a_name_tag_are_one_speech_however_the_first_ends():
+    # Yakuza: a short first line whose 。 was read as a kanji, then a longer line. Without a
+    # name tag that's a label over another list item.
+    said = [line("あ、桐生さん所", 337, 710, 575, 758), line("ちょっと職務質問お願いします！", 339, 745, 823, 788)]
+    blocks = group_blocks([line("菊池", 242, 668, 304, 705), *said])
+    assert [(b.speaker, b.text) for b in blocks] == [("菊池", "あ、桐生さん所ちょっと職務質問お願いします！")]
+    assert len(group_blocks(said)) == 2
+

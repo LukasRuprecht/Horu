@@ -377,7 +377,7 @@ class App:
         self._told_tray = False
         self._snipping = False
         self._recorder: recorder.Recorder | None = None  # while recording what auto-capture sees
-        self._text_sizes = autocapture.TextSizes()  # each game's dialogue text size, learnt as it's read
+        self._text_sizes = autocapture.TextSizes(autocapture.SIZES_PATH)  # each game's dialogue text size, learnt as it's read
         self._recording = False  # asked for; the recorder is made at the watcher's next look
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
@@ -1206,9 +1206,11 @@ class App:
             lines.append(line)
         kept.shown = lines
         if self._recorder and not snipped:
-            self._recorder.note("read", auto=auto, lines=[
+            # With the OCR's own lines: a recording's pictures are kept smaller than the
+            # window, and read again they come out a little differently.
+            self._recorder.note("read", auto=auto, size=list(image.size), lines=[
                 {"text": l["text"], "kind": l["kind"], "repeat": l["repeat"], "speaker": _speaker_text(l)} for l in lines
-            ])
+            ], ocr=[[l.text, list(l.box), round(l.score, 3), list(l.alternatives), round(l.slant_height, 1)] for l in read])
         new = [l for l in lines if not l["repeat"]]
         if auto and not new:
             return  # an empty box, or text already shown: nothing to say
