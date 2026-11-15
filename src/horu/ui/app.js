@@ -23,7 +23,7 @@ const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjec
 const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };
 const AI_SETUP_HINT =
   "AI explanations need a provider. Open settings (the sliders button, top right) and choose " +
-  "one under AI: Claude, OpenAI or Gemini with your own API key, or Ollama to run a free model " +
+  "one under AI: a cloud provider with your own API key, or Ollama to run a free model " +
   "on this PC. Dictionary lookups keep working without it.";
 
 function api() {
@@ -2011,9 +2011,7 @@ function renderWelcome() {
     }));
   }
   if (welcome.step === 2) {
-    const status = $("#welcome-key-status");
-    status.className = state.ai.enabled ? "saved" : "";
-    status.textContent = state.ai.enabled ? `AI is on: ${state.ai.label}.` : "";
+    $("#welcome-ai-status").textContent = state.ai.enabled ? `AI is on: ${state.ai.label}.` : "";
   }
 }
 
@@ -2032,25 +2030,12 @@ $("#welcome-deck").addEventListener("change", () => {
   refreshAnkiSetups();
 });
 
-$("#welcome-key-save").addEventListener("click", async () => {
-  const key = $("#welcome-key").value.trim();
-  if (!key) return;
-  const status = $("#welcome-key-status");
-  status.className = "";
-  status.textContent = "Saving...";
-  await api().save_api_key("gemini", key);
-  const preset = (aiSetup.settings && aiSetup.settings.presets.gemini) || {};
-  const info = await api().set_ai({ aiProvider: "gemini", aiModel: preset.model || "" });
-  horu.setAI(info);
-  $("#welcome-key").value = "";
-  await loadAISettings();
-  status.className = info.enabled ? "saved" : "error";
-  status.textContent = info.enabled ? `Saved. AI is on: ${info.label}.` : info.error || "That key didn't work.";
+// Choosing a provider needs its key and a model name: the AI settings have all of that.
+$("#welcome-ai-setup").addEventListener("click", () => {
+  closeWelcome();
+  showView("settings");
+  showPane("ai");
 });
-$("#welcome-key").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") $("#welcome-key-save").click();
-});
-$("#welcome-key-link").addEventListener("click", () => openExternal("https://aistudio.google.com/apikey"));
 $("#welcome-hotkey-change").addEventListener("click", () => {
   closeWelcome();
   showView("settings");

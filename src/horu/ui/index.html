@@ -440,20 +440,14 @@
 
       <div class="welcome-step" data-step="2" hidden>
         <h2>Add AI explanations?</h2>
-        <p>Optional. Translations, grammar breakdowns and fixes for misread lines use an AI provider with
-          your own key. Gemini has a free tier. Everything else works without it.</p>
-        <label class="field">
-          <span>Gemini API key</span>
-          <div class="field-row">
-            <input id="welcome-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
-            <button id="welcome-key-save" type="button">Save</button>
-          </div>
-          <div class="field-hint">
-            <span id="welcome-key-status"></span>
-            <button id="welcome-key-link" class="link" type="button">Get a free key</button>
-          </div>
-        </label>
-        <p class="check-hint flush">Other providers (Claude, OpenAI, Ollama on this PC) are in Settings → AI.</p>
+        <p>Optional. Translations, grammar breakdowns and fixes for misread lines use an AI model: a
+          cloud provider with your own API key, or a free model running on this PC with Ollama.
+          Everything else works without it.</p>
+        <div class="welcome-hotkey">
+          <button id="welcome-ai-setup" class="pill-btn" type="button">Set up AI in Settings</button>
+          <span id="welcome-ai-status"></span>
+        </div>
+        <p class="check-hint flush">You can do this any time: Settings → AI. Cloud providers bill each request to your own account.</p>
       </div>
 
       <div class="welcome-step" data-step="3" hidden>

@@ -53,8 +53,10 @@ source checkout doesn't touch an installed Horu's data.
   against all the regression screens (`uv run pytest tests/test_game_screens.py`), not only
   the game it was written for. Rules that only fit one game tend to break another.
 - Run `uv run pytest` before opening the pull request.
-- Don't commit game screenshots beyond the small crops a test needs, and never API keys,
-  `config.toml`, or anything from `data/`.
+- Don't commit game screenshots. Regression screens hold only the text OCR found and where
+  it was (`tests/fixtures/*_screens.json`), and the pictures the auto-capture tests watch are
+  drawn by `tests/fixtures/make_screens.py`. Never commit API keys, `config.toml`, or anything
+  from `data/`.
 
 ## Building the installer
 

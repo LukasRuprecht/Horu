@@ -65,7 +65,40 @@ Python packages
 ---------------
 """
 
-_LICENCE_FILE = re.compile(r"(^|/)(licen[cs]e|copying|notice|authors|copyright)[^/]*$", re.IGNORECASE)
+_LICENCE_FILE = re.compile(r"(^|/)(licen[cs]e|copying|notice|authors|copyright|thirdpartynotices)[^/]*$", re.IGNORECASE)
+
+_BSD_3 = """Redistribution and use in source and binary forms, with or without modification, are
+permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this list of
+   conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice, this list of
+   conditions and the following disclaimer in the documentation and/or other materials
+   provided with the distribution.
+3. Neither the name of the copyright holder nor the names of its contributors may be used to
+   endorse or promote products derived from this software without specific prior written
+   permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE."""
+
+_APACHE = "Licensed under the Apache License, Version 2.0: its full text is in the appendix at the end of this file."
+
+# Packages whose wheels carry no licence file: what their project pages and sources state.
+_STATED = {
+    "antlr4-python3-runtime": "Copyright (c) 2012-2017 The ANTLR Project. All rights reserved.\n\n" + _BSD_3,
+    "flatbuffers": "Copyright Google Inc.\n" + _APACHE,
+    "rapidocr": "Copyright RapidAI.\n" + _APACHE,
+    "proxy_tools": "Copyright (c) 2013 by Armin Ronacher (adapted by Jonathan Tushman 2014). Extracted from "
+    "Werkzeug, which is under the 3-clause BSD licence; the package itself is published as MIT.\n\n" + _BSD_3,
+}
 
 
 def names(requirements: Path) -> list[str]:
@@ -93,22 +126,42 @@ def entry(name: str) -> str | None:
     texts = 0
     for file in dist.files or []:
         path = str(file).replace("\\", "/")
-        if ".dist-info/" in path and _LICENCE_FILE.search(path) and not path.endswith((".py", ".pyc")):
+        # In the package's metadata folder, or at the top of the package itself (onnxruntime).
+        placed = ".dist-info/" in path or path.count("/") == 1
+        if placed and _LICENCE_FILE.search(path) and not path.endswith((".py", ".pyc", ".pyi")):
             try:
                 text = Path(dist.locate_file(file)).read_text(encoding="utf-8", errors="replace").strip()
             except OSError:
                 continue
-            out.append(f"--- {path.split('.dist-info/', 1)[1]} ---\n{text}\n")
+            out.append(f"--- {path.split('.dist-info/', 1)[-1]} ---\n{text}\n")
             texts += 1
     if not texts:
-        out.append("(This package ships no licence file; see its project page for the full text.)\n")
+        stated = _STATED.get(meta["Name"]) or _STATED.get(meta["Name"].replace("_", "-"))
+        out.append((stated or "(This package ships no licence file; see its project page for the full text.)") + "\n")
     return "\n".join(out)
+
+
+def apache_text() -> str:
+    """The Apache License 2.0, from a bundled package that ships it."""
+    for name in ("requests", "openai", "SudachiPy"):
+        try:
+            dist = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            continue
+        for file in dist.files or []:
+            path = str(file).replace("\\", "/")
+            if ".dist-info/" in path and _LICENCE_FILE.search(path):
+                text = Path(dist.locate_file(file)).read_text(encoding="utf-8", errors="replace")
+                if "Apache License" in text and "TERMS AND CONDITIONS" in text:
+                    return text.strip()
+    return "https://www.apache.org/licenses/LICENSE-2.0.txt"
 
 
 def main() -> None:
     requirements, target = Path(sys.argv[1]), Path(sys.argv[2])
     entries = [e for e in (entry(n) for n in names(requirements)) if e]
-    target.write_text(HEADER + "".join(entries), encoding="utf-8")
+    appendix = f"\n\n{'=' * 78}\nAppendix: Apache License, Version 2.0\n{'=' * 78}\n\n{apache_text()}\n"
+    target.write_text(HEADER + "".join(entries) + appendix, encoding="utf-8")
     print(f"Wrote {target}: {len(entries)} packages")
 
 

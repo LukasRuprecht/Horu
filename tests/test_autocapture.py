@@ -31,7 +31,8 @@ def find_text():
 
 
 def screen(name: str) -> Image.Image:
-    return Image.open(FIXTURES / f"{name}.png").convert("RGB")
+    """A made-up game screen (drawn by tests/fixtures/make_screens.py: no real game)."""
+    return Image.open(FIXTURES / f"screen_{name}.png").convert("RGB")
 
 
 def fired(watcher: TextWatcher, frames: list[Image.Image], regions=None) -> list[int]:
@@ -39,16 +40,16 @@ def fired(watcher: TextWatcher, frames: list[Image.Image], regions=None) -> list
 
 
 def test_new_text_is_read_once_it_has_stayed_put(find_text):
-    # P5R: a line, then choices appear under it. Each is read once, after two still frames.
-    line, choices = screen("p5r_watch_line"), screen("p5r_watch_choices")
+    # A line, then choices appear beside it. Each is read once, after two still frames.
+    line, choices = screen("line"), screen("choices")
     assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6) == [2, 5]
     # A thought bubble popping up over the street is new text too.
-    street, bubble = screen("p5r_watch_street"), screen("p5r_watch_thought_bubble")
+    street, bubble = screen("street"), screen("thought")
     assert fired(TextWatcher(find_text), [street] * 3 + [bubble] * 6) == [2, 5]
 
 
 def test_text_that_stays_the_same_is_not_read_again(find_text):
-    assert fired(TextWatcher(find_text), [screen("p5r_watch_sign")] * 20) == [2]
+    assert fired(TextWatcher(find_text), [screen("sign")] * 20) == [2]
 
 
 def shifted(image: Image.Image, dx: int) -> Image.Image:
@@ -58,25 +59,25 @@ def shifted(image: Image.Image, dx: int) -> Image.Image:
 
 
 def test_a_sign_moving_with_the_camera_is_not_read_until_it_stops(find_text):
-    sign = screen("p5r_watch_sign")
+    sign = screen("sign")
     panning = [shifted(sign, 3 * i) for i in range(10)]
     assert fired(TextWatcher(find_text), panning + [panning[-1]] * 5) == [11]
 
 
 def test_scenery_moving_behind_the_box_is_not_new_text(find_text):
-    # Ocarina of Time 3D: the owl flaps its wings behind a see-through box while the text
-    # stays put.
-    frames = [Image.open(FIXTURES / f"owl_box_{i:02d}.png") for i in range(4)]
+    # As in Ocarina of Time 3D, where the owl flaps its wings behind a see-through box while
+    # the text stays put.
+    frames = [screen(f"box_{i}") for i in range(4)]
     assert fired(TextWatcher(find_text), frames + frames[-1:] * 3) == [2]
 
 
 def test_with_regions_only_text_inside_them_counts(find_text):
-    line = screen("p5r_watch_line")
-    # P5R's choices appear above the dialogue box, to the right: only the box is watched.
+    line = screen("line")
+    # Choices appear above the dialogue box, to the right (as in P5R): only the box is watched.
     w, h = line.size
     where = (round(w * 0.55), round(h * 0.4), round(w * 0.75), round(h * 0.76))
     choices = line.copy()
-    choices.paste(screen("p5r_watch_choices").crop(where), where[:2])
+    choices.paste(screen("choices").crop(where), where[:2])
     dialogue_box = [(0.0, 0.78, 0.8, 1.0)]
     assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6) == [2, 5]
     assert fired(TextWatcher(find_text), [line] * 3 + [choices] * 6, dialogue_box) == [2]
@@ -161,18 +162,18 @@ def test_text_coming_back_after_something_passed_over_it_is_not_new():
 
 
 def cafe(name: str) -> Image.Image:
-    return Image.open(FIXTURES / f"p5r_cafe_{name}.jpg").convert("RGB")
+    return screen(f"talk_{name}")
 
 
 def test_new_lines_are_read_though_the_name_tag_beside_them_keeps_changing(find_text):
-    # P5R, Leblanc: the tilted name tag's box takes in the scene moving behind it, so it never
-    # settles; the line under it was then never read. Frames of a screen alternate as the
-    # scene moves.
+    # First seen in P5R's cafe: the tilted name tag's box takes in the scene moving behind it,
+    # so it never settles; the line under it was then never read. Frames of a screen alternate
+    # as the scene moves.
     watcher = TextWatcher(find_text)
     fired(watcher, [cafe("before")] * 4)
-    assert fired(watcher, [cafe("who_1"), cafe("who_2")] * 6)  # なに、誰の話？
-    # 別に。: three characters, missed by the text finder on a smaller picture.
-    assert fired(watcher, [cafe("nothing_1"), cafe("nothing_2")] * 6)
+    assert fired(watcher, [cafe("a_1"), cafe("a_2")] * 6)
+    # A line three characters long (P5R's 別に。 was missed by the text finder on a smaller picture).
+    assert fired(watcher, [cafe("b_1"), cafe("b_2")] * 6)
 
 
 def block(height: int, score: float, speaker: str | None = None, top: int = 700) -> TextBlock:

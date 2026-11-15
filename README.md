@@ -85,7 +85,7 @@ it to a draft release.
 ## Getting started
 
 1. **Start Horu.** The first time, a short welcome asks how you want to study (in Horu or with
-   Anki), your level, and whether to add AI. Put the window beside your game: on a second
+   Anki) and your level, and points to where AI is set up if you want it. Put the window beside your game: on a second
    monitor, or pinned on top (the pin button).
 2. **Run your game in windowed or borderless windowed mode.** Exclusive fullscreen often
    can't be captured.
@@ -460,8 +460,9 @@ Horu's own code is MIT licensed. See [LICENSE](LICENSE). The Windows installer b
 projects below under their own licences; their full texts are installed with it as
 `THIRD-PARTY-NOTICES.txt`.
 
-Horu isn't affiliated with the makers of any game. Game screenshots in this repository are
-there to show and test the app.
+Horu isn't affiliated with the makers of any game. This repository holds no game
+screenshots: the pictures its tests watch are drawn by a script, and the screenshot above is
+of Horu's own window, showing two lines it read from a game.
 
 - Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html) and
   [JMnedict](https://www.edrdg.org/enamdict/enamdict_doc.html) (names), property of the
