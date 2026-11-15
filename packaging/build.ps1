@@ -5,6 +5,7 @@
 # Needs uv and Inno Setup 6 (winget install JRSoftware.InnoSetup). Builds in build\ (a
 # Python environment of its own, so a running Horu doesn't get in the way) and writes:
 #   dist\Horu\                      the app, as a folder (run dist\Horu\Horu.exe to try it)
+#                                   with LICENSE.txt and THIRD-PARTY-NOTICES.txt beside it
 #   dist\Horu-Setup-<version>.exe   the installer
 #
 # Options:
@@ -70,6 +71,10 @@ Step "Bundling the app (PyInstaller)"
 Run $python -m PyInstaller --noconfirm --clean --log-level WARN `
     --distpath (Join-Path $root "dist") --workpath (Join-Path $build "pyinstaller") `
     (Join-Path $PSScriptRoot "horu.spec")
+# The licences of everything bundled, beside Horu.exe (the installer takes it from there).
+$notices = Join-Path $root "dist\Horu\THIRD-PARTY-NOTICES.txt"
+Run $python (Join-Path $PSScriptRoot "notices.py") $requirements $notices
+Copy-Item (Join-Path $root "LICENSE") (Join-Path $root "dist\Horu\LICENSE.txt")
 Write-Host "Built dist\Horu\Horu.exe"
 if ($NoInstaller) { return }
 

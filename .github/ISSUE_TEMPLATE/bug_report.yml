@@ -1,0 +1,42 @@
+name: Something went wrong
+description: Horu read a screen wrongly, missed text, crashed, or behaved unexpectedly.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a screen Horu read wrongly, a **debug bundle** helps most: a line's ⋯ menu (or
+        Settings → Help) → Save debug bundle. Look at the screenshot inside before attaching
+        it: it shows your game window as it was.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: input
+    id: game
+    attributes:
+      label: Game (and emulator, if any)
+  - type: dropdown
+    id: how
+    attributes:
+      label: How was the text captured?
+      options:
+        - Hotkey
+        - Auto-capture
+        - Snip
+        - Text hooker
+        - Not about capturing
+  - type: input
+    id: version
+    attributes:
+      label: Horu version and how you installed it
+      placeholder: 0.1.0, installer
+  - type: textarea
+    id: files
+    attributes:
+      label: Debug bundle or log
+      description: >
+        Drag the debug bundle zip here. For a crash or an error message, the end of
+        %LOCALAPPDATA%\Horu\data\horu.log helps (check it for anything you'd rather not share).

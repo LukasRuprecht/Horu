@@ -5,6 +5,13 @@ description = "A Japanese study buddy for video games: capture on-screen text, l
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+authors = [{ name = "Lukas Ruprecht" }]
+keywords = ["japanese", "language-learning", "ocr", "games", "furigana", "anki"]
+classifiers = [
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Topic :: Education",
+]
 dependencies = [
     "anthropic>=1.11.0",
     "fastanki>=0.0.6",
@@ -24,6 +31,10 @@ dependencies = [
     "sudachipy>=0.7.0",
     "websockets>=16.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/LukasRuprecht/Horu"
+Issues = "https://github.com/LukasRuprecht/Horu/issues"
 
 [project.scripts]
 horu = "horu.cli:main"

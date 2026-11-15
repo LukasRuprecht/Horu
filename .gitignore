@@ -23,3 +23,6 @@ Thumbs.db
 
 # Ground-truth screenshots (game screens aren't committed; their transcriptions in evals/ are)
 groundTruths/
+
+# Experiments on local recordings and labelled screens (model answers, game text): kept out of the repository
+evals/detection/

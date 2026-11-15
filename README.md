@@ -11,7 +11,13 @@ The goal is to cut lookup time so you can stay in the game.
 
 ![Horu's window: two captures from Persona 5 Royal, with furigana, speaker names, and a word's dictionary popup open](docs/images/horu-window.png)
 
-> **Status:** early development, Windows only for now. See the [roadmap](#roadmap).
+> **Status:** first public release (0.1), Windows 10 and 11 only. It has been played with on
+> four games so far, so expect rough edges on others: see [known limitations](#known-limitations).
+
+**Contents:** [Install](#install) · [Getting started](#getting-started) ·
+[What works offline](#what-works-offline) · [Privacy](#privacy) · [Costs](#costs) ·
+[AI providers](#ai-providers) · [Known limitations](#known-limitations) ·
+[Troubleshooting](#troubleshooting) · [Reporting problems and contributing](#reporting-problems-and-contributing)
 
 ## Install
 
@@ -31,6 +37,9 @@ progress shown in Horu's window.
   Horu).
 - Horu's window uses Microsoft Edge WebView2, which comes with Windows 11 and most Windows 10
   PCs. If it's missing, the installer offers Microsoft's download page.
+- Nothing else to install: Python, the OCR models, and the word-analysis dictionary are inside
+  the installer. The licences of everything bundled are in `THIRD-PARTY-NOTICES.txt` in the
+  program folder.
 
 <details>
 <summary>Or install with a script (uv)</summary>
@@ -115,6 +124,12 @@ Text that stays put (the HUD) or moves with the camera (signs) doesn't set it of
 HUD keeps changing, limit auto-capture to parts of the picture: **Settings → Capture → Edit
 regions** draws boxes on your latest hotkey capture (so does a line's **⋯** menu → **Set
 auto-read regions**).
+
+A line usually shows up two to four seconds after it has finished appearing in the game.
+Reading a screen takes one to a few seconds of CPU time, more while a demanding game is
+running. If the game sets off reads faster than Horu can do them, Horu skips older screens
+rather than fall further behind, and says so in the status bar. The hotkey always reads the
+screen as it is now, ahead of anything auto-capture has waiting.
 
 ### Snip: one bit of the screen
 
@@ -218,6 +233,16 @@ The deck is set in **Settings → Study**.
   your PC. `uv run python evals/replay.py <folder>` scores it (how many lines were read, how
   late, how many reads found nothing new) and tries other rules on the same footage.
 
+## What works offline
+
+| Works on your PC, no account or key | Needs something outside your PC |
+|---|---|
+| Capturing and reading the screen (OCR) | The first start's dictionary download (once) |
+| Furigana, word popups, dictionary and grammar notes, JLPT levels | AI translations, explanations, checks of misread lines, AI-made cards: a cloud provider and your own key, or a local Ollama model |
+| Auto-capture, snips, text hookers | AnkiWeb, if you choose it for Anki |
+| Saving words and reviewing them in the Study tab | |
+| Anki through AnkiConnect (Anki on the same PC) | |
+
 ## Privacy
 
 Horu runs on your PC. It has no account, sends no usage data, and keeps what it learns
@@ -225,8 +250,9 @@ Horu runs on your PC. It has no account, sends no usage data, and keeps what it 
 
 Things that leave your PC:
 
-- **Downloads:** the installer fetches uv (astral.sh) and Horu (GitHub). The first start
-  fetches JMdict and JMnedict (edrdg.org) and the OCR models (modelscope.cn).
+- **Downloads:** the first start fetches the JMdict and JMnedict dictionaries (edrdg.org).
+  The Windows installer has everything else inside it. The script install also fetches uv
+  (astral.sh), Horu (GitHub), Python packages (pypi.org), and the OCR models (modelscope.cn).
 - **AI requests, only if you set up a cloud provider.** These go to the provider you chose,
   under your own key and their privacy terms:
   - Translations and explanations send the line, the few dialogue lines before it (for
@@ -241,9 +267,18 @@ Things that leave your PC:
 - **AnkiWeb, only if you choose it for Anki:** signing in, and syncing your collection with
   ankiweb.net (cards Horu adds, and the due counts in the Study tab).
 
-API keys are stored in Windows Credential Manager, not in a file. Screenshots are only saved
-to disk if you turn on `debug.save_captures` in `config.toml`, and debug bundles and
-auto-capture recordings only when you save or start one. None of them is ever uploaded by Horu.
+API keys are stored in Windows Credential Manager, not in a file, and Horu doesn't write
+them to its log. Screenshots are only saved to disk if you turn on `debug.save_captures` in
+`config.toml`, and debug bundles and auto-capture recordings only when you save or start one.
+None of them is ever uploaded by Horu.
+
+What Horu keeps on your PC, all under `%LOCALAPPDATA%\Horu\data` (or `data` in the source
+folder): your settings, saved words with a picture of the line each came from, review
+history, speaker names and corrections per game, translations already made (so a repeated
+line isn't sent again), the downloaded dictionary, a copy of your Anki collection if you use
+AnkiWeb, and `horu.log` (errors from the last two runs). Deleting the folder resets Horu.
+A debug bundle holds a screenshot of your game window and the last lines of that log, which
+can include folder paths with your Windows user name: look inside before you share one.
 
 ## Costs
 
@@ -348,9 +383,10 @@ With the script install or from source, in the Horu folder (`uv run horu <comman
 
 `ocr.engine`:
 
-- `rapidocr` (default): PaddleOCR's PP-OCRv5 models on ONNX Runtime. Finds and reads text
-  anywhere on screen, and runs on CPU in well under a second. Lines it isn't sure of are read
-  again by two smaller models, and the readings are compared.
+- `rapidocr` (default): PaddleOCR's PP-OCR models on ONNX Runtime. Finds and reads text
+  anywhere on screen, on the CPU: about one to two seconds a screen on a recent desktop CPU,
+  longer while a game is using it. Lines it isn't sure of are read again by two smaller
+  models, and the readings are compared.
 - `manga_ocr`: reads a single block of text, so it needs a tight `region`. Install it with
   `uv sync --extra manga-ocr` (pulls in PyTorch, ~2 GB).
 </details>
@@ -373,22 +409,59 @@ Hotkey, auto-capture, or a text hooker
         Saved words ──► Study tab (FSRS reviews), or Anki cards
 ```
 
+## Known limitations
+
+- **Windows only**, 64-bit, Windows 10 or 11. The game must run windowed or borderless.
+- **Tested on four games:** Persona 5 Royal, Persona 3 Reload, The Legend of Zelda: Ocarina of
+  Time 3D (in an emulator), and Yakuza 0. Other games will work to the extent their text looks
+  like these: text in a box or as subtitles, written left to right. Vertical text and visual
+  novels haven't been tested with OCR (a [text hooker](#exact-text-from-a-text-hooker) is the
+  better route for visual novels, though that path has had less testing than OCR).
+- **Auto-capture is slower than the game.** Lines appear a few seconds after the game shows
+  them. Lines on screen for under about two seconds are often missed, and in a game that uses
+  much of the CPU Horu may skip screens to keep up. The hotkey is the reliable way to read a
+  particular screen.
+- **Writing in the scenery** (signs, posters) is sometimes shown as dialogue in games that
+  have a lot of it, such as Yakuza 0.
+- **OCR misreads** happen, mostly on stylised or small text. Lines Horu isn't sure of are
+  marked **?**; an AI provider that accepts images can check them.
+- **The installer isn't code-signed**, so Windows SmartScreen warns about it.
+- **No automatic updates:** install a newer release over the old one.
+
+## Reporting problems and contributing
+
+- **A screen Horu read wrongly:** save a debug bundle (a line's **⋯** menu, or **Settings →
+  Help**) and attach it to an [issue](https://github.com/LukasRuprecht/Horu/issues). Look at
+  the screenshot in it first: it shows your game window as it was.
+- **Anything else:** open an issue with what you did, what you expected, and what happened.
+  If Horu was started from its shortcut, `%LOCALAPPDATA%\Horu\data\horu.log` has the error.
+- **Code:** see [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: see
+  [SECURITY.md](SECURITY.md).
+
 ## Roadmap
 
-- [x] **Phase 1:** hotkey → capture → OCR → text
-- [x] **Phase 2:** line-history window with furigana, clickable words, and JMdict popups
-- [x] **Phase 3:** AI translations, explanations, and follow-up questions
-- [x] **Phase 4:** auto-capture and text hooking
-- [x] **Phase 5:** Anki export
-- [ ] **Phase 6:** first release: an installer, debug bundles, docs, and an app layout
-  (Read, Words, Study, a welcome screen, themes) are done; still to come: more games in the
-  regression tests (a visual novel, a modern 16:9 game, a game with small subtitles)
-- [ ] **Phase 7:** learning features: spaced review inside Horu, per-game word lists, and JLPT
-  tags are done; still to come: frequency tags and recommendations
+Done: capturing and reading the screen, the line history with furigana and dictionary popups,
+AI translations and explanations, auto-capture and text hooking, studying in Horu and with
+Anki, and a Windows installer.
+
+Next, roughly in this order:
+
+- Faster reads, so auto-capture keeps up in demanding games (not reading again what hasn't
+  changed since the last read).
+- Catching short lines that are gone within a couple of seconds.
+- More games in the regression tests: a visual novel, a game with small subtitles, vertical
+  text.
+- Telling scenery text from dialogue more reliably.
+- Frequency tags and word recommendations.
 
 ## License and credits
 
-Horu is MIT licensed. See [LICENSE](LICENSE).
+Horu's own code is MIT licensed. See [LICENSE](LICENSE). The Windows installer bundles the
+projects below under their own licences; their full texts are installed with it as
+`THIRD-PARTY-NOTICES.txt`.
+
+Horu isn't affiliated with the makers of any game. Game screenshots in this repository are
+there to show and test the app.
 
 - Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html) and
   [JMnedict](https://www.edrdg.org/enamdict/enamdict_doc.html) (names), property of the
@@ -399,10 +472,15 @@ Horu is MIT licensed. See [LICENSE](LICENSE).
   [SudachiDict](https://github.com/WorksApplications/SudachiDict) (full), by Works Applications,
   under the Apache License 2.0.
 - OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
-  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models.
+  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models, both under the Apache License
+  2.0.
 - Review scheduling: [py-fsrs](https://github.com/open-spaced-repetition/py-fsrs), MIT.
 - AnkiWeb sync: [fastanki](https://github.com/AnswerDotAI/fastanki), Apache 2.0.
-- Tray icon: [pystray](https://github.com/moses-palmer/pystray), LGPL 3.0.
+- Tray icon and hotkey: [pystray](https://github.com/moses-palmer/pystray) and
+  [pynput](https://github.com/moses-palmer/pynput), LGPL 3.0.
+- Window: [pywebview](https://github.com/r0x0r/pywebview) (BSD) on Microsoft Edge WebView2.
+- Running the models: [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT) and
+  [OpenCV](https://github.com/opencv/opencv) (Apache 2.0).
 - JLPT levels: [open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks)
   (MIT), based on Jonathan Waller's JLPT lists ([tanos.co.uk](https://www.tanos.co.uk/jlpt/),
   CC BY).

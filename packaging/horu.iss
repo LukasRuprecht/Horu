@@ -54,7 +54,6 @@ Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "..\dist\Horu\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Horu"; Filename: "{app}\Horu.exe"; Comment: "A Japanese study buddy for games"

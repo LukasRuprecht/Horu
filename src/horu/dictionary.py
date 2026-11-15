@@ -18,8 +18,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Callable
 
-JMDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMdict_e.gz"
-JMNEDICT_URL = "http://ftp.edrdg.org/pub/Nihongo/JMnedict.xml.gz"
+JMDICT_URL = "https://www.edrdg.org/pub/Nihongo/JMdict_e.gz"
+JMNEDICT_URL = "https://www.edrdg.org/pub/Nihongo/JMnedict.xml.gz"
 DEFAULT_PATH = Path("data/jmdict.sqlite")
 _XML_ENTITIES = {"amp", "lt", "gt", "quot", "apos"}
 _PRIORITY_TAGS = {"news1", "ichi1", "spec1", "spec2", "gai1"}

@@ -42,6 +42,9 @@ a.binaries = [
     for dest, src, kind in a.binaries
 ]
 
+# OpenCV's video plugin is FFmpeg (LGPL, 30 MB). Horu reads pictures, never video: left out.
+a.binaries = [b for b in a.binaries if "opencv_videoio_ffmpeg" not in b[0].lower()]
+
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
