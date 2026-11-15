@@ -20,7 +20,7 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
-from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, recorder, snip, speakers, text_sources, translations, tray, wordbook
+from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, reads, recorder, snip, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
 from horu.text_sources import hook, rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
@@ -78,6 +78,7 @@ class AutoRead:
     image: object  # PIL image of the game window, as the hotkey would capture it
     game: str
     region: str = "picture"  # where it was watched, for joining a line read while still typing
+    asked: float = dataclasses.field(default_factory=time.monotonic)  # when it was set off
 
 
 @dataclasses.dataclass
@@ -366,7 +367,8 @@ class App:
         self._tutor_chat: tuple[int, llm.Chat] | None = None  # (session id, chat) in the tutor panel
         self._source: text_sources.TextSource | None = None
         self._dictionary: dictionary.Dictionary | None = None
-        self._requests: queue.Queue[AutoRead | HookedText | None] = queue.Queue()  # None: the hotkey
+        # None: the hotkey. What the player asks for goes ahead of automatic reads (see reads.py).
+        self._requests = reads.ReadQueue(covers=autocapture.still_shows)
         self._hook: hook.Listener | None = None
         self.hook_state = {"state": "off", "message": ""}
         self._ids = itertools.count(1)
@@ -1210,7 +1212,8 @@ class App:
             # window, and read again they come out a little differently.
             self._recorder.note("read", auto=auto, size=list(image.size), lines=[
                 {"text": l["text"], "kind": l["kind"], "repeat": l["repeat"], "speaker": _speaker_text(l)} for l in lines
-            ], ocr=[[l.text, list(l.box), round(l.score, 3), list(l.alternatives), round(l.slant_height, 1)] for l in read])
+            ], ocr=[[l.text, list(l.box), round(l.score, 3), list(l.alternatives), round(l.slant_height, 1)] for l in read],
+                waited=round(started - request.asked, 3) if auto else None, took=round(time.monotonic() - started, 3))
         new = [l for l in lines if not l["repeat"]]
         if auto and not new:
             return  # an empty box, or text already shown: nothing to say
@@ -1445,7 +1448,11 @@ class App:
                 fired = watcher.update(image.crop(picture), regions)
                 if fired:
                     # Read like a hotkey capture: the whole window, so it reads the same.
-                    self._requests.put(AutoRead(image, game))
+                    covered, pushed_out = self._requests.put_auto(AutoRead(image, game), watcher.seen(scene=key))
+                    if (covered or pushed_out) and self._recorder:
+                        self._recorder.note("skipped", covered=covered, pushed_out=pushed_out)
+                    if pushed_out:  # reads are slower than the game sets them off: say so
+                        self._ready("Auto-capture is behind: an older screen was skipped. The hotkey reads the current one.")
                 self._record_look(image, picture, regions, fired, fresh, game)
             except Exception:
                 traceback.print_exc()

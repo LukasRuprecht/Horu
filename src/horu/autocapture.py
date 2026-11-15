@@ -325,6 +325,40 @@ def overlap(a: Pixels, b: Pixels) -> float:
     return shared / (area(a) + area(b) - shared)
 
 
+# Comparing two looks (still_shows): the picture is cut into squares this many pixels across,
+# and a square of the older look counts as still there when no more than this share of its
+# strokes (or this many, for a square with few) are missing from the newer one.
+_SQUARE = 16
+_MISSING, _MISSING_FEW = 0.12, 2
+
+
+@dataclass(frozen=True)
+class Seen:
+    """What the watcher saw at one look: the picture's strokes. Kept with an automatic read
+    while it waits its turn (see still_shows)."""
+
+    strokes: np.ndarray
+    scene: object = None  # what was being watched: looks at different scenes aren't compared
+
+
+def still_shows(newer: Seen, older: Seen) -> bool:
+    """Whether everything drawn sharply at the older look is still there at the newer one: a
+    read of the newer picture then shows all the text a read of the older one would.
+
+    Every part of the picture is checked, not only where the text detector found text: on the
+    small picture it misses lines the full read finds (Yakuza's subtitles, some of the time).
+    So anything else changing says no as well: scenery moving, the camera cutting. Anything
+    unsure is a no: another scene or picture size."""
+    if newer.scene != older.scene or newer.strokes.shape != older.strokes.shape:
+        return False
+    height, width = older.strokes.shape
+    rows, columns = -(-height // _SQUARE), -(-width // _SQUARE)
+    padded = lambda m: np.pad(m, ((0, rows * _SQUARE - height), (0, columns * _SQUARE - width)))
+    squares = lambda m: padded(m).reshape(rows, _SQUARE, columns, _SQUARE).sum(axis=(1, 3))
+    there, missing = squares(older.strokes), squares(older.strokes & ~newer.strokes)
+    return bool((missing <= np.maximum(_MISSING * there, _MISSING_FEW)).all())
+
+
 @dataclass
 class _Text:
     box: Pixels  # in the shrunk picture
@@ -351,12 +385,19 @@ class TextWatcher:
         self._current: list[_Text] = []
         self._known: list[_Text] = []  # text that has settled: read, or there all along
         self.new: list[Pixels] = []  # where the text that set off the last read is, in the shrunk picture
+        self._strokes: np.ndarray | None = None  # of the last look
+
+    def seen(self, scene: object = None) -> Seen | None:
+        """The last look, to keep with a read it set off."""
+        if self._strokes is None:
+            return None
+        return Seen(self._strokes, scene)
 
     def update(self, image: Image.Image, regions: list[Box] | None = None) -> bool:
         """`regions`: only text inside these parts of the picture counts (all of it if none)."""
         self._frame += 1
         small = shrink(image)
-        stroke_map = strokes(small)
+        stroke_map = self._strokes = strokes(small)
         height, width = stroke_map.shape
         boxes = [b for b in self._detect(small) if _inside(b, (width, height), regions)]
         current = []
