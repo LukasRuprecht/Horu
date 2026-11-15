@@ -128,6 +128,898 @@
      "text": "自分で考える"
     }
    ]
+  },
+  {
+   "name": "yakuza_line_opening_with_dots",
+   "size": [
+    1600,
+    900
+   ],
+   "lines": [
+    {
+     "text": "52 FPS",
+     "box": [
+      1,
+      0,
+      23,
+      11
+     ],
+     "style": {
+      "ink": [
+       52,
+       97,
+       53
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.978
+    },
+    {
+     "text": "QSearch",
+     "box": [
+      49,
+      871,
+      87,
+      885
+     ],
+     "style": {
+      "ink": [
+       166,
+       166,
+       166
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.96
+    },
+    {
+     "text": "桐生",
+     "box": [
+      243,
+      668,
+      304,
+      705
+     ],
+     "style": {
+      "ink": [
+       165,
+       170,
+       187
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.995
+    },
+    {
+     "text": "って聞いてきたんだが、今もいるか?",
+     "box": [
+      339,
+      745,
+      897,
+      788
+     ],
+     "style": {
+      "ink": [
+       181,
+       185,
+       205
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.951
+    },
+    {
+     "text": "…立華不動産の人間がここに出入りしてる",
+     "box": [
+      401,
+      710,
+      994,
+      755
+     ],
+     "style": {
+      "ink": [
+       180,
+       185,
+       206
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.95
+    },
+    {
+     "text": "日",
+     "box": [
+      1263,
+      785,
+      1292,
+      821
+     ],
+     "style": {
+      "ink": [
+       153,
+       153,
+       150
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.81
+    },
+    {
+     "text": "ENG",
+     "box": [
+      1482,
+      867,
+      1503,
+      878
+     ],
+     "style": {
+      "ink": [
+       156,
+       156,
+       156
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.998
+    },
+    {
+     "text": "us",
+     "box": [
+      1485,
+      876,
+      1500,
+      889
+     ],
+     "style": {
+      "ink": [
+       152,
+       152,
+       152
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.795
+    },
+    {
+     "text": "2026-11-14",
+     "box": [
+      1546,
+      876,
+      1592,
+      889
+     ],
+     "style": {
+      "ink": [
+       149,
+       149,
+       149
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.985
+    },
+    {
+     "text": "9.53 PM",
+     "box": [
+      1558,
+      867,
+      1591,
+      878
+     ],
+     "style": {
+      "ink": [
+       158,
+       158,
+       158
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.93
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "桐生",
+     "kind": "dialogue",
+     "text": "…立華不動産の人間がここに出入りしてるって聞いてきたんだが、今もいるか?"
+    }
+   ]
+  },
+  {
+   "name": "yakuza_second_line_after_dots_line",
+   "size": [
+    2560,
+    1440
+   ],
+   "lines": [
+    {
+     "text": "144 FPS",
+     "box": [
+      0,
+      0,
+      47,
+      20
+     ],
+     "style": {
+      "ink": [
+       65,
+       147,
+       44
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.842
+    },
+    {
+     "text": "テレクラリンリン坊",
+     "box": [
+      38,
+      443,
+      362,
+      506
+     ],
+     "style": {
+      "ink": [
+       168,
+       125,
+       34
+      ],
+      "light_on_dark": false
+     },
+     "score": 0.999
+    },
+    {
+     "text": "ホッキリ キ",
+     "box": [
+      263,
+      527,
+      343,
+      549
+     ],
+     "style": {
+      "ink": [
+       104,
+       94,
+       74
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.629
+    },
+    {
+     "text": "300!",
+     "box": [
+      265,
+      547,
+      340,
+      567
+     ],
+     "style": {
+      "ink": [
+       104,
+       102,
+       75
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.623
+    },
+    {
+     "text": "桐生",
+     "box": [
+      390,
+      1071,
+      485,
+      1125
+     ],
+     "style": {
+      "ink": [
+       162,
+       169,
+       193
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.999
+    },
+    {
+     "text": "職務質問はまた今度な。",
+     "box": [
+      539,
+      1191,
+      1100,
+      1258
+     ],
+     "style": {
+      "ink": [
+       179,
+       187,
+       217
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.997
+    },
+    {
+     "text": "・すまん、急用ができた。",
+     "box": [
+      642,
+      1137,
+      1202,
+      1208
+     ],
+     "style": {
+      "ink": [
+       178,
+       186,
+       215
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.965
+    },
+    {
+     "text": "夢",
+     "box": [
+      1291,
+      117,
+      1358,
+      204
+     ],
+     "style": {
+      "ink": [
+       195,
+       220,
+       40
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.99
+    },
+    {
+     "text": "日",
+     "box": [
+      2020,
+      1258,
+      2064,
+      1310
+     ],
+     "style": {
+      "ink": [
+       159,
+       159,
+       159
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.597
+    },
+    {
+     "text": "206-11-14",
+     "box": [
+      2371,
+      1387,
+      2545,
+      1420
+     ],
+     "style": {
+      "ink": [
+       209,
+       209,
+       209
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.704
+    },
+    {
+     "text": "uS",
+     "box": [
+      2376,
+      1404,
+      2398,
+      1419
+     ],
+     "style": {
+      "ink": [
+       198,
+       198,
+       198
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.813
+    },
+    {
+     "text": "7:17 PM",
+     "box": [
+      2494,
+      1387,
+      2544,
+      1405
+     ],
+     "style": {
+      "ink": [
+       212,
+       212,
+       212
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.991
+    },
+    {
+     "text": "Qsearch",
+     "box": [
+      77,
+      1391,
+      139,
+      1418
+     ],
+     "style": {
+      "ink": [
+       207,
+       207,
+       207
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.893,
+     "slant_height": 23.2
+    },
+    {
+     "text": "ミケイトホウル",
+     "box": [
+      1254,
+      372,
+      1390,
+      448
+     ],
+     "style": {
+      "ink": [
+       81,
+       157,
+       164
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.715,
+     "slant_height": 67.1
+    },
+    {
+     "text": "60からのパラダ　イス",
+     "box": [
+      1256,
+      352,
+      1378,
+      394
+     ],
+     "style": {
+      "ink": [
+       85,
+       87,
+       128
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.946,
+     "slant_height": 29.8
+    },
+    {
+     "text": "かむろ",
+     "box": [
+      1263,
+      183,
+      1383,
+      263
+     ],
+     "style": {
+      "ink": [
+       196,
+       220,
+       56
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.968,
+     "slant_height": 63.6
+    },
+    {
+     "text": "80歲以上割引",
+     "box": [
+      1269,
+      444,
+      1379,
+      484
+     ],
+     "style": {
+      "ink": [
+       118,
+       115,
+       202
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.894,
+     "slant_height": 33.5
+    }
+   ],
+   "expected": [
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "かむろ"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "60からのパラダ　イス"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ミケイトホウル"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "テレクラリンリン坊"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "80歲以上割引"
+    },
+    {
+     "speaker": null,
+     "kind": "other",
+     "text": "ホッキリ キ"
+    },
+    {
+     "speaker": "桐生",
+     "kind": "dialogue",
+     "text": "・すまん、急用ができた。職務質問はまた今度な。"
+    }
+   ]
+  },
+  {
+   "name": "yakuza_dots_line_under_name_tag",
+   "size": [
+    2560,
+    1440
+   ],
+   "lines": [
+    {
+     "text": "144 FPS",
+     "box": [
+      0,
+      0,
+      45,
+      16
+     ],
+     "style": {
+      "ink": [
+       45,
+       158,
+       45
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.955
+    },
+    {
+     "text": "桐生",
+     "box": [
+      387,
+      1067,
+      486,
+      1127
+     ],
+     "style": {
+      "ink": [
+       176,
+       185,
+       214
+      ],
+      "light_on_dark": true
+     },
+     "score": 1.0
+    },
+    {
+     "text": "って聞いてきたんだが、今もいるか？",
+     "box": [
+      543,
+      1189,
+      1438,
+      1260
+     ],
+     "style": {
+      "ink": [
+       178,
+       186,
+       215
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.982
+    },
+    {
+     "text": "…立華不動産の人間がここに出入りしてる",
+     "box": [
+      640,
+      1137,
+      1592,
+      1209
+     ],
+     "style": {
+      "ink": [
+       178,
+       186,
+       216
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.989
+    },
+    {
+     "text": "27-11-14",
+     "box": [
+      2371,
+      1387,
+      2545,
+      1420
+     ],
+     "style": {
+      "ink": [
+       208,
+       208,
+       208
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.7
+    },
+    {
+     "text": "uS",
+     "box": [
+      2376,
+      1404,
+      2398,
+      1419
+     ],
+     "style": {
+      "ink": [
+       198,
+       198,
+       198
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.813
+    },
+    {
+     "text": "7:21 PM",
+     "box": [
+      2494,
+      1387,
+      2545,
+      1405
+     ],
+     "style": {
+      "ink": [
+       205,
+       205,
+       205
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.99
+    },
+    {
+     "text": "QSearch",
+     "box": [
+      77,
+      1391,
+      139,
+      1416
+     ],
+     "style": {
+      "ink": [
+       207,
+       207,
+       207
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.943,
+     "slant_height": 21.9
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "桐生",
+     "kind": "dialogue",
+     "text": "…立華不動産の人間がここに出入りしてるって聞いてきたんだが、今もいるか？"
+    }
+   ]
+  },
+  {
+   "name": "yakuza_short_first_line",
+   "size": [
+    2560,
+    1440
+   ],
+   "lines": [
+    {
+     "text": "144FPS",
+     "box": [
+      0,
+      0,
+      45,
+      18
+     ],
+     "style": {
+      "ink": [
+       45,
+       158,
+       45
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.816
+    },
+    {
+     "text": "QSearch",
+     "box": [
+      78,
+      1393,
+      136,
+      1415
+     ],
+     "style": {
+      "ink": [
+       207,
+       207,
+       207
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.991
+    },
+    {
+     "text": "菊池",
+     "box": [
+      390,
+      1071,
+      485,
+      1125
+     ],
+     "style": {
+      "ink": [
+       218,
+       217,
+       217
+      ],
+      "light_on_dark": true
+     },
+     "score": 1.0
+    },
+    {
+     "text": "あ、桐生さん",
+     "box": [
+      539,
+      1140,
+      887,
+      1209
+     ],
+     "style": {
+      "ink": [
+       214,
+       214,
+       213
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.953
+    },
+    {
+     "text": "ちょっと職務質問お願いします！",
+     "box": [
+      541,
+      1191,
+      1321,
+      1260
+     ],
+     "style": {
+      "ink": [
+       217,
+       217,
+       217
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.982
+    },
+    {
+     "text": "日",
+     "box": [
+      2018,
+      1257,
+      2068,
+      1311
+     ],
+     "style": {
+      "ink": [
+       157,
+       156,
+       155
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.864
+    },
+    {
+     "text": "114",
+     "box": [
+      2371,
+      1386,
+      2545,
+      1420
+     ],
+     "style": {
+      "ink": [
+       209,
+       209,
+       209
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.618
+    },
+    {
+     "text": "uS",
+     "box": [
+      2376,
+      1404,
+      2398,
+      1419
+     ],
+     "style": {
+      "ink": [
+       198,
+       198,
+       198
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.813
+    },
+    {
+     "text": "7:16 PM",
+     "box": [
+      2494,
+      1387,
+      2545,
+      1405
+     ],
+     "style": {
+      "ink": [
+       210,
+       210,
+       210
+      ],
+      "light_on_dark": true
+     },
+     "score": 0.977
+    }
+   ],
+   "expected": [
+    {
+     "speaker": "菊池",
+     "kind": "dialogue",
+     "text": "あ、桐生さんちょっと職務質問お願いします！"
+    }
+   ]
   }
  ]
 }

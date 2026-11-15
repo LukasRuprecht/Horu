@@ -1,4 +1,4 @@
-from horu.app import _pieces_of, _same_line
+from horu.app import _pieces_of, _same_line, _types_on
 
 
 def test_a_line_read_again_with_ocr_noise_is_a_repeat():
@@ -32,3 +32,19 @@ def test_button_icons_and_one_misread_character_dont_make_a_line_new():
     # Different lines still are.
     assert not _same_line("炎のドームの　攻撃魔法！", "ディンの炎を　手に入れた！")
     assert _same_line("インの炎を　手に入れた！", "ディンの炎を　手に入れた！")  # ディ read as イ
+
+
+def test_a_line_typed_out_further_extends_the_earlier_read():
+    assert _types_on("おい、そこのあんた。", "おい、そこのあんた。なにしに来た？")
+    # Paused at an ellipsis, its dots and bracket are read differently once more follows (Yakuza).
+    assert _types_on("(チャンピオン街…", "（チャンピオン街……　ここに立華不動産の人間が出入りしているらしいが")
+    # One character of the shared part read differently.
+    assert _types_on("俺らはもうヤクザにウンザリなんだよ！　お前らは", "俺らはもうヤクザにウンザリなんだよ！!お前らはここらの店をゴミとしか")
+
+
+def test_another_line_doesnt_extend_the_earlier_one():
+    assert not _types_on("あんた、また東城会の若い衆か？", "いや、そうじゃない。あんたらの店を地上げしにきたわけでもない。")
+    assert not _types_on("そうか", "そうだ、思い出した。")  # too short to allow for a misread
+    assert not _types_on("留守みたいだな…", "留守みたいだな…")  # the same line: a repeat, not more of it
+    assert not _types_on("…", "…なんだよ。")  # nothing but dots to go by
+

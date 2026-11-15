@@ -6,7 +6,9 @@ did each new line get read, how late, and how many reads found nothing new.
 
 A recording is a folder under debug/recordings:
 
-    frames/000123.jpg   the game picture as the watcher sees it (shrunk), whenever it changed
+    frames/000123.png   the game picture as the watcher sees it (shrunk), whenever it changed,
+                        kept exactly: JPEG moved enough stroke pixels to change what the
+                        watcher does when the frames are replayed
     full/000123.jpg     the whole game window: about once a second while the picture is
                         changing, and at every look that set off a read. Read offline to
                         find what text was really on screen.
@@ -14,7 +16,8 @@ A recording is a folder under debug/recordings:
                         read), and one per read with the lines it showed
 
 Recordings hold screenshots of the game and nothing else from the PC. They're big (hundreds
-of MB for a quarter of an hour), so a recording stops by itself after LIMIT_SECONDS.
+of MB for a quarter of an hour, more for a game whose picture never stops moving), so a
+recording stops by itself after LIMIT_SECONDS.
 """
 
 from __future__ import annotations
@@ -80,7 +83,8 @@ class Recorder:
                 or int((np.abs(small.astype(np.int16) - self._small).max(axis=2) > _CLEARLY).sum()) >= _CHANGED_PIXELS
             )
             if changed:
-                self._save(Image.fromarray(small), self.path / "frames" / f"{n:06d}.jpg", quality=92)
+                Image.fromarray(small).save(self.path / "frames" / f"{n:06d}.png", compress_level=3)
+                self.bytes += (self.path / "frames" / f"{n:06d}.png").stat().st_size
                 self._frame, self._small = n, small
             full = None
             if fired or (self._full_frame != self._frame and t - self._full_at >= _FULL_EVERY):

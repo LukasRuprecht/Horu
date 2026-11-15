@@ -27,7 +27,7 @@ def test_a_recording_keeps_each_changed_frame_once_and_every_look(tmp_path):
     rec.close()
 
     assert rec.path.parent == tmp_path and rec.path.name.endswith("-P5R_exe")
-    assert sorted(p.name for p in (rec.path / "frames").iterdir()) == ["000000.jpg", "000003.jpg"]
+    assert sorted(p.name for p in (rec.path / "frames").iterdir()) == ["000000.png", "000003.png"]
     # The window whole: at the first look, at the read, but not again a moment after it.
     assert sorted(p.name for p in (rec.path / "full").iterdir()) == ["000000.jpg", "000002.jpg"]
     log = rows(rec.path)

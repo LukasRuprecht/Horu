@@ -130,6 +130,47 @@ def in_picture(box: Pixels, picture: Pixels) -> tuple[Pixels, tuple[int, int]]:
     return (left - p_left, top - p_top, right - p_left, bottom - p_top), (p_right - p_left, p_bottom - p_top)
 
 
+# --- Text far smaller than the game's dialogue ---------------------------------------------
+
+# Name-tagged dialogue read this surely teaches the size; this many of them are needed, and
+# the latest ones count (the window may be resized).
+_SIZE_SURE, _SIZES_NEEDED, _SIZES_KEPT = 0.85, 3, 30
+# Text under this share of the dialogue's height, and read less surely than this, is writing
+# in the scenery. Both, because story text does come smaller (P5R's log, down to 0.66 of its
+# dialogue) but is drawn to be read; signs in perspective aren't (Yakuza's posters: 0.43-0.59
+# of its dialogue's height, read at 0.5-0.77).
+_SMALL, _SMALL_UNSURE = 0.62, 0.8
+
+
+class TextSizes:
+    """How tall each game's dialogue text is, learnt from name-tagged lines as they're read,
+    so auto-capture can leave out sentences on posters and signs: they read like dialogue,
+    and behind a conversation they're read a little differently every time, so they'd be
+    shown again and again. Nothing is left out until the game's size is known."""
+
+    def __init__(self) -> None:
+        self._heights: dict[str, list[float]] = {}
+
+    def learn(self, game: str, blocks: list, picture_height: int) -> None:
+        for block in blocks:
+            sure = block.speaker and block.speaker_score >= _SIZE_SURE and min(l.score for l in block.lines) >= _SIZE_SURE
+            if sure and block.kind == "dialogue":
+                heights = self._heights.setdefault(game, [])
+                heights.append(_text_height(block) / picture_height)
+                del heights[:-_SIZES_KEPT]
+
+    def too_small(self, game: str, block, picture_height: int) -> bool:
+        heights = self._heights.get(game, [])
+        if len(heights) < _SIZES_NEEDED:
+            return False
+        small = _text_height(block) / picture_height < _SMALL * float(np.median(heights))
+        return small and float(np.mean([l.score for l in block.lines])) < _SMALL_UNSURE
+
+
+def _text_height(block) -> float:
+    return float(np.median([l.slant_height or l.box[3] - l.box[1] for l in block.lines]))
+
+
 # --- Finding the game picture ------------------------------------------------------------
 
 # Brightness at or below which a pixel is part of a black bar, and the share of a row (or,

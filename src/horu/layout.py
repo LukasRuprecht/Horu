@@ -53,6 +53,10 @@ _MID_SENTENCE_END = re.compile(r"[、。！？!?…‥」』\u3041-\u309f]$")
 _KANA_ONLY = re.compile(r"[\u3041-\u3096\u30a1-\u30faー・]+")
 _FURIGANA_MAX_SIZE = 0.75  # of the annotated line's height
 _MIN_BLOCK_CHARS = 2
+# A line opening with an ellipsis (as OCR reads what's left of one: …, ‥, ・, or a full stop),
+# and how far in such a line may start, in line heights: …… is two characters wide.
+_LEADING_DOTS = re.compile(r"[…‥・.．。]")
+_DOTS_WIDTH = 2.5
 _LONG_TEXT_CHARS = 12  # longer than any button label or menu item
 _SENTENCE_FINAL_PARTICLES = {"か", "よ", "ね", "な", "ぞ", "ぜ", "わ", "さ", "の", "かな", "よね"}
 
@@ -160,7 +164,7 @@ def group_blocks(
     all_lines = [o for o, _ in kept]
     furigana = [l for l in all_lines if _is_furigana(l, all_lines)]
     kept = [(l, st) for l, st in kept if l not in furigana]
-    lines = [l for l, _ in kept]
+    lines = _unclip_leading_dots([l for l, _ in kept])
     # Furigana printed above a line widens the gap above it: the rows are set apart to fit it.
     ruby = {i: _ruby_height(l, furigana) for i, l in enumerate(lines)}
     styles = {i: st for i, (_, st) in enumerate(kept) if st is not None}
@@ -181,7 +185,9 @@ def group_blocks(
             if group.get("legend"):
                 continue
             if group["lines"]:
-                attaches = _continues(lines[group["lines"][-1]], line, ruby[i])
+                # Under a name tag even a short first line wraps (Yakuza's あ、桐生さん over
+                # ちょっと職務質問お願いします！): menus' short stacked labels have no tag.
+                attaches = _continues(lines[group["lines"][-1]], line, ruby[i], short_wraps=group["speaker"] is not None)
             else:  # a speaker still waiting for its first line
                 attaches = _under_speaker(lines[group["speaker"]], line)
             if attaches:
@@ -383,7 +389,7 @@ def _reads_like_dialogue(text: str) -> bool:
     )
 
 
-def _continues(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
+def _continues(prev: TextLine, line: TextLine, ruby: int = 0, short_wraps: bool = False) -> bool:
     p_left, p_top, p_right, p_bottom = prev.box
     left, top, right, bottom = line.box
     p_height, height = p_bottom - p_top, bottom - top
@@ -392,7 +398,7 @@ def _continues(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
     # Measured against the smaller line, since an icon beside a menu item can inflate its box.
     close_below = top > p_top and -0.5 * p_height <= top - p_bottom <= _MAX_WRAP_GAP * min(p_height, height) + ruby
     overlaps = min(p_right, right) > max(p_left, left)
-    wraps = len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
+    wraps = short_wraps or len(_JAPANESE.findall(prev.text)) >= _MIN_WRAPPED_CHARS or bool(_WRAP_END.search(prev.text.strip()))
     # Right-aligned stacks with ragged left edges are menus; wrapped text starts each line at
     # the same left edge (or is centred).
     right_aligned_list = abs(right - p_right) <= 0.5 * p_height and abs(left - p_left) > p_height
@@ -415,6 +421,31 @@ def _continues(prev: TextLine, line: TextLine, ruby: int = 0) -> bool:
         and not two_items
         and not _ends_complete_without_punctuation(prev.text)
     )
+
+
+def _unclip_leading_dots(lines: list[TextLine]) -> list[TextLine]:
+    """A line that opens with an ellipsis is often boxed from its first real character: the
+    dots sit low and faint (Yakuza's ……立華不動産の人間が over って聞いてきたんだが), so it
+    looks indented, and neither wraps onto the line under it nor sits under its name tag.
+    Such a line starts where the line set tightly above or below it starts."""
+    out = list(lines)
+    for i, line in enumerate(lines):
+        if not _LEADING_DOTS.match(line.text.strip()):
+            continue
+        left, top, right, bottom = line.box
+        height = bottom - top
+        for other in lines:
+            o_left, o_top, o_right, o_bottom = other.box
+            o_height = o_bottom - o_top
+            if other is line or max(height, o_height) > 1.5 * min(height, o_height):
+                continue
+            gap = o_top - bottom if o_top > top else top - o_bottom
+            tight = -0.5 * height <= gap <= _MAX_WRAP_GAP * min(height, o_height)
+            indented = 0 < left - o_left <= _DOTS_WIDTH * height and o_right > left
+            if tight and indented:
+                out[i] = replace(line, box=(o_left, top, right, bottom))
+                break
+    return out
 
 
 def _join_centred(groups: list[dict], lines: list[TextLine], ruby: dict[int, int] | None = None) -> None:

@@ -4,7 +4,9 @@ import pytest
 from PIL import Image, ImageDraw, ImageFont
 
 from horu import autocapture
-from horu.autocapture import DialogueBoxes, Region, TextWatcher
+from horu.autocapture import DialogueBoxes, Region, TextSizes, TextWatcher
+from horu.layout import TextBlock
+from horu.text_sources.base import TextLine
 from horu.text_sources.rapidocr_source import text_finder
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -171,3 +173,31 @@ def test_new_lines_are_read_though_the_name_tag_beside_them_keeps_changing(find_
     assert fired(watcher, [cafe("who_1"), cafe("who_2")] * 6)  # なに、誰の話？
     # 別に。: three characters, missed by the text finder on a smaller picture.
     assert fired(watcher, [cafe("nothing_1"), cafe("nothing_2")] * 6)
+
+
+def block(height: int, score: float, speaker: str | None = None, top: int = 700) -> TextBlock:
+    return TextBlock((TextLine("良心的な金利でのご融資をお約束します", (300, top, 900, top + height), score),), speaker)
+
+
+def test_small_unsurely_read_sentences_are_left_out_once_the_dialogue_size_is_known():
+    sizes = TextSizes()
+    poster = block(height=19, score=0.66)  # Yakuza: a loan poster behind the conversation
+    assert not sizes.too_small("yakuza", poster, 900)  # nothing known yet: nothing is left out
+    for _ in range(3):
+        sizes.learn("yakuza", [block(height=40, score=0.95, speaker="桐生")], 900)
+    assert sizes.too_small("yakuza", poster, 900)
+    # Small but surely read (a log's entries), or unsure at the dialogue's own size: kept.
+    assert not sizes.too_small("yakuza", block(height=19, score=0.93), 900)
+    assert not sizes.too_small("yakuza", block(height=38, score=0.6), 900)
+    # Each game has its own size, and the same share of a bigger window is the same size.
+    assert not sizes.too_small("p5r", poster, 900)
+    assert sizes.too_small("yakuza", block(height=38, score=0.66), 1800)
+
+
+def test_the_dialogue_size_is_learnt_only_from_surely_read_name_tagged_lines():
+    sizes = TextSizes()
+    for _ in range(5):
+        # A sign under a sign reads as a name over a line, but unsurely; untagged text teaches nothing.
+        sizes.learn("yakuza", [block(height=90, score=0.7, speaker="落合ファイナンス"), block(height=90, score=0.99)], 900)
+    assert not sizes.too_small("yakuza", block(height=19, score=0.66), 900)
+

@@ -36,6 +36,9 @@ _RECENT_LINES = 20
 _REPEAT_SLACK = 10
 _SLACK_FROM = 6
 _FULL_SIZE = str.maketrans({small: big for big, small in _SIZES.items()})
+# Ellipses as OCR reads them (…, ‥, runs of ・ or full stops), for comparing lines typing out.
+_DOT_RUNS = re.compile(r"[…‥・.．]+")
+_TRAILING_DOTS = re.compile(r"[…‥・.．。]+$")
 _JAPANESE_OR_DIGIT = re.compile(r"[぀-ヿ㐀-鿿々ー0-9]")
 # A piece of a line already shown this long or longer is a repeat too.
 _PIECE_CHARS = 6
@@ -374,6 +377,7 @@ class App:
         self._told_tray = False
         self._snipping = False
         self._recorder: recorder.Recorder | None = None  # while recording what auto-capture sees
+        self._text_sizes = autocapture.TextSizes()  # each game's dialogue text size, learnt as it's read
         self._recording = False  # asked for; the recorder is made at the watcher's next look
         self._hotkey_error: str | None = None  # why the capture hotkey couldn't be set up
 
@@ -1170,10 +1174,12 @@ class App:
 
         # A hotkey capture's game picture, for drawing auto-read regions on.
         picture = autocapture.picture_box(image) if not (auto or snipped) else None
+        self._text_sizes.learn(game, blocks, image.height)
         if auto:
             # Only dialogue: a sign the camera stopped on, a location name, or a menu would be
-            # read some of the time. The hotkey reads those.
-            blocks = [b for b in blocks if b.kind == "dialogue"]
+            # read some of the time. The hotkey reads those. Nor sentences on posters behind
+            # the conversation: far smaller than the game's dialogue, and unsurely read.
+            blocks = [b for b in blocks if b.kind == "dialogue" and not self._text_sizes.too_small(game, b, image.height)]
 
         # Text shown recently stays in the capture but is marked as a repeat, so the page can
         # collapse it instead of lines silently going missing (e.g. when scrolling a backlog).
@@ -1344,7 +1350,7 @@ class App:
             return False
         last_id, last_text = self._last_auto[region]
         text = new[0]["text"]
-        if last_id not in self.lines or text == last_text or not text.startswith(last_text):
+        if last_id not in self.lines or not _types_on(last_text, text):
             return False
         line = self.lines[last_id]
         words = self.update_line(last_id, text)
@@ -1826,6 +1832,19 @@ def _close(a: str, b: str) -> bool:
         return False
     slack = max(1, shorter // _REPEAT_SLACK)
     return abs(len(a) - len(b)) <= slack and edit_distance(a, b) <= slack
+
+
+def _types_on(earlier: str, text: str) -> bool:
+    """`text` is `earlier` typed out further. OCR needn't read the part they share alike: a
+    line paused at … has its dots and brackets read differently once more follows
+    ((チャンピオン街… then （チャンピオン街……　ここに), and a character here and there."""
+    a, b = (_TRAILING_DOTS.sub("", _DOT_RUNS.sub("…", _repeat_key(t))) for t in (earlier, text))
+    if not a or len(b) <= len(a):
+        return False
+    if b.startswith(a):
+        return True
+    slack = len(a) // _REPEAT_SLACK if len(a) >= _SLACK_FROM else 0
+    return slack > 0 and min(edit_distance(a, b[: len(a) + shift]) for shift in (-1, 0, 1)) <= slack
 
 
 def _pieces_of(text: str, shown: list[str]) -> bool:

@@ -4,6 +4,7 @@
     uv run python evals/replay.py <folder> --ai                    # an AI model says what is story text
     uv run python evals/replay.py <folder> --try "_STILL_FRAMES=3" --try "_PATIENCE=4,_CHANGED=0.2"
     uv run python evals/replay.py <folder> --watcher mymodule:MyWatcher
+    uv run python evals/replay.py <folder> --ai --shown            # what the reads would show now
 
 What was really on screen comes from reading the recording's whole-window pictures (about
 one a second while the picture changed) with Horu's normal pipeline; the result is kept in
@@ -22,6 +23,13 @@ to try, and every read it would set off is checked against the lines on screen t
 and every story line is: read (how long after it was complete), read only in part, or missed.
 Lines on screen for under a second aren't counted as missed. Hotkey presses in the
 recording are listed: each is a moment the player wanted a read auto-capture hadn't given.
+
+--shown is about what a read shows rather than when it happens: the whole-window picture of
+every look that set off a read (these are kept exactly) is read again with the current code
+and put through auto-capture's steps (dialogue only, repeats dropped, a line read again
+further typed out updates the earlier one). It lists what would be shown and counts story
+lines, lines that aren't story text, and story lines shown more than once. Run it before and
+after a change to the reading or layout code.
 """
 
 from __future__ import annotations
@@ -198,6 +206,77 @@ def label_with_ai(folder: Path, lines: list[Line]) -> None:
         l.category = labels.get(l.text)
 
 
+def shown_by_reads(folder: Path, looks: list[dict], lines: list[Line], verbose: bool) -> None:
+    """Read the picture of each look that set off a read, as auto-capture would now."""
+    from collections import deque
+
+    from horu import app as horu_app
+    from horu.text_sources.base import TextLine
+
+    fired = [r for r in looks if r["fired"]]
+    path = folder / "reads.json"
+    kept = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if any(str(r["look"]) not in kept for r in fired):
+        from horu.text_sources.rapidocr_source import RapidOcrSource
+
+        source = RapidOcrSource()
+        for r in fired:
+            image = Image.open(folder / "full" / f"{r['look']:06d}.jpg").convert("RGB")
+            kept[str(r["look"])] = [[l.text, list(l.box), l.score, list(l.alternatives), l.slant_height] for l in source.read(image)]
+        path.write_text(json.dumps(kept, ensure_ascii=False), encoding="utf-8")
+
+    def category(text: str) -> str:
+        text = norm(text)
+        best = min(lines, key=lambda l: edit_distance(l.text, text) / max(len(l.text), len(text), 1), default=None)
+        if best is None or edit_distance(best.text, text) > max(1, round(0.3 * max(len(best.text), len(text)))):
+            grown = next((l for l in lines if grows_into(text, l.text)), None)  # read while typing out
+            return (grown.category or "?") if grown else "?"
+        return best.category or ("dialogue" if best.rule_dialogue else "other")
+
+    sizes = autocapture.TextSizes() if hasattr(autocapture, "TextSizes") else None
+    types_on = getattr(horu_app, "_types_on", lambda last, text: text != last and text.startswith(last))
+    recent: deque = deque(maxlen=horu_app._RECENT_LINES)
+    last: list | None = None  # [index in shown, text] of the last line shown alone
+    shown: list[list] = []  # [time, text, category, speaker]
+    updated = 0
+    for r in fired:
+        image = Image.open(folder / "full" / f"{r['look']:06d}.jpg").convert("RGB")
+        read = [TextLine(t, tuple(box), score, tuple(alts), slant) for t, box, score, alts, slant in kept[str(r["look"])]]
+        blocks = group_blocks(read, image)
+        if sizes:
+            sizes.learn("game", blocks, image.height)
+        blocks = [b for b in blocks if b.kind == "dialogue"]
+        if sizes:
+            blocks = [b for b in blocks if not sizes.too_small("game", b, image.height)]
+        new = []
+        for b in blocks:
+            texts = [t for t in recent]
+            if any(horu_app._same_line(b.text, t) for t in texts) or horu_app._pieces_of(b.text, texts):
+                continue
+            recent.append(b.text)
+            new.append(b)
+        if not new:
+            continue
+        if len(new) == 1 and last and types_on(last[1], new[0].text):
+            shown[last[0]][1], last[1] = new[0].text, new[0].text
+            shown[last[0]][2] = category(new[0].text)
+            updated += 1
+            continue
+        for b in new:
+            shown.append([r["t"], b.text, category(b.text), b.speaker])
+        last = [len(shown) - 1, new[-1].text] if new else None
+    story = [s for s in shown if s[2] in STORY]
+    again = sum(any(grows_into(norm(a[1]), norm(b[1])) or same(norm(a[1]), norm(b[1])) for b in story[i + 1 : i + 4]) for i, a in enumerate(story))
+    print(f"what the {len(fired)} reads would show now: {len(shown)} lines: {len(story)} story ({again} of them a line shown again), "
+          f"{sum(s[2] not in STORY and s[2] != '?' for s in shown)} not story, {sum(s[2] == '?' for s in shown)} unlabelled; "
+          f"{updated} reads updated a line that was typing out")
+    wrong_tag = sum(1 for s in shown if s[2] not in STORY and s[3])
+    print(f"  not-story lines given a speaker name: {wrong_tag}")
+    for t, text, cat, speaker in shown:
+        if verbose or cat not in STORY:
+            print(f"  {t:7.1f}s  [{cat}]{' <' + speaker + '>' if speaker else ''} {text[:60]}")
+
+
 def is_story(line: Line) -> bool:
     return line.category in STORY if line.category else line.rule_dialogue
 
@@ -209,7 +288,8 @@ def replay(folder: Path, looks: list[dict], make_watcher) -> list[int]:
         if r["fresh"] or watcher is None:
             watcher = make_watcher()
         if r["frame"] != shown:
-            image, shown = Image.open(folder / "frames" / f"{r['frame']:06d}.jpg").convert("RGB"), r["frame"]
+            exact = folder / "frames" / f"{r['frame']:06d}.png"  # recordings made before frames were kept exactly have JPEGs
+            image, shown = Image.open(exact if exact.exists() else exact.with_suffix(".jpg")).convert("RGB"), r["frame"]
         if watcher.update(image, [tuple(box) for box in r["regions"]] or None):
             fired.append(r["look"])
     return fired
@@ -247,6 +327,8 @@ def main() -> None:
     parser.add_argument("--try", dest="tries", action="append", default=[], metavar="NAME=VALUE,...", help="autocapture settings to try")
     parser.add_argument("--watcher", action="append", default=[], metavar="MODULE:CLASS", help="another watcher class to try (same interface as TextWatcher)")
     parser.add_argument("--missed", type=int, default=15, help="how many missed lines to list")
+    parser.add_argument("--shown", action="store_true", help="what the reads would show with the current reading and layout code")
+    parser.add_argument("--all", action="store_true", help="with --shown: list every line, not only the ones that aren't story text")
     args = parser.parse_args()
     folder = args.folder
     looks, events = load_log(folder)
@@ -265,6 +347,10 @@ def main() -> None:
     print(f"text on screen: {len(lines)} pieces, {len(story)} story lines ({'the AI says' if args.ai else "today's rules say"} so), "
           f"{sum(l.shown_for < BRIEF for l in story)} of them on screen under {BRIEF:.0f} s")
 
+    if args.shown:
+        shown_by_reads(folder, looks, lines, args.all)
+        return
+
     from horu.text_sources.rapidocr_source import text_finder
 
     find = text_finder(autocapture.MAP_WIDTH)
@@ -274,6 +360,8 @@ def main() -> None:
     live = {r["look"] for r in looks if r["fired"]}
     agree = sum(any(abs(a - b) <= 2 for b in live) for a in current)
     print(f"replay check: {agree}/{len(current)} replayed reads fall within 2 looks of a live one ({len(live)} live)")
+    if not any((folder / "frames").glob("*.png")):
+        print("  this recording's frames are JPEGs, which changes what the watcher sees: compare replays with each other, not with the live row")
     for spec in args.tries:
         saved = {}
         for pair in spec.split(","):
