@@ -74,7 +74,7 @@ Each line has its own buttons (they show when the mouse is over the line):
 | | Button | What it does |
 |---|---|---|
 | 1 | Explain | (AI) Breaks the line down: words, grammar, and a natural translation. |
-| 2 | Cards | (AI, with Anki) Picks the words worth learning at your level and adds them to your deck. |
+| 2 | Cards | (AI) Picks the words worth learning at your level and saves them: to your words, or to your Anki deck if you study with Anki. |
 | 3 | Edit | Fixes a word the OCR misread. |
 | 4 | ⋯ | Corrects how the line was read (dialogue or other text, the speaker), re-reads it with AI, sets auto-read regions, or saves a debug bundle for a bug report. |
 

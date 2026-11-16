@@ -152,7 +152,7 @@ function renderLine(line) {
   meta.append(
     el("span", "spacer"),
     button("line-btn foldable", "Explain", () => explainLine(line), "Break this line down with AI"),
-    button("line-btn foldable", "Cards", () => makeCards(line), "Let AI pick words worth learning and add them to Anki"),
+    button("line-btn foldable", "Cards", () => makeCards(line), "Let AI pick the words worth learning and save them (to Anki, if you study with it)"),
     button("line-btn foldable", "Edit", () => startEdit(line, row), "Fix OCR mistakes in this line"),
     button("line-btn", "⋯", (e) => openLineMenu(e.currentTarget, line, row), "Correct how this line was read"),
   );
@@ -2237,8 +2237,10 @@ window.horu = {
     }
     const all = [...new Set([...(tag.dataset.words ? tag.dataset.words.split("、") : []), ...words])];
     tag.dataset.words = all.join("、");
-    tag.textContent = all.length === 1 ? "+1 card" : `+${all.length} cards`;
-    tag.title = `Added to Anki: ${tag.dataset.words}`;
+    const anki = state.prefs.studyWith === "anki";
+    tag.textContent = anki ? (all.length === 1 ? "+1 card" : `+${all.length} cards`) : (all.length === 1 ? "+1 word" : `+${all.length} words`);
+    tag.title = `${anki ? "Added to Anki" : "Saved to your words"}: ${tag.dataset.words}`;
+    if (!anki) refreshCounts();
   },
 
   agentStep(msg) {

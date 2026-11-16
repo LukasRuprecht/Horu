@@ -97,7 +97,8 @@ that, once, and translate all of it if you have AI set up.
 **Save** in a word's popup keeps the word with its line, speaker, translation, game and a
 picture of the line. The **Words** tab lists everything saved. The **Study** tab reviews them:
 the line with the word and its screenshot, then the answer, and you rate how well you knew it
-(10 new words a day by default, in **Settings → Study**).
+(10 new words a day by default, in **Settings → Study**). With AI, **Cards** on a line picks the words worth
+learning at your level and saves them for you.
 
 ### Anki
 
@@ -106,7 +107,8 @@ Choose **With Anki** in the welcome or in **Settings → Study**, and sign in wi
 popup then adds a card: the word, with the line it came from under it; on the back its
 reading, meaning, grammar notes, translation and a screenshot. Cards sync as you add them, so
 you can review them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on a computer.
-With AI, **Cards** on a line picks the words worth learning at your level and adds them.
+With AI, **Cards** on a line picks the words worth learning at your level and adds them to
+your deck.
 
 ### When Horu gets something wrong
 

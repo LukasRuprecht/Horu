@@ -139,7 +139,8 @@ def fake_app(deck):
             {"surface": "無用", "dictionary_form": "無用", "dictionary_reading": "むよう", "grammar": []},
         ],
     }
-    app = SimpleNamespace(lines={1: line}, anki=deck, _screenshots={1: b"png"}, prefs=SimpleNamespace(values={"ankiDeck": "Horu", "learnerLevel": "Beginner"}))
+    app = SimpleNamespace(lines={1: line}, anki=deck, _screenshots={1: b"png"},
+                          prefs=SimpleNamespace(values={"ankiDeck": "Horu", "learnerLevel": "Beginner", "studyWith": "anki"}))
     app.card_for = lambda line_id, index: anki.Card(
         sentence=line["text"], word=line["words"][index]["surface"], dictionary_form=line["words"][index]["dictionary_form"],
         reading=line["words"][index]["dictionary_reading"], meaning="from JMdict", notes="",
@@ -158,6 +159,25 @@ def test_card_tools_check_and_add():
     assert card.meaning == "worry (here: no need to worry)" and card.notes == "心配無用 = no need to worry" and screenshot == b"png"
     assert tools["add_flashcard"].call({"word": "無用", "meaning": "useless", "note": ""})[0].startswith("Not added: 無用 is already")
     assert steps == ["Checking your Anki deck", "Adding 心配", "Adding 無用"]
+
+
+def test_studying_in_horu_cards_become_saved_words(tmp_path):
+    from horu.wordbook import Wordbook
+
+    deck = FakeDeck()
+    app = fake_app(deck)
+    app.prefs.values["studyWith"] = "horu"
+    app.words = Wordbook(tmp_path / "words.db")
+    steps = []
+    tools = {t.name: t for t in agent.card_tools(app, 1, steps.append)}
+    assert json.loads(tools["check_deck"].call({"words": ["心配"]})[0]) == {"心配": False}
+    result, error = tools["add_flashcard"].call({"word": "心配", "meaning": "worry", "note": "心配無用 = no need to worry"})
+    assert not error and result == "Saved 心配 to the learner's words."
+    [saved] = app.words.words()
+    assert (saved["word"], saved["meaning"], saved["game"]) == ("心配", "worry", "P5R.exe") and app.words.image(saved["id"]) == b"png"
+    assert json.loads(tools["check_deck"].call({"words": ["心配", "無用"]})[0]) == {"心配": True, "無用": False}
+    assert tools["add_flashcard"].call({"word": "心配", "meaning": "worry", "note": ""})[0] == "Not added: 心配 is already in your words."
+    assert deck.added == [] and steps == ["Checking your saved words", "Adding 心配", "Checking your saved words", "Adding 心配"]
 
 
 def test_card_tools_respect_the_card_limit():

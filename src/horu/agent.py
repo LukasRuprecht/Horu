@@ -1,4 +1,5 @@
-"""The flashcard agent: an AI model that turns a game line into Anki cards using tools.
+"""The flashcard agent: an AI model that turns a game line into flashcards using tools: Anki
+cards, or saved words in Horu for a learner who studies in Horu.
 
 Given a line, the model decides which words are worth learning for this learner, checks which
 are already in their Anki deck, looks the rest up in Horu's dictionary, and writes the cards
@@ -24,7 +25,7 @@ _RECENT_LINES = 8
 
 SYSTEM = """\
 You are Horu, a Japanese tutor built into a tool that reads text from video games while the \
-learner plays. You make Anki flashcards from lines the learner has just seen, using your \
+learner plays. You make flashcards from lines the learner has just seen, using your \
 tools. The learner's level: {level}.
 
 Write meanings and notes in English, short enough for a flashcard. The game text was \
@@ -36,7 +37,7 @@ Make flashcards from this line{speaker}:
 
 1. Pick up to {limit} words from it that are most worth learning at the learner's level. \
 Skip particles, names, and words a learner at this level surely knows already.
-2. Use check_deck to see which of them are already in their Anki deck, and don't add those.
+2. Use check_deck to see which of them are already in their deck, and don't add those.
 3. For each remaining word, use lookup_word, then add_flashcard with a short meaning that \
 fits this line and a one-line note on how it's used here. Use get_scene_context if the \
 earlier dialogue would change the meaning.
@@ -86,6 +87,9 @@ def card_tools(
 ) -> list[Tool]:
     line = app.lines[line_id]
     deck = app.prefs.values["ankiDeck"] or "Horu"
+    in_anki = app.prefs.values.get("studyWith") == "anki"
+    # Where the cards go: the Anki deck, or (studying in Horu) Horu's own word list.
+    target = app.anki if in_anki else _SavedWords(app, line)
     added = [] if added is None else added
     attempts = [] if attempts is None else attempts
 
@@ -118,8 +122,8 @@ def card_tools(
         return "Earlier lines, oldest first:\n" + "\n".join(previous) + f"\n\nCurrent line:\n{context.quoted()}"
 
     def check_deck(args: dict) -> str:
-        on_step("Checking your Anki deck")
-        return json.dumps({w: app.anki.has_word(deck, w) for w in args["words"]}, ensure_ascii=False)
+        on_step("Checking your Anki deck" if in_anki else "Checking your saved words")
+        return json.dumps({w: target.has_word(deck, w) for w in args["words"]}, ensure_ascii=False)
 
     def add_flashcard(args: dict) -> str:
         attempts.append(args["word"])
@@ -130,11 +134,11 @@ def card_tools(
         card.meaning = args["meaning"].strip() or card.meaning
         card.notes = "; ".join(filter(None, [args["note"].strip(), card.notes]))
         try:
-            app.anki.add_card(deck, card, app._screenshots.get(line_id))
+            target.add_card(deck, card, app._screenshots.get(line_id))
         except anki.AnkiError as e:
             return f"Not added: {e}"
         added.append(card.dictionary_form)
-        return f"Added {card.dictionary_form} to the {deck} deck."
+        return f"Added {card.dictionary_form} to the {deck} deck." if in_anki else f"Saved {card.dictionary_form} to the learner's words."
 
     def schema(properties: dict) -> dict:
         return {"type": "object", "properties": properties, "required": list(properties), "additionalProperties": False}
@@ -156,13 +160,13 @@ def card_tools(
         ),
         Tool(
             "check_deck",
-            "Check which words (dictionary forms) are already in the learner's Anki deck.",
+            "Check which words (dictionary forms) are already in the learner's deck.",
             schema({"words": {"type": "array", "items": {"type": "string"}, "description": "Dictionary forms to check."}}),
             check_deck,
         ),
         Tool(
             "add_flashcard",
-            "Add a flashcard for one word of the current line to the learner's Anki deck. The card also gets "
+            "Add a flashcard for one word of the current line to the learner's deck. The card also gets "
             "the full line, the reading, Horu's grammar notes, the translation if there is one, and a "
             "screenshot of the scene.",
             schema(
@@ -175,6 +179,28 @@ def card_tools(
             add_flashcard,
         ),
     ]
+
+
+class _SavedWords:
+    """Horu's own word list, for a learner who studies in Horu, taking cards the way an Anki
+    deck does: a card becomes a saved word, with its line and screenshot, for the Study tab."""
+
+    def __init__(self, app: App, line: dict) -> None:
+        self.app, self.line = app, line
+
+    def has_word(self, deck: str, word: str) -> bool:
+        return any(w["word"] == word for w in self.app.words.words(query=word))
+
+    def add_card(self, deck: str, card: anki.Card, screenshot: bytes | None) -> None:
+        analysed = next((w for w in self.line["words"] if w["dictionary_form"] == card.dictionary_form), {})
+        speaker = self.line["speaker"]["text"] if self.line.get("speaker") else ""
+        _, new = self.app.words.add(
+            word=card.dictionary_form, reading=card.reading, surface=card.word, meaning=card.meaning, notes=card.notes,
+            pos=analysed.get("pos", ""), jlpt=analysed.get("jlpt"), sentence=card.sentence, speaker=speaker,
+            translation=card.translation, game=self.line["game"], screenshot_png=screenshot,
+        )
+        if not new:
+            raise anki.AnkiError(f"{card.dictionary_form} is already in your words.")
 
 
 def _card_for_word(app: App, line_id: int, word: str) -> anki.Card:
