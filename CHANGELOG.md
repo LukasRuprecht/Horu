@@ -13,7 +13,7 @@ The first public release, for Windows 10 and 11.
   than shown ever later, and the hotkey always goes first.
 - Snip: read and translate one bit of the screen.
 - Text hookers (Textractor and others) by clipboard or WebSocket.
-- Optional AI, with your own key or a local Ollama model: translations, explanations,
+- AI with your own key (Google Gemini has a free tier): translations, explanations,
   follow-up questions, checks of lines OCR was unsure of, and cards.
 - Study saved words in Horu (FSRS reviews) or send them to Anki through AnkiWeb (no Anki
   app needed).

@@ -1440,3 +1440,5 @@ body.no-furigana .settings-page .preview rt { display: revert; }
 }
 .modal .line-btn { opacity: 1; padding: 5px 12px; border: 1px solid var(--border); color: var(--text); }
 .modal .line-btn.primary { border-color: var(--accent); color: var(--accent); }
+.welcome-ai-steps { margin: 4px 0 12px; padding-left: 20px; line-height: 1.7; }
+.welcome-ai-steps .link, .check-hint .link { background: none; border: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }

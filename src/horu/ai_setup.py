@@ -48,6 +48,9 @@ PRESETS: dict[str, dict] = {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
         "key_env": "GEMINI_API_KEY",
         "key_url": "https://aistudio.google.com/apikey",
+        # Gemini's model names change every few months: the newest Flash model the key can
+        # use is picked from its model list (suggest_model) rather than written in here.
+        "suggest": "flash",
     },
     "deepseek": {
         "label": "DeepSeek",
@@ -197,6 +200,44 @@ def resolve(values: dict, fallback: config.AISettings) -> Resolved:
     except llm.AIError as e:
         return Resolved(error=str(e), source=source)
     return Resolved(provider, translator, source=source)
+
+
+# Model names with these in them aren't general chat models (or are the cut-down kind).
+_NOT_GENERAL = ("lite", "tts", "live", "image", "audio", "transcribe", "translate", "embedding", "exp", "thinking", "omni", "decision")
+
+
+def pick_model(ids: list[str], family: str) -> str:
+    """The newest general model of `family` ("flash") in a provider's model list: a stable one
+    if there is any, else a preview. "" if none fits."""
+    import re
+
+    names = [i.removeprefix("models/") for i in ids]
+    fitting = [n for n in names if family in n.lower() and not any(word in n.lower() for word in _NOT_GENERAL)]
+    stable = [n for n in fitting if "preview" not in n.lower()] or fitting
+
+    def version(name: str) -> tuple:
+        found = re.search(r"(\d+(?:\.\d+)*)", name)
+        return tuple(int(x) for x in found.group(1).split(".")) if found else ()
+
+    # Newest version first; of names for one version, the shortest (the alias, not a dated build).
+    return max(stable, key=lambda n: (version(n), -len(n)), default="")
+
+
+def suggest_model(preset_id: str) -> str:
+    """For a provider whose presets name a model family instead of a model (Gemini), the model
+    to use: picked from the models the saved key can use. "" when that can't be found out."""
+    preset = PRESETS.get(preset_id, {})
+    family, key = preset.get("suggest"), get_key(preset_id)
+    if not family or not key:
+        return ""
+    try:
+        import openai
+
+        client = openai.OpenAI(base_url=preset["base_url"], api_key=key, max_retries=0, timeout=15)
+        ids = [model.id for model in client.models.list()]
+    except Exception:  # offline, a wrong key: the person can still type a model
+        return ""
+    return pick_model(ids, family)
 
 
 def _prefer_ipv4(url: str) -> str:

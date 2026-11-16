@@ -1,489 +1,237 @@
 # Horu
 
-A Japanese study buddy for video games. Press a hotkey while you play, and Horu reads the
-Japanese on screen and shows it in a side window, Language Reactor style: furigana over the
-kanji, words colour-coded by part of speech, and a click on any word for its dictionary form,
-grammar (conjugations like 〜たら or 〜てしまう), and meaning. Save the words you want to
-learn and review them in Horu, with the screenshot each came from, or send them to Anki.
-Optionally, an AI model can translate and explain lines in context.
+Read Japanese games in Japanese. Press a hotkey while you play, and Horu reads the text on
+screen and shows it in a window beside the game: furigana over the kanji, and a click on any
+word for its reading, meaning and grammar. With an AI model it also translates each line and
+explains it when you're stuck. Save the words you want to keep and review them later, with
+the screenshot each one came from.
 
-The goal is to cut lookup time so you can stay in the game.
+![Horu beside a game: two lines of dialogue with furigana, and a word's dictionary popup](docs/images/horu-window.png)
 
-![Horu's window: two captures from Persona 5 Royal, with furigana, speaker names, and a word's dictionary popup open](docs/images/horu-window.png)
+> **Horu 0.1 is the first public release.** Windows 10 and 11 only. It has been played with
+> on four games so far, so expect rough edges on others: see
+> [known limitations](#known-limitations).
 
-> **Status:** first public release (0.1), Windows 10 and 11 only. It has been played with on
-> four games so far, so expect rough edges on others: see [known limitations](#known-limitations).
+## What it does
 
-**Contents:** [Install](#install) · [Getting started](#getting-started) ·
-[What works offline](#what-works-offline) · [Privacy](#privacy) · [Costs](#costs) ·
-[AI providers](#ai-providers) · [Known limitations](#known-limitations) ·
-[Troubleshooting](#troubleshooting) · [Reporting problems and contributing](#reporting-problems-and-contributing)
+- **Reads the screen.** Press **Ctrl+Alt+J** in your game. Horu finds every line of Japanese,
+  sorts dialogue from menus and button hints, and shows who's speaking. No capture region to
+  set up.
+- **Furigana and a dictionary on every word.** Click a word for its reading, dictionary form,
+  conjugation (〜たら, 〜てしまう…), JLPT level and meanings. This works offline.
+- **Translations and explanations (with AI).** Each new line is translated, blurred until you
+  click it so you try reading first. **Explain** breaks a line down, and you can ask follow-up
+  questions. Lines the OCR may have misread are checked against a picture of the line.
+- **Reads by itself.** Turn on auto-capture and Horu reads new dialogue as it appears.
+- **Study what you find.** Saved words go to the Study tab, with spaced-repetition reviews
+  (FSRS, as in Anki), or straight to your Anki deck through AnkiWeb.
 
-## Install
+## Get started
 
-On Windows 10 or 11, download **Horu-Setup-<version>.exe** from the
-[latest release](https://github.com/LukasRuprecht/Horu/releases/latest) and run it. It installs
-for your Windows account only (no administrator prompt) and adds Horu to the Start menu. It
-needs about 700 MB of disk space; the first start downloads the dictionary (about 25 MB), with
-progress shown in Horu's window.
+1. Download **Horu-Setup-0.1.0.exe** from the
+   [latest release](https://github.com/LukasRuprecht/Horu/releases/latest) and run it.
+   Windows may say **"Windows protected your PC"** because the installer isn't code-signed
+   yet: click **More info**, then **Run anyway**.
+2. Start Horu and follow the short welcome. The last step sets up AI (see below).
+3. Run your game in **windowed or borderless** mode, and press **Ctrl+Alt+J** when there's
+   text on screen.
 
-- **"Windows protected your PC":** the installer isn't code-signed yet, so SmartScreen may
-  warn about it. Click **More info**, then **Run anyway**.
-- **Update:** run a newer installer. It closes Horu if it's open. Your settings, saved words,
-  dictionary, and learned names are kept: they live in `%LOCALAPPDATA%\Horu`, apart from the
-  program.
-- **Uninstall:** from **Settings → Apps → Installed apps**. It asks whether to delete your data
-  too. API keys and the AnkiWeb sign-in stay in Windows Credential Manager (entries named
-  Horu).
-- Horu's window uses Microsoft Edge WebView2, which comes with Windows 11 and most Windows 10
-  PCs. If it's missing, the installer offers Microsoft's download page.
-- Nothing else to install: Python, the OCR models, and the word-analysis dictionary are inside
-  the installer. The licences of everything bundled are in `THIRD-PARTY-NOTICES.txt` in the
-  program folder.
+The [quick start guide](docs/quick-start.md) walks through everything step by step.
+
+## Horu is much better with AI
+
+Without AI, Horu gives you furigana and the dictionary on every word, which is plenty if you
+can mostly follow along. With an AI model, Horu translates every new line, explains grammar
+in the context of the scene, fixes text the OCR got wrong, and can pick the words worth
+learning from a line and turn them into cards.
+
+**The easy way is free:** Google's Gemini API has a free tier.
+
+1. Go to [Google AI Studio](https://aistudio.google.com/apikey), sign in with a Google
+   account, and click **Create API key**.
+2. Paste the key into the welcome's last step (or **Settings → AI**, provider **Google
+   Gemini**). Horu picks Google's newest Flash model for you.
+
+Two things to know about Gemini's free tier: there are daily request limits (when you reach
+them, translations show **Retry** until the limit resets), and Google may use what you send
+to improve its products. Turning on billing for the key removes both concerns, and Flash
+models cost very little per line.
+
+**Other providers:** Claude (Anthropic), OpenAI and DeepSeek work too, each with your own API
+key and billed by them. Choose one in **Settings → AI**, paste the key, and fill in a model
+name. **Test** checks that it works.
+
+What Horu sends, and when, is listed under [privacy](#privacy).
+
+## Using Horu
+
+### Reading a screen
+
+Press the hotkey in your game. The first press also tells Horu which window is the game; its
+name shows in the toolbar, where you can pick another one. After that the hotkey reads the
+game even while Horu is in front. Dialogue is shown large with its speaker; other text
+(menus, button hints) is shown small and can be folded away. Lines already shown are
+collapsed rather than repeated.
+
+To use another hotkey: **Settings → Capture → Change**.
+
+### Auto-capture
+
+The eye button turns it on. Press the hotkey once first so Horu knows your game. Horu then
+reads the game whenever new text settles on screen: dialogue, choices, thought bubbles. Lines
+appear a few seconds after the game shows them, and lines gone within a couple of seconds can
+be missed, so the hotkey is still the quickest way to read one screen. If auto-capture picks
+up menus or signs, **Settings → Capture → Edit regions…** limits it to the dialogue box.
+
+### Snip
+
+The snip button lets you drag a box around any text on screen (a sign, a menu) to read just
+that, once, and translate all of it if you have AI set up.
+
+### Text hookers
+
+For games a text hooker such as [Textractor](https://github.com/Artikash/Textractor) can read
+(visual novels above all), Horu can take each line straight from the hooker instead of OCR,
+so nothing is misread. Set it up in **Settings → Text hooker**, through the clipboard or a
+WebSocket (`ws://127.0.0.1:6677` by default, for Textractor with the
+[textractor_websocket](https://github.com/kuroahna/textractor_websocket) extension).
+
+### Studying in Horu
+
+**Save** in a word's popup keeps the word with its line, speaker, translation, game and a
+picture of the line. The **Words** tab lists everything saved. The **Study** tab reviews them:
+the line with the word and its screenshot, then the answer, and you rate how well you knew it
+(10 new words a day by default, in **Settings → Study**).
+
+### Anki
+
+Choose **With Anki** in the welcome or in **Settings → Study**, and sign in with your
+[AnkiWeb](https://ankiweb.net) account (free; no Anki app needed). **Add to Anki** in a word's
+popup then adds a card: the word, with the line it came from under it; on the back its
+reading, meaning, grammar notes, translation and a screenshot. Cards sync as you add them, so
+you can review them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on a computer.
+With AI, **Cards** on a line picks the words worth learning at your level and adds them.
+
+### When Horu gets something wrong
+
+- **A misread word:** **Edit** on the line fixes it.
+- **A line filed wrongly** (dialogue shown as other text, a wrong speaker): the line's **⋯**
+  menu corrects it, and Horu remembers that for the game.
+- **Anything else:** the line's **⋯** menu (or **Settings → Help**) → **Save debug bundle**
+  saves a zip with the screenshot and what Horu made of it. Attach it to an
+  [issue](https://github.com/LukasRuprecht/Horu/issues).
+
+## Privacy
+
+Horu runs on your PC. It has no account and sends no usage data. Without an AI provider, the
+only thing it downloads is the dictionary, once (from edrdg.org).
+
+**With an AI provider**, these go to the provider you chose, under your key:
+
+- each new line of dialogue and the few lines before it, for translation (or when you click
+  **Translate**);
+- a picture of a line, cropped to that line, when the OCR wasn't sure of it, and of each new
+  speaker name tag (turn these checks off in **Settings → AI**);
+- the line you ask about, with your level, for **Explain** and follow-up questions;
+- a line and its words, when making cards.
+
+On Gemini's free tier, Google may use this to improve its products.
+
+**With AnkiWeb**, your password goes only to AnkiWeb, and cards sync to your account.
+
+**On your PC**, under `%LOCALAPPDATA%\Horu`: your settings, saved words with their pictures,
+review history, speaker names and corrections per game, translations already made (so a
+repeated line isn't sent again), the dictionary, a copy of your Anki collection if you use
+AnkiWeb, and a log of errors. API keys and the AnkiWeb sign-in are kept in Windows Credential
+Manager, never in a file or the log. Screenshots aren't saved unless you save a debug bundle,
+which holds one screenshot and the end of the log: look inside before sharing it.
+
+## Known limitations
+
+- **Windows only**, and the game must run windowed or borderless (exclusive fullscreen often
+  can't be captured).
+- **Tested on four games:** Persona 5 Royal, Persona 3 Reload, Zelda: Ocarina of Time 3D (in
+  an emulator) and Yakuza 0. Text in a dialogue box or as subtitles, written left to right,
+  works best. Vertical text hasn't been tested.
+- **Auto-capture lags the game** by a few seconds and can miss very short lines. In games that
+  use a lot of CPU it may skip screens to keep up.
+- **Signs and posters** are sometimes shown as dialogue in games full of them (Yakuza 0).
+- **OCR misreads happen**, mostly on stylised or small text. Lines Horu isn't sure of are
+  marked **?**, and with AI they're checked.
+- **No automatic updates:** install a new release over the old one. Your data is kept.
+
+## Troubleshooting
+
+- **The hotkey does nothing:** another program may own Ctrl+Alt+J (Horu's status line says
+  so); choose another in **Settings → Capture**. If the game runs as administrator, Horu must
+  too.
+- **Captures are black:** switch the game to borderless windowed.
+- **Translations show Retry:** the provider didn't answer in time or refused the request (on
+  Gemini's free tier, often the daily limit). **Settings → AI → Test** shows the reason.
+- **Horu won't start:** the reason is in `%LOCALAPPDATA%\Horu\data\horu.log`.
+
+To uninstall, use **Settings → Apps → Installed apps** in Windows; it asks whether to delete
+your data too.
+
+## Help and contributing
+
+Questions, bugs and ideas are welcome as [issues](https://github.com/LukasRuprecht/Horu/issues).
+For a screen Horu read wrongly, a debug bundle helps most. To work on the code, see
+[CONTRIBUTING.md](CONTRIBUTING.md); for security problems, [SECURITY.md](SECURITY.md).
+
+Next on the list: faster reads so auto-capture keeps up in demanding games, catching short
+lines, testing more games (a visual novel, small subtitles, vertical text), and telling
+scenery text from dialogue more reliably.
 
 <details>
-<summary>Or install with a script (uv)</summary>
-
-Open PowerShell and run:
-
-```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/LukasRuprecht/Horu/main/install.ps1 | iex"
-```
-
-This installs [uv](https://docs.astral.sh/uv/) (which manages Horu's Python) if you don't have
-it, puts Horu in `%LOCALAPPDATA%\Horu`, and adds it to the Start menu and desktop. It needs
-about 2 GB of disk space. The first time Horu starts, it downloads the dictionary and OCR
-models (about 150 MB), with progress shown in its window. It keeps its settings in the same
-folder as the installer does, so you can switch between the two.
-
-- **Update:** run the same command again. Your settings, dictionary, and learned names are kept.
-- **Uninstall:** save [install.ps1](install.ps1) and run
-  `powershell -ExecutionPolicy ByPass -File install.ps1 -Uninstall`.
-</details>
-
-<details>
-<summary>From source (for development)</summary>
+<summary>For developers: running from source, the command line, and config.toml</summary>
 
 ```sh
 git clone https://github.com/LukasRuprecht/Horu.git
 cd Horu
 uv sync
-uv run horu
+uv run horu          # the window
+uv run pytest        # the tests
 ```
 
-The first run creates `config.toml` from `config.example.toml`. Run the tests with
-`uv run pytest`.
+The first run creates `config.toml` from `config.example.toml` (the capture hotkey, capture
+mode, OCR engine). `install.ps1` installs from source with uv instead of the installer.
 
-To build the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php)
-(`winget install JRSoftware.InnoSetup`) and run
-`powershell -ExecutionPolicy ByPass -File packaging\build.ps1`. It bundles Horu with
-PyInstaller into `dist\Horu` (`Horu.exe` there runs as is) and writes
-`dist\Horu-Setup-<version>.exe`. Pushing a tag like `v0.1.0` builds it on GitHub and attaches
-it to a draft release.
+Commands (`uv run horu <command>`): `console` prints captured text to the terminal, `read
+<image>` reads a screenshot, `snap` saves a capture, `reset-learned` forgets speaker names,
+regions and corrections, `setup` rebuilds the dictionary, `monitors` lists monitors, and
+`add-screen` turns a debug bundle into a regression test.
+
+Building the installer is described in [CONTRIBUTING.md](CONTRIBUTING.md#building-the-installer).
 </details>
-
-## Getting started
-
-New to Horu? The [quick start guide](docs/quick-start.md) walks through installing, capturing,
-looking words up, adding AI, and making Anki cards, one step at a time.
-
-1. **Start Horu.** The first time, a short welcome asks how you want to study (in Horu or with
-   Anki) and your level, shows the capture hotkey, and ends with setting up AI if you want it.
-   Put the window beside your game: on a second
-   monitor, or pinned on top (the pin button).
-2. **Run your game in windowed or borderless windowed mode.** Exclusive fullscreen often
-   can't be captured.
-3. **Press `Ctrl+Alt+J` in your game** whenever there's text. Horu captures the game's window,
-   finds every line of Japanese, and adds it to the history. There's no capture region to set
-   up. To use another key, open settings (the sliders button) and change it under **Capture**.
-   The first press picks the game for the session (shown at the top of the Read tab, where you
-   can also choose it from a list): after that the hotkey captures the game even while Horu
-   or another window is in front.
-4. **Click any word** for its reading, dictionary form, grammar notes, JLPT level, and meanings.
-   **Save** keeps it for the Study tab.
-
-Horu has three tabs: **Read** (the lines from your game), **Words** (everything you saved), and
-**Study** (today's reviews). Settings has the colours (Horu, Indigo, or Matcha, each light or
-dark) under **Appearance**. Horu's ほ icon sits in the tray by the clock (under the ^ arrow
-until you drag it out): click it to bring Horu back, or use its menu to capture or turn
-auto-capture on or off. To have minimizing leave just that icon, turn on **Minimize to the
-tray** in **Settings → Capture**.
-
-### What you see
-
-- Dialogue is shown large, with its speaker above it. Speakers are found from the text (names,
-  〜の声), a different text style, or a different size. Names get an English label from the
-  names dictionary (順平 · Junpei), or from your AI provider for descriptions like 謎の通信.
-- Other text (button legends, menus, the HUD) is shown small. The lines button next to 漢 folds
-  it away under each capture, a click from opening again.
-- Lines already shown in an earlier capture are collapsed rather than repeated, so pressing
-  the hotkey on a backlog screen shows only what's new.
-- A line Horu may have misread is marked with **?**. Click **Edit** on a line to fix it by hand.
-
-### Reading by itself: auto-capture
-
-Turn on the eye button, and once Horu knows your game (one hotkey press, or the game chooser)
-Horu reads the game whenever new text settles on screen: dialogue, choices, thought bubbles.
-Text that stays put (the HUD) or moves with the camera (signs) doesn't set it off. If a game's
-HUD keeps changing, limit auto-capture to parts of the picture: **Settings → Capture → Edit
-regions** draws boxes on your latest hotkey capture (so does a line's **⋯** menu → **Set
-auto-read regions**).
-
-A line usually shows up two to four seconds after it has finished appearing in the game.
-Reading a screen takes one to a few seconds of CPU time, more while a demanding game is
-running. If the game sets off reads faster than Horu can do them, Horu skips older screens
-rather than fall further behind, and says so in the status bar. The hotkey always reads the
-screen as it is now, ahead of anything auto-capture has waiting.
-
-### Snip: one bit of the screen
-
-The snip button beside the eye hides Horu and dims your game's window (every screen, before
-your first hotkey capture tells Horu which window is the game): drag a box around any text (a
-sign, a menu) and Horu reads just that and translates all of it once, other text
-included and even with automatic translation off. Esc or a right-click cancels.
-
-### Exact text from a text hooker
-
-Many PC games, visual novels above all, can be read by a text hooker such as
-[Textractor](https://github.com/Artikash/Textractor), which takes each line straight from the
-game's memory: no OCR, so no misreads. Run the hooker, pick the game's text thread in it, and
-choose how Horu gets the lines in **Settings → Text hooker**:
-
-- **The clipboard:** turn on the hooker's copy-to-clipboard option (in Textractor, the
-  *Copy to Clipboard* extension). Anything Japanese you copy elsewhere shows up too, so turn it
-  off when you're done.
-- **A WebSocket:** for hookers that send lines to texthooker pages, such as Textractor with the
-  [textractor_websocket](https://github.com/kuroahna/textractor_websocket) extension
-  (`ws://127.0.0.1:6677`, Horu's default).
-
-Hooked lines show up as dialogue, with the speaker split off when the hooker includes one
-(`名前「…」` or `【名前】…`).
-
-### With an AI provider
-
-Set one up under **Settings → AI** (see [AI providers](#ai-providers)). Then:
-
-- New dialogue is translated automatically (to translate only when you click **Translate**
-  under a line, turn that off in **Settings → AI**). Translations stay blurred until you click
-  them, so you try reading first.
-- **Explain** on a line gives a grammar breakdown pitched at your level; **Explain in context**
-  in a word's popup explains that word in that line. Ask follow-up questions in the panel that
-  opens.
-- Lines OCR wasn't sure of (marked **?**) are checked against a picture of the line, to catch
-  misreads. With automatic translation, the check and the translation are one request. Horu
-  uses the AI's reading when it's confident (marked "corrected"; click to undo), or asks
-  "Did you mean …?".
-- New speaker names are checked once. After that, a name tag OCR misreads (佐唐超治郎 for
-  佐倉惣治郎) is matched to the checked name; if Horu matched the wrong one, click
-  **wrong name?** beside it.
-
-### Studying in Horu
-
-**Save** in a word's popup keeps the word with its moment: the line, the speaker, the
-translation, the game, and a picture of the line. Then:
-
-- **Words** lists everything saved, newest first, with the line each came from. Search in
-  Japanese or English, or filter by game and by new, learning, or known.
-- **Study** shows today's reviews and new words (10 new a day by default, in
-  **Settings → Study**), a streak, the last week, and progress per game. A review shows the
-  line with the word marked and its screenshot; press Space to see the answer, then rate how
-  well you knew it (or press 1 to 4). Reviews are scheduled with
-  [FSRS](https://github.com/open-spaced-repetition/py-fsrs), the algorithm Anki uses.
-
-Your words stay on your PC, in `data/words.db`.
-
-### Anki
-
-To study in Anki instead, choose **With Anki** in the welcome screen or in
-**Settings → Study**, and sign in with your [AnkiWeb](https://ankiweb.net) account (free; no
-Anki app needed). Cards go into your collection and sync to AnkiWeb as you add them; review
-them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on any computer once it syncs. Your
-password goes only to AnkiWeb, and Horu keeps the sign-in key it returns in Windows Credential
-Manager. Horu keeps a copy of your collection (without its media) in `data/anki`. Screenshots
-are stored inside the card, so Horu never downloads your media.
-
-
-- **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the
-  word on the front with the line it came from under it; on the back its reading, meaning,
-  grammar notes, translation, and a screenshot. With an AI provider, the meaning and a
-  usage note are written for that line.
-- **Cards** on a line lets the AI pick the words worth learning at your level, skip those
-  already in your deck, and add the rest. It needs a provider that supports tool use (Claude,
-  OpenAI, or an Ollama model such as qwen3).
-- Optionally (off by default), Horu adds cards automatically from every new dialogue line.
-
-- The Study tab shows how many cards are due in your deck, with a button to review them on
-  AnkiWeb. **Words** can add words you saved in Horu to Anki.
-
-The deck is set in **Settings → Study**.
-
-### When Horu gets something wrong
-
-- A line filed wrongly: use its **⋯** menu to treat it as dialogue or other text, or to mark or
-  unmark a speaker name. Corrections are remembered per game.
-- Something else: in the line's **⋯** menu (or **Settings → Help** for the last capture,
-  even one where Horu found nothing), choose **Save debug bundle**. It saves a zip with the
-  screenshot and what Horu made of it, and shows it in Explorer. Look at the screenshot, then
-  attach the zip to an [issue](https://github.com/LukasRuprecht/Horu/issues) with what you
-  expected. Bundles become test cases, so the fix stays fixed.
-- Auto-capture misses lines or reads too often: **Settings → Help → Record auto-capture**, then
-  play for a while with auto-capture on and stop it there (it stops by itself after 20
-  minutes). The recording, in the `debug/recordings` folder, holds what auto-capture saw of
-  the game and each read it set off: a few hundred MB of game screenshots, nothing else from
-  your PC. `uv run python evals/replay.py <folder>` scores it (how many lines were read, how
-  late, how many reads found nothing new) and tries other rules on the same footage.
-
-## What works offline
-
-| Works on your PC, no account or key | Needs something outside your PC |
-|---|---|
-| Capturing and reading the screen (OCR) | The first start's dictionary download (once) |
-| Furigana, word popups, dictionary and grammar notes, JLPT levels | AI translations, explanations, checks of misread lines, AI-made cards: a cloud provider and your own key, or a local Ollama model |
-| Auto-capture, snips, text hookers | AnkiWeb, if you choose it for Anki |
-| Saving words and reviewing them in the Study tab | |
-
-## Privacy
-
-Horu runs on your PC. It has no account, sends no usage data, and keeps what it learns
-(speaker names, corrections, settings, saved words and reviews) in its `data` folder.
-
-Things that leave your PC:
-
-- **Downloads:** the first start fetches the JMdict and JMnedict dictionaries (edrdg.org).
-  The Windows installer has everything else inside it. The script install also fetches uv
-  (astral.sh), Horu (GitHub), Python packages (pypi.org), and the OCR models (modelscope.cn).
-- **AI requests, only if you set up a cloud provider.** These go to the provider you chose,
-  under your own key and their privacy terms:
-  - Translations and explanations send the line, the few dialogue lines before it (for
-    context), and your level.
-  - Checks send a picture of a line, cropped to the line, when OCR wasn't sure of it, and of
-    each new name tag. Turn checks off in **Settings → AI**.
-  - **Re-read with AI** sends a picture of that line.
-  - Making cards sends the line and the words in it.
-  - Speaker labels send the speaker's name, once per name per game.
-
-  Nothing is sent until you set up a provider. With Ollama, everything stays on your PC.
-- **AnkiWeb, only if you choose it for Anki:** signing in, and syncing your collection with
-  ankiweb.net (cards Horu adds, and the due counts in the Study tab).
-
-API keys are stored in Windows Credential Manager, not in a file, and Horu doesn't write
-them to its log. Screenshots are only saved to disk if you turn on `debug.save_captures` in
-`config.toml`, and debug bundles and auto-capture recordings only when you save or start one.
-None of them is ever uploaded by Horu.
-
-What Horu keeps on your PC, all under `%LOCALAPPDATA%\Horu\data` (or `data` in the source
-folder): your settings, saved words with a picture of the line each came from, review
-history, speaker names and corrections per game, translations already made (so a repeated
-line isn't sent again), the downloaded dictionary, a copy of your Anki collection if you use
-AnkiWeb, and `horu.log` (errors from the last two runs). Deleting the folder resets Horu.
-A debug bundle holds a screenshot of your game window and the last lines of that log, which
-can include folder paths with your Windows user name: look inside before you share one.
-
-## Costs
-
-Horu is free, and after the first start's downloads everything except the AI features works
-offline. With a cloud AI provider, each request is billed to your account:
-
-| What | When | Requests |
-|---|---|---|
-| Translation | When you click **Translate**, or each new dialogue line with automatic translation on (lines that appear together share one request) | 1, with a picture of the line if OCR wasn't sure of it |
-| Checks against the screenshot | Lines OCR wasn't sure of, when they aren't translated automatically; other text OCR wasn't sure of (can be turned off) | 1 with an image |
-| Speaker names | Once per new name per game: a check of the name tag and its English | 2 |
-| Explanations and follow-ups | When you ask | 1 each |
-| Cards | When you click **Cards**, or each new dialogue line with automatic cards on | several (the agent looks words up) |
-
-With automatic translation on, expect about one request per new line of dialogue. A line
-already translated in the same game (an NPC repeating themselves, a scene replayed) reuses
-that translation for free. Horu doesn't retry failed requests by itself, and gives up on a
-provider that hasn't answered in 30 seconds: the line shows **Retry** instead. To keep costs
-down, choose a small, cheap model, or use Ollama, which is free. With Claude, Horu asks for low
-effort to keep replies fast and cheap.
-
-## AI providers
-
-AI features are optional. Horu never ships with API keys: bring your own, or run a free local
-model.
-
-Open settings and pick a provider under **AI**:
-
-| Provider | What you need |
-|---|---|
-| **Claude** | An API key from the [Anthropic Console](https://console.anthropic.com/settings/keys). Default model `claude-opus-5-5`. |
-| **OpenAI** | An API key from the [OpenAI dashboard](https://platform.openai.com/api-keys) and a model name. |
-| **Google Gemini** | An API key from [Google AI Studio](https://aistudio.google.com/apikey) and a model name. |
-| **DeepSeek** | An API key from the [DeepSeek platform](https://platform.deepseek.com/api_keys) and a model name, e.g. `deepseek-flash`. |
-| **Ollama** | Free and runs on your PC: install [Ollama](https://ollama.com/download), then download a model from inside Horu. No key. |
-| **Other** | Any OpenAI-compatible server (OpenRouter, LM Studio, ...): its address, model, and key if it needs one. |
-
-**Test** sends a tiny request to check everything works. You can also pick a separate, smaller
-model just for translations. With Claude, Horu turns on Anthropic's server-side refusal
-fallback, so the rare request a model declines is retried on another model instead of failing.
-
-<details>
-<summary>Prefer config files?</summary>
-
-If no provider is chosen in the app, Horu reads the `[ai]` section of `config.toml` (see the
-comments in `config.example.toml`) and API keys from `.env` (copy `.env.example`).
-</details>
-
-### Local models with Ollama
-
-Install [Ollama](https://ollama.com/download), choose **Ollama** in Horu's settings, and use
-the **Download** buttons there, or run `ollama pull <name>` yourself. Suggestions, tested with
-Horu's prompts on game dialogue:
-
-| Use | Model | Download | Notes |
-|---|---|---|---|
-| Translations | [`7shi/gemma-2-jpn-translate:2b-instruct-q8_0`](https://ollama.com/7shi/gemma-2-jpn-translate) | 3.3 GB | Google's Japanese⇄English Gemma fine-tune. Fast (about 0.2 s a line on a GPU) and good for its size. Translation only. |
-| Explanations, 12 GB+ graphics card | [`qwen3:14b`](https://ollama.com/library/qwen3) | 9.3 GB | Strong Japanese. Thinks before answering, so replies start a few seconds later. |
-| Explanations, most PCs | [`gemma3:4b`](https://ollama.com/library/gemma3) or [`qwen3:4b`](https://ollama.com/library/qwen3) | 2.5 to 3.3 GB | Quick, readable answers, but gemma3:4b often got grammar wrong in testing. |
-| Explanations, low-end PCs | [`gemma3:1b`](https://ollama.com/library/gemma3) | 0.8 GB | Runs almost anywhere; basic and sometimes wrong. |
-| Not recommended | [`llama3.2:1b`](https://ollama.com/library/llama3.2) | 1.3 GB | Japanese isn't one of its supported languages; explanations came out garbled. |
-
-A good setup on modest hardware is the translation model for translations plus a 4B model for
-explanations, treating the explanations with some caution. Small models' grammar explanations
-can be confidently wrong; Horu's own word popups (dictionary form and grammar notes) don't use
-AI and are reliable. For trustworthy explanations, use a larger local model or a cloud provider.
-
-## Troubleshooting
-
-- **Captures are black:** switch the game to borderless windowed; exclusive fullscreen often
-  can't be captured.
-- **"Ctrl+Alt+J is taken by another program":** something else (often GPU or peripheral
-  software) owns that shortcut. Choose another in **Settings → Capture**.
-- **The hotkey does nothing in-game:** if the game runs as administrator, Horu must too.
-- **Text is misread or grouped wrongly:** save a debug bundle (see
-  [above](#when-horu-gets-something-wrong)) and open an issue with it.
-- **Horu won't start from its shortcut:** the reason is in `%LOCALAPPDATA%\Horu\data\horu.log`.
-
-## Command line
-
-With the script install or from source, in the Horu folder (`uv run horu <command>`):
-
-- `horu` opens the window. `horu console` prints captured text to the terminal instead.
-- `horu read <image>` reads the Japanese text in a screenshot. `horu snap` saves a capture to
-  `captures/`.
-- `horu reset-learned` forgets what Horu learned while you played: speaker names, auto-read
-  regions, and corrections from a line's menu. Settings, the dictionary, and API keys stay.
-- `horu setup` re-downloads and rebuilds the dictionary.
-- `horu monitors` lists monitors, for the `monitor` and `region` capture modes in `config.toml`.
-- `horu add-screen <bundle.zip> <fixture.json> <name>` adds a debug bundle's screen to the
-  regression tests (for developers).
-
-<details>
-<summary>Capture modes and OCR engines (config.toml)</summary>
-
-`capture.mode`:
-
-- `window` (default): the focused window.
-- `monitor`: a whole monitor.
-- `region`: a fixed box. Useful for a capture-card preview, or to ignore everything but the
-  dialogue box.
-
-`ocr.engine`:
-
-- `rapidocr` (default): PaddleOCR's PP-OCR models on ONNX Runtime. Finds and reads text
-  anywhere on screen, on the CPU: about one to two seconds a screen on a recent desktop CPU,
-  longer while a game is using it. Lines it isn't sure of are read again by two smaller
-  models, and the readings are compared.
-- `manga_ocr`: reads a single block of text, so it needs a tight `region`. Install it with
-  `uv sync --extra manga-ocr` (pulls in PyTorch, ~2 GB).
-</details>
-
-## How it works
-
-```
-Hotkey, auto-capture, or a text hooker
-            │
-            ▼
-        OCR: find every line of text on screen, read it, group it into blocks
-            │   (skipped for hooked text)
-            ▼
-        Local analysis: words, conjugations, furigana, JMdict lookups (instant, offline)
-            │
-            ▼
-        Line history window (clickable words) ◄──► AI translations, explanations, checks (optional)
-            │
-            ▼
-        Saved words ──► Study tab (FSRS reviews), or Anki cards
-```
-
-## Known limitations
-
-- **Windows only**, 64-bit, Windows 10 or 11. The game must run windowed or borderless.
-- **Tested on four games:** Persona 5 Royal, Persona 3 Reload, The Legend of Zelda: Ocarina of
-  Time 3D (in an emulator), and Yakuza 0. Other games will work to the extent their text looks
-  like these: text in a box or as subtitles, written left to right. Vertical text and visual
-  novels haven't been tested with OCR (a [text hooker](#exact-text-from-a-text-hooker) is the
-  better route for visual novels, though that path has had less testing than OCR).
-- **Auto-capture is slower than the game.** Lines appear a few seconds after the game shows
-  them. Lines on screen for under about two seconds are often missed, and in a game that uses
-  much of the CPU Horu may skip screens to keep up. The hotkey is the reliable way to read a
-  particular screen.
-- **Writing in the scenery** (signs, posters) is sometimes shown as dialogue in games that
-  have a lot of it, such as Yakuza 0.
-- **OCR misreads** happen, mostly on stylised or small text. Lines Horu isn't sure of are
-  marked **?**; an AI provider that accepts images can check them.
-- **The installer isn't code-signed**, so Windows SmartScreen warns about it.
-- **No automatic updates:** install a newer release over the old one.
-
-## Reporting problems and contributing
-
-- **A screen Horu read wrongly:** save a debug bundle (a line's **⋯** menu, or **Settings →
-  Help**) and attach it to an [issue](https://github.com/LukasRuprecht/Horu/issues). Look at
-  the screenshot in it first: it shows your game window as it was.
-- **Anything else:** open an issue with what you did, what you expected, and what happened.
-  If Horu was started from its shortcut, `%LOCALAPPDATA%\Horu\data\horu.log` has the error.
-- **Code:** see [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: see
-  [SECURITY.md](SECURITY.md).
-
-## Roadmap
-
-Done: capturing and reading the screen, the line history with furigana and dictionary popups,
-AI translations and explanations, auto-capture and text hooking, studying in Horu and with
-Anki, and a Windows installer.
-
-Next, roughly in this order:
-
-- Faster reads, so auto-capture keeps up in demanding games (not reading again what hasn't
-  changed since the last read).
-- Catching short lines that are gone within a couple of seconds.
-- More games in the regression tests: a visual novel, a game with small subtitles, vertical
-  text.
-- Telling scenery text from dialogue more reliably.
-- Frequency tags and word recommendations.
 
 ## License and credits
 
-Horu's own code is MIT licensed. See [LICENSE](LICENSE). The Windows installer bundles the
-projects below under their own licences; their full texts are installed with it as
+Horu's own code is MIT licensed: see [LICENSE](LICENSE). The installer bundles the projects
+below under their own licences; their full texts are installed with it as
 `THIRD-PARTY-NOTICES.txt`.
 
-Horu isn't affiliated with the makers of any game. This repository holds no game
-screenshots: the pictures its tests watch are drawn by a script, and the screenshot above is
-of Horu's own window, showing two lines it read from a game.
-
-- Dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html) and
-  [JMnedict](https://www.edrdg.org/enamdict/enamdict_doc.html) (names), property of the
+- Dictionary: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html) and
+  [JMnedict](https://www.edrdg.org/enamdict/enamdict_doc.html), property of the
   [Electronic Dictionary Research and Development Group](https://www.edrdg.org/), used under
-  [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). Downloaded on first run, not
-  bundled.
-- Word analysis: [SudachiPy](https://github.com/WorksApplications/sudachi.rs) with
-  [SudachiDict](https://github.com/WorksApplications/SudachiDict) (full), by Works Applications,
-  under the Apache License 2.0.
+  [CC BY-SA 4.0](https://www.edrdg.org/edrdg/licence.html). Downloaded on first start.
+- Word analysis: [SudachiPy](https://github.com/WorksApplications/sudachi.rs) and
+  [SudachiDict](https://github.com/WorksApplications/SudachiDict), Apache 2.0.
 - OCR: [RapidOCR](https://github.com/RapidAI/RapidOCR) running
-  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models, both under the Apache License
-  2.0.
-- Review scheduling: [py-fsrs](https://github.com/open-spaced-repetition/py-fsrs), MIT.
-- AnkiWeb sync: [fastanki](https://github.com/AnswerDotAI/fastanki), Apache 2.0.
-- Tray icon and hotkey: [pystray](https://github.com/moses-palmer/pystray) and
-  [pynput](https://github.com/moses-palmer/pynput), LGPL 3.0.
-- Window: [pywebview](https://github.com/r0x0r/pywebview) (BSD) on Microsoft Edge WebView2.
-- Running the models: [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT) and
+  [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) models, Apache 2.0, on
+  [ONNX Runtime](https://github.com/microsoft/onnxruntime) (MIT) and
   [OpenCV](https://github.com/opencv/opencv) (Apache 2.0).
+- Reviews: [py-fsrs](https://github.com/open-spaced-repetition/py-fsrs), MIT. AnkiWeb sync:
+  [fastanki](https://github.com/AnswerDotAI/fastanki), Apache 2.0.
+- Window: [pywebview](https://github.com/r0x0r/pywebview), BSD. Tray icon and hotkey:
+  [pystray](https://github.com/moses-palmer/pystray) and
+  [pynput](https://github.com/moses-palmer/pynput), LGPL 3.0.
 - JLPT levels: [open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks)
   (MIT), based on Jonathan Waller's JLPT lists ([tanos.co.uk](https://www.tanos.co.uk/jlpt/),
   CC BY).
 - Fonts: [DM Sans](https://github.com/googlefonts/dm-fonts) and
-  [Noto Sans JP](https://github.com/notofonts/noto-cjk), under the SIL Open Font License
-  (bundled in `src/horu/ui/fonts`).
+  [Noto Sans JP](https://github.com/notofonts/noto-cjk), SIL Open Font License.
+
+Horu isn't affiliated with the makers of any game. This repository holds no game
+screenshots: the pictures its tests watch are drawn by a script, and the screenshot above is
+of Horu's own window.

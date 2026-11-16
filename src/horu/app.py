@@ -169,6 +169,10 @@ class Api:
         ai_setup.save_key(preset, key.strip())
         return self._app.apply_ai()
 
+    def suggest_model(self, preset: str) -> str:
+        """The model to use with this provider's saved key, when its preset doesn't name one."""
+        return ai_setup.suggest_model(preset)
+
     def ollama_models(self) -> dict:
         return ai_setup.ollama_models()
 

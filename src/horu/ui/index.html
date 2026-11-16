@@ -449,30 +449,31 @@
       </div>
 
       <div class="welcome-step" data-step="3" hidden>
-        <h2>Add AI? (optional)</h2>
-        <p>Translations, grammar breakdowns and fixes for misread lines use an AI model: a cloud provider with
-          your own API key, or a free model running on this PC with Ollama. Everything else works without it.</p>
-        <label class="field">
+        <h2>Horu is much better with AI</h2>
+        <p>With an AI model, every new line is translated, you can ask what a line means and why, and
+          text OCR misread gets fixed. Without one you still get furigana and the dictionary.</p>
+        <p>Google's Gemini API has a free tier, so this can cost nothing:</p>
+        <ol class="welcome-ai-steps">
+          <li><button id="welcome-key-link" class="link" type="button">Get a free Gemini API key</button>
+            (sign in with a Google account, then <b>Create API key</b>).</li>
+          <li>Paste it here, then click <b>Finish</b>.</li>
+        </ol>
+        <div id="welcome-ai-other" class="field" hidden>
           <span>Provider</span>
           <select id="welcome-ai-provider"></select>
-        </label>
-        <div id="welcome-ai-key-row" class="field" hidden>
-          <span>API key</span>
-          <input id="welcome-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
-          <div class="field-hint">
-            <button id="welcome-key-link" class="link" type="button">Get a key</button>
-          </div>
         </div>
+        <label class="field">
+          <span id="welcome-key-label">Gemini API key</span>
+          <input id="welcome-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+        </label>
         <label id="welcome-ai-model-row" class="field" hidden>
           <span>Model</span>
-          <input id="welcome-ai-model" type="text" list="ai-model-list" placeholder="Model name" spellcheck="false">
+          <input id="welcome-ai-model" type="text" list="ai-model-list" placeholder="Model name, e.g. from the provider's docs" spellcheck="false">
         </label>
-        <div id="welcome-ai-check-row" class="test-row" hidden>
-          <button id="welcome-ai-check" type="button">Check it works</button>
-          <span id="welcome-ai-status" class="test-result"></span>
-        </div>
-        <p id="welcome-ai-note" class="check-hint flush">Cloud providers bill each request to your own account.
-          You can change this any time in Settings → AI.</p>
+        <p id="welcome-ai-status" class="test-result"></p>
+        <p class="check-hint flush">On Gemini's free tier, Google may use what Horu sends (lines of game text, and
+          pictures of lines OCR wasn't sure of) to improve its products, and there are daily limits. With billing
+          turned on, it doesn't, and the limits are higher. <button id="welcome-ai-other-link" class="link" type="button">Use Claude, OpenAI or DeepSeek instead</button></p>
       </div>
 
       <footer class="welcome-actions">

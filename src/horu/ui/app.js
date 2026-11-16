@@ -23,8 +23,8 @@ const POS_LABEL = { "na-adjective": "な-adjective", "pre-noun": "pre-noun adjec
 const DISPLAY_DEFAULTS = { textSize: 26, furiganaScale: 0.5 };
 const AI_SETUP_HINT =
   "AI explanations need a provider. Open settings (the sliders button, top right) and choose " +
-  "one under AI: a cloud provider with your own API key, or Ollama to run a free model " +
-  "on this PC. Dictionary lookups keep working without it.";
+  "one under AI, with your own API key: Google Gemini has a free tier. Dictionary lookups " +
+  "keep working without it.";
 
 function api() {
   return window.pywebview && window.pywebview.api;
@@ -1375,8 +1375,16 @@ $("#ai-key-save").addEventListener("click", async () => {
   const id = $("#ai-provider").value;
   const info = await api().save_api_key(id, input.value);
   input.value = "";
-  // Make sure the provider choice is saved too, then refresh what's shown.
-  saveAI({ aiProvider: id });
+  // Make sure the provider choice is saved too, then refresh what's shown. A provider whose
+  // model names change often (Gemini) gets its newest suitable model, if none is filled in.
+  const preset = aiSetup.settings.presets[id] || {};
+  if (preset.suggest && !$("#ai-model").value.trim()) {
+    const model = await api().suggest_model(id);
+    if (model) {
+      $("#ai-model").value = model;
+      saveAI({ aiProvider: id, aiModel: model });
+    } else saveAI({ aiProvider: id });
+  } else saveAI({ aiProvider: id });
   horu.setAI(info);
   await loadAISettings();
 });
@@ -1994,104 +2002,93 @@ $("#welcome-deck").addEventListener("change", () => {
   refreshAnkiSetups();
 });
 
-// The last step: a provider, its key, and a model, set up right here. Ollama (models to
-// download) and other servers (an address to fill in) are finished in Settings → AI.
-const NEEDS_SETTINGS = new Set(["ollama", "custom"]);
+// The last step: a Gemini key (free tier), or another cloud provider's. The model is picked
+// for Gemini (its names change often); for the others it's the preset's or typed in.
+const WELCOME_PROVIDERS = ["gemini", "anthropic", "openai", "deepseek"];
 
 async function renderWelcomeAI() {
   if (!aiSetup.settings) await loadAISettings();
   const s = aiSetup.settings;
   const select = $("#welcome-ai-provider");
   if (!select.options.length) {
-    select.replaceChildren(...Object.entries(s.presets).map(([id, p]) => {
-      const option = el("option", null, id === "none" ? "Not now" : p.label);
+    select.replaceChildren(...WELCOME_PROVIDERS.filter((id) => s.presets[id]).map((id) => {
+      const option = el("option", null, s.presets[id].label);
       option.value = id;
       return option;
     }));
-    select.value = state.ai.enabled ? s.provider || "none" : "none";
-    $("#welcome-ai-model").value = state.ai.enabled ? s.model : "";
+    select.value = WELCOME_PROVIDERS.includes(s.provider) && state.ai.enabled ? s.provider : "gemini";
+    $("#welcome-ai-model").value = select.value === s.provider ? s.model : (s.presets[select.value] || {}).model || "";
+    $("#welcome-ai-other").hidden = select.value === "gemini";
   }
   const id = select.value;
   const preset = s.presets[id] || {};
-  const on = id !== "none";
-  const needsKey = Boolean(preset.key_env);
-  $("#welcome-ai-key-row").hidden = !needsKey;
-  $("#welcome-key-link").hidden = !preset.key_url;
+  $("#welcome-key-label").textContent = `${preset.label} API key`;
   $("#welcome-key").placeholder = s.savedKeys.includes(id) ? "Key saved. Paste a new one to replace it" : "Paste your key";
-  $("#welcome-ai-model-row").hidden = !on || NEEDS_SETTINGS.has(id);
-  $("#welcome-ai-check-row").hidden = !on || NEEDS_SETTINGS.has(id);
-  $("#welcome-ai-note").textContent = NEEDS_SETTINGS.has(id)
-    ? `${preset.label}: Finish opens Settings → AI to ${id === "ollama" ? "download a model" : "fill in the server's address and model"}.`
-    : on ? "Requests are billed to your own account with the provider. You can change this any time in Settings → AI."
-      : "You can set up AI any time in Settings → AI.";
+  $("#welcome-key-link").textContent = id === "gemini" ? "Get a free Gemini API key" : `Get a ${preset.label} API key`;
+  $("#welcome-ai-model-row").hidden = Boolean(preset.suggest);
+  if (state.ai.enabled && !$("#welcome-ai-status").textContent) {
+    $("#welcome-ai-status").className = "test-result ok";
+    $("#welcome-ai-status").textContent = `AI is on: ${state.ai.label}.`;
+  }
 }
 
+$("#welcome-ai-other-link").addEventListener("click", () => {
+  $("#welcome-ai-other").hidden = false;
+  $("#welcome-ai-provider").focus();
+});
 $("#welcome-ai-provider").addEventListener("change", () => {
   const s = aiSetup.settings;
   const id = $("#welcome-ai-provider").value;
-  $("#welcome-ai-model").value = (s.presets[id] || {}).model || (id === s.provider ? s.model : "");
+  $("#welcome-ai-model").value = id === s.provider ? s.model : (s.presets[id] || {}).model || "";
   $("#welcome-ai-status").textContent = "";
   renderWelcomeAI();
-});
-
-// Saves what's filled in. With `check`, also sends a tiny request. True when AI works.
-async function applyWelcomeAI(check) {
-  const id = $("#welcome-ai-provider").value;
-  const status = $("#welcome-ai-status");
-  const key = $("#welcome-key").value.trim();
-  if (key) {
-    await api().save_api_key(id, key);
-    $("#welcome-key").value = "";
-  }
-  const changes = { aiProvider: id };
-  if (!NEEDS_SETTINGS.has(id)) changes.aiModel = $("#welcome-ai-model").value.trim();
-  const info = await api().set_ai(changes);
-  horu.setAI(info);
-  await loadAISettings();
-  renderWelcomeAI();
-  if (!info.enabled) {
-    status.className = "test-result error";
-    status.textContent = info.error || "That didn't work.";
-    return false;
-  }
-  if (!check) return true;
-  status.className = "test-result";
-  status.textContent = "Checking...";
-  const result = await api().test_ai();
-  status.className = `test-result ${result.ok ? "ok" : "error"}`;
-  status.textContent = result.ok ? `Working: ${info.label}.` : result.message;
-  return result.ok;
-}
-
-$("#welcome-ai-check").addEventListener("click", () => applyWelcomeAI(true));
-$("#welcome-key").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") applyWelcomeAI(true);
 });
 $("#welcome-key-link").addEventListener("click", () => {
   const preset = aiSetup.settings.presets[$("#welcome-ai-provider").value];
   if (preset && preset.key_url) openExternal(preset.key_url);
 });
 
-async function finishWelcome() {
+// Saves the key, picks or takes the model, and sends a tiny request. True when AI works.
+async function applyWelcomeAI() {
   const id = $("#welcome-ai-provider").value;
-  if (id === "none") {
-    closeWelcome();
-    showView("read");
-    return;
+  const preset = aiSetup.settings.presets[id] || {};
+  const status = $("#welcome-ai-status");
+  const key = $("#welcome-key").value.trim();
+  status.className = "test-result";
+  status.textContent = "Checking your key...";
+  if (key) {
+    await api().save_api_key(id, key);
+    $("#welcome-key").value = "";
   }
-  if (NEEDS_SETTINGS.has(id)) {
-    await applyWelcomeAI(false);
-    closeWelcome();
-    showView("settings");
-    showPane("ai");
-    return;
+  let model = $("#welcome-ai-model").value.trim();
+  if (preset.suggest) model = (await api().suggest_model(id)) || model;
+  const info = await api().set_ai({ aiProvider: id, aiModel: model });
+  horu.setAI(info);
+  await loadAISettings();
+  if (!info.enabled) {
+    status.className = "test-result error";
+    status.textContent = preset.suggest && !model
+      ? "That key didn't work, or Horu couldn't reach Google. Check the key and try again."
+      : info.error || "That didn't work.";
+    return false;
   }
-  // A problem with the key or model is shown here, to fix (or Skip) before leaving.
-  if (await applyWelcomeAI(false)) {
-    closeWelcome();
-    showView("read");
-  }
+  const result = await api().test_ai();
+  status.className = `test-result ${result.ok ? "ok" : "error"}`;
+  status.textContent = result.ok ? `Working: ${info.label}.` : result.message;
+  return result.ok;
 }
+
+$("#welcome-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") applyWelcomeAI();
+});
+
+async function finishWelcome() {
+  // Nothing typed: Finish leaves AI for later (or as it is, if it's already set up).
+  if ($("#welcome-key").value.trim() && !(await applyWelcomeAI())) return;  // a problem shows here, to fix or Skip
+  closeWelcome();
+  showView("read");
+}
+
 $("#welcome-back").addEventListener("click", () => { welcome.step = Math.max(0, welcome.step - 1); renderWelcome(); });
 $("#welcome-next").addEventListener("click", () => {
   if (welcome.step === 3) {
