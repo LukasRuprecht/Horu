@@ -22,11 +22,13 @@ can ask what a line means and why. Google's Gemini API has a free tier:
 
 On the free tier there are daily limits, and Google may use what you send to improve its
 products. Turning on billing for the key changes both. Claude, OpenAI and DeepSeek keys work
-too.
+too. Or skip the key and use [Ollama](https://ollama.com/download), which is free and runs a
+model on your PC so nothing leaves it: choose it later in **Settings → AI** and download one of
+the models suggested there.
 
 ## 3. The welcome
 
-Start Horu. The first time, it downloads its dictionary (about 25 MB; the line at the top of
+Start Horu. The first time, it downloads its dictionaries (about 23 MB; the line at the top of
 the window shows the progress). Then a short welcome takes you through four steps.
 
 <img src="images/qs-welcome-study.png" width="420" alt="The welcome's first step: study in Horu or with Anki">

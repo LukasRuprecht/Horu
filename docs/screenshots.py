@@ -1,6 +1,8 @@
-"""Takes the quick start guide's screenshots (docs/images/qs-*.png) from the real app.
+"""Takes the quick start guide's screenshots (docs/images/qs-*.png) and the README's top
+picture (docs/images/hero.png) from the real app.
 
-    uv run python docs/screenshots.py
+    uv run python docs/screenshots.py              # all of them
+    uv run python docs/screenshots.py hero popup   # only these (names without "qs-")
 
 Runs Horu from source in a scratch folder (your own data isn't touched) and has it read a
 stand-in game screen: tests/fixtures/screen_line.png, a made-up scene drawn by
@@ -82,7 +84,20 @@ def mark(image: Image.Image, spots: list[tuple[int, float, float]]) -> Image.Ima
     return image
 
 
+def hero(window: Image.Image, game: Image.Image) -> Image.Image:
+    """The made-up game scene and Horu's window side by side, on a dark backdrop."""
+    height = window.height
+    game = game.resize((round(game.width * height / game.height), height), Image.LANCZOS)
+    pad, gap = 28, 28
+    canvas = Image.new("RGB", (pad + game.width + gap + window.width + pad, pad + height + pad), (11, 12, 16))
+    for picture, x in ((game, pad), (window, pad + game.width + gap)):
+        ImageDraw.Draw(canvas).rectangle((x - 1, pad - 1, x + picture.width, pad + height), outline=(52, 56, 66))
+        canvas.paste(picture, (x, pad))
+    return canvas
+
+
 def main() -> None:
+    only = set(sys.argv[1:])  # names to take; all if none
     home = Path(tempfile.mkdtemp(prefix="horu-shots-"))
     (home / "data").mkdir()
     dictionary = Path(os.environ["LOCALAPPDATA"]) / "Horu" / "data" / "jmdict.sqlite"
@@ -127,6 +142,8 @@ def main() -> None:
 
             def shot(name: str, marks: list[tuple[int, str]] = (), where: str = "below", crop_to: str | None = None, pad: tuple = (10, 10, 10, 10)) -> None:
                 """Marks go just below (or above) each button, not over it."""
+                if only and name not in only:
+                    return
                 time.sleep(0.8)
                 image = window_picture(hwnd)
                 spots = []
@@ -162,6 +179,14 @@ def main() -> None:
             app._requests.put_auto(horu_app.AutoRead(game_picture(), "MyGame.exe"))
             time.sleep(9)  # read, then translated
             js("document.querySelectorAll('.translation').forEach(r => r.dataset.reveal = 'true')")
+            if not only or "hero" in only:
+                # Horu's window down to just below the capture, beside the screen it read.
+                time.sleep(0.8)
+                bottom = rect(".capture")[3] + 18
+                window = window_picture(hwnd)
+                window = window.crop((0, 0, window.width, min(window.height, round(bottom * dpr))))
+                hero(window, game_picture()).save(OUT / "hero.png", optimize=True)
+                print("saved hero", flush=True)
             shot("read", [(1, "#toggle-auto"), (2, "#snip"), (3, "#toggle-furigana"), (4, "#toggle-screen"), (5, "#toggle-top"),
                           (6, "#clear"), (7, "#game-chip"), (8, "#hotkey-chip"), (9, "#open-settings")])
             # The line's own buttons, close up.

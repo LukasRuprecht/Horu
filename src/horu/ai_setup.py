@@ -32,7 +32,7 @@ PRESETS: dict[str, dict] = {
         "label": "Claude",
         "kind": "anthropic",
         "key_env": "ANTHROPIC_API_KEY",
-        "model": "claude-opus-5-5",
+        "model": "claude-sonnet-5-5",  # the default: translating every line on Opus adds up
         "key_url": "https://console.anthropic.com/settings/keys",
     },
     "openai": {

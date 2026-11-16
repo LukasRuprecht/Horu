@@ -119,3 +119,8 @@ def test_dedicated_translator_gets_a_bare_prompt():
         ("", [{"role": "user", "content": "Translate Japanese to English."}, {"role": "assistant", "content": "OK"}], 0),
         "行ったら家賃も安くなる",
     ]
+
+
+def test_claude_defaults_to_sonnet():
+    # Translating every new line on Opus costs far more, for little difference here.
+    assert ai_setup.PRESETS["anthropic"]["model"] == "claude-sonnet-5-5"

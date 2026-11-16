@@ -23,8 +23,11 @@ git clone https://github.com/LukasRuprecht/Horu.git
 cd Horu
 uv sync
 uv run horu          # the app
-uv run pytest        # the tests (the first run downloads the OCR models, about 100 MB)
+uv run pytest        # the tests (offline: they need no models or dictionaries)
 ```
+
+The first start downloads the dictionaries (JMdict and JMnedict, about 23 MB) and the OCR
+models (about 110 MB; the Windows installer has these inside it instead).
 
 Horu keeps its settings and data in the folder it runs from (`config.toml`, `data/`), so a
 source checkout doesn't touch an installed Horu's data.

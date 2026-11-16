@@ -111,4 +111,4 @@ if (-not $NoShortcuts) {
 Write-Host ""
 Write-Host "Horu is installed in $Dir." -ForegroundColor Green
 if (-not $NoShortcuts) { Write-Host "Start it from the Start menu or the desktop shortcut." }
-Write-Host "The first start downloads the dictionary and OCR models (about 150 MB)."
+Write-Host "The first start downloads the dictionaries and OCR models (about 135 MB)."

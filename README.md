@@ -1,16 +1,16 @@
 # Horu
 
 A Japanese study buddy for video games. Press a hotkey while you play, and Horu reads the
-Japanese on screen and shows it in a side window, Language Reactor style: furigana over the
-kanji, words colour-coded by part of speech, and a click on any word for its dictionary form,
-grammar (conjugations like 〜たら or 〜てしまう), and meaning. Add an AI model (Google's Gemini
-has a free tier) and every line is translated and explained in context. Save the words you
-want to learn and review them in Horu, with the screenshot each came from, or send them to
-Anki.
+Japanese on screen and shows it in a side window, in the style of Language Reactor or Satori
+Reader: furigana over the kanji, words colour-coded by part of speech, and a click on any word
+for its dictionary form, grammar (conjugations like 〜たら or 〜てしまう), and meaning. Add an AI
+model (Google's Gemini has a free tier) and every line is translated and explained in context.
+Save the words you want to learn and review them in Horu, with the screenshot each came from,
+or send them to Anki.
 
 The goal is to cut lookup time so you can stay in the game.
 
-![Horu beside a game: two lines of dialogue with furigana, and a word's dictionary popup](docs/images/horu-window.png)
+![A made-up game scene beside Horu's window, which shows the line it read with furigana and its translation](docs/images/hero.png)
 
 > **Horu 0.1 is the first public release.** Windows 10 and 11 only. It has been played with
 > on four games so far, so expect rough edges on others: see
@@ -58,12 +58,18 @@ learning from a line and turn them into cards.
 
 Two things to know about Gemini's free tier: there are daily request limits (when you reach
 them, translations show **Retry** until the limit resets), and Google may use what you send
-to improve its products. Turning on billing for the key removes both concerns, and Flash
-models cost very little per line.
+to improve its products. Turning on billing for the key changes both: Google no longer uses
+what you send, and the limits are much higher. Flash models cost very little per line.
 
 **Other providers:** Claude (Anthropic), OpenAI and DeepSeek work too, each with your own API
-key and billed by them. Choose one in **Settings → AI**, paste the key, and fill in a model
-name. **Test** checks that it works.
+key and billed by them. Choose one in **Settings → AI** and paste the key. Claude comes set to
+Claude Sonnet; for OpenAI and DeepSeek, fill in the model name from their docs. **Test** checks
+that it works.
+
+**Ollama** is free and runs on your PC, so nothing leaves your computer. Install
+[Ollama](https://ollama.com/download), choose it in **Settings → AI**, and download one of the
+tested models Horu suggests there. Small local models translate well but explain grammar less
+reliably than the cloud ones.
 
 What Horu sends, and when, is listed under [privacy](#privacy).
 
@@ -133,7 +139,8 @@ only thing it downloads is the dictionary, once (from edrdg.org).
 - the line you ask about, with your level, for **Explain** and follow-up questions;
 - a line and its words, when making cards.
 
-On Gemini's free tier, Google may use this to improve its products.
+On Gemini's free tier, Google may use this to improve its products. With Ollama, nothing is
+sent anywhere: the model runs on your PC.
 
 **With AnkiWeb**, your password goes only to AnkiWeb, and cards sync to your account.
 
@@ -193,7 +200,8 @@ uv run pytest        # the tests
 ```
 
 The first run creates `config.toml` from `config.example.toml` (the capture hotkey, capture
-mode, OCR engine). `install.ps1` installs from source with uv instead of the installer.
+mode, OCR engine), and downloads the dictionaries (about 23 MB) and OCR models (about
+110 MB). `install.ps1` installs from source with uv instead of the installer.
 
 Commands (`uv run horu <command>`): `console` prints captured text to the terminal, `read
 <image>` reads a screenshot, `snap` saves a capture, `reset-learned` forgets speaker names,
@@ -231,5 +239,4 @@ below under their own licences; their full texts are installed with it as
   [Noto Sans JP](https://github.com/notofonts/noto-cjk), SIL Open Font License.
 
 Horu isn't affiliated with the makers of any game. This repository holds no game
-screenshots: the pictures its tests watch are drawn by a script, and the screenshot above is
-of Horu's own window.
+screenshots: the game scenes in its pictures and tests are drawn by a script.
