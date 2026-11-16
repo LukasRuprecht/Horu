@@ -232,7 +232,7 @@ function renderCapture(capture) {
   const card = el("section", "capture");
   const head = el("header", "capture-head");
   const count = capture.lines.length === 1 ? "1 line" : `${capture.lines.length} lines`;
-  const label = capture.hooked ? "Hooked" : capture.snip ? "Snip" : `Capture ${++capturesShown}`;
+  const label = capture.snip ? "Snip" : `Capture ${++capturesShown}`;
   head.append(el("span", "capture-num", label), el("span", null, capture.time), el("span", null, count));
   if (capture.snip) card.classList.add("show-other"); // asked for: nothing folded away
   card.append(head);
@@ -290,7 +290,7 @@ function openLineMenu(anchor, line, row) {
   } else if (line.text.length <= 10) {
     items.push([`「${line.text}」 is a speaker name`, () => mark(line, row, "speaker")]);
   }
-  if (state.ai.enabled && line.kind === "dialogue" && !line.hooked) {
+  if (state.ai.enabled && line.kind === "dialogue") {
     items.unshift(["Re-read with AI", () => reread(line, row)]);
   }
   if (line.capture) {
@@ -1243,8 +1243,6 @@ const FIELDS = [
   ["#apply-ai-readings", "applyAiReadings", true],
   ["#blur-translations", "blurTranslations", true],
   ["#learner-level", "learnerLevel", ""],
-  ["#hook-source", "hookSource", ""],
-  ["#hook-url", "hookUrl", "ws://127.0.0.1:6677"],
   ["#study-with", "studyWith", "horu"],
   ["#new-per-day", "newPerDay", 10],
 ];
@@ -1257,7 +1255,6 @@ function applyFields() {
     else if (document.activeElement !== input) input.value = value;
   }
   document.body.classList.toggle("blur-translations", state.prefs.blurTranslations ?? true);
-  $("#hook-url-row").hidden = state.prefs.hookSource !== "websocket";
   $("#study-with").value = state.prefs.studyWith || "horu"; // "": not chosen yet, which works like Horu
 }
 
@@ -1617,7 +1614,6 @@ function checkAnki() {
 
 async function loadFromPython() {
   state.prefs = await api().get_prefs();
-  horu.setHookState(await api().hook_state());
   showHotkey(await api().hotkey_info());
   applyAllPrefs();
   if (!state.prefs.welcomeDone) openWelcome();
@@ -2208,14 +2204,6 @@ window.horu = {
   // Hotkey captures keep finding dialogue in the same place: offer to auto-read it.
   showHotkey(info) {
     if (!recordingHotkey) showHotkey(info);
-  },
-
-  setHookState({ state: hookState, message }) {
-    const status = $("#hook-status");
-    status.hidden = hookState === "off";
-    status.textContent = message;
-    status.classList.toggle("ok", hookState === "listening");
-    status.classList.toggle("error", hookState === "error");
   },
 
   // The game window this session captures (null: the next one the hotkey is pressed in).

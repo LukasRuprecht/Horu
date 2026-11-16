@@ -22,7 +22,7 @@ from pathlib import Path
 
 from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, reads, recorder, snip, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
-from horu.text_sources import hook, rapidocr_source
+from horu.text_sources import rapidocr_source
 from horu.text_sources.vote import _SIZES, edit_distance
 from horu.tutor import Line, Tutor, clean_reading, numbered_lines
 
@@ -69,8 +69,6 @@ _GUESSES_KEPT = 50
 # what OCR was unsure of and speaker names. Requests the learner asks for don't wait.
 _AUTO, _BACKGROUND = 1, 2
 _AI_WORKERS = 2
-# Text hookers' own windows: a line copied while one is in front belongs to the game before.
-_HOOKERS = {"textractor.exe", "lunatranslator.exe", "lunahost32.exe", "lunahost64.exe", "agent.exe", "ith.exe"}
 
 
 @dataclasses.dataclass
@@ -88,14 +86,6 @@ class Snip:
     """A box the learner dragged on screen: read like a capture, and translated once."""
 
     image: object  # PIL image of the box
-    game: str
-
-
-@dataclasses.dataclass
-class HookedText:
-    """A line a text hooker sent."""
-
-    text: str
     game: str
 
 
@@ -239,13 +229,8 @@ class Api:
             self._app.window.on_top = bool(value)
         elif key == "hideFromCapture":
             self._app.apply_capture_exclusion()
-        elif key in ("hookSource", "hookUrl"):
-            self._app.apply_hook()
         elif key == "autoCapture" and self._app._tray:
             self._app._tray.refresh()
-
-    def hook_state(self) -> dict:
-        return self._app.hook_state
 
     def hotkey_info(self) -> dict:
         return self._app.hotkey_info()
@@ -378,8 +363,6 @@ class App:
         self._closing = False
         self._idle = threading.Event()  # clear while the worker handles a request
         self._idle.set()
-        self._hook: hook.Listener | None = None
-        self.hook_state = {"state": "off", "message": ""}
         self._ids = itertools.count(1)
         self._capture_ids = itertools.count(1)
         self._page_loaded = threading.Event()
@@ -420,8 +403,6 @@ class App:
             self._tray.stop()
         if self._stop_hotkey:
             self._stop_hotkey()
-        if self._hook:
-            self._hook.stop()
         # Let a capture in hand finish writing what it learnt (speaker names, text sizes).
         self._idle.wait(_CLOSE_WAIT)
 
@@ -1054,10 +1035,7 @@ class App:
                 return
             self._idle.clear()
             try:
-                if isinstance(request, HookedText):
-                    self._show_hooked(request)
-                else:
-                    self._capture(request)
+                self._capture(request)
             except Exception as e:  # keep the app alive; show what went wrong
                 traceback.print_exc()
                 self._status("error", f"Capture failed: {e}")
@@ -1101,7 +1079,6 @@ class App:
             with rapidocr_source.download_progress(ocr_progress):
                 self._source = text_sources.create(self.cfg.ocr_engine)
             self.apply_ai()  # AI is optional: problems are reported in settings, not fatal
-            self.apply_hook()
             if self.anki_web.signed_in:
                 self.anki_web.sync_soon(delay=0)
         except Exception as e:
@@ -1385,63 +1362,6 @@ class App:
         if line["uncertain"] and self._can_check(last_id):
             self._jobs.put(_BACKGROUND, lambda: self._check_lines([last_id], []))
         return True
-
-    # --- text hookers ------------------------------------------------------------------
-
-    def apply_hook(self) -> None:
-        """Listen to the text hooker chosen in settings (or stop listening)."""
-        if self._hook:
-            self._hook.stop()
-            self._hook = None
-        source = self.prefs.values["hookSource"]
-        if source == "clipboard":
-            self._hook = hook.ClipboardListener(self._hooked, self._set_hook_state, ignore=capture.focused_window_is_own)
-        elif source == "websocket":
-            url = self.prefs.values["hookUrl"].strip() or hook.DEFAULT_URL
-            self._hook = hook.WebSocketListener(self._hooked, self._set_hook_state, url)
-        else:
-            self._set_hook_state("off", "")
-            return
-        self._hook.start()
-
-    def _hooked(self, text: str) -> None:
-        """A line from the hooker (on its thread): shown in turn with captures."""
-        self._requests.put(HookedText(text, self._hook_game()))
-
-    def _hook_game(self) -> str:
-        """The game a hooked line came from: the program in front, unless that's Horu or the
-        hooker (whose own window may be in front); then the game last captured."""
-        if not capture.focused_window_is_own():
-            name = capture.focused_process_name()
-            if name and name.lower() not in _HOOKERS:
-                return name
-        return self._game_window[1] if self._game_window else corrections.DEFAULT_GAME
-
-    def _set_hook_state(self, state: str, message: str) -> None:
-        self.hook_state = {"state": state, "message": message}
-        self._call("setHookState", self.hook_state)
-        if state == "error":
-            self._status("error", message)
-
-    def _show_hooked(self, request: HookedText) -> None:
-        """Show a hooked line as dialogue. The hooker's text is exact, so there's nothing to
-        check, and a line already shown recently (hookers often send one twice) is skipped."""
-        hooked = hook.parse(request.text)
-        if hooked is None or any(hooked.text == text for text, _ in self.recent):
-            return
-        game = request.game
-        block = layout.TextBlock((text_sources.TextLine(hooked.text, (0, 0, 0, 0)),), speaker=hooked.speaker)
-        line = self._line(block, game=game)
-        line["game"], line["hooked"] = game, True
-        if line["speaker"]:
-            line["speaker"]["english"] = self.speaker_english(game, hooked.speaker)
-        self.recent.append((hooked.text, line["id"]))
-        self.lines[line["id"]] = line
-        remembered = bool(self._provider) and self.prefs.values["autoTranslate"] and self._remembered(line)
-        self._call("addCapture", {"id": next(self._capture_ids), "time": time.strftime("%H:%M:%S"), "lines": [line], "auto": True, "hooked": True})
-        if self.prefs.values["autoTranslate"] and self._provider and not remembered:
-            self.translate(line["id"], priority=_AUTO)
-        self._auto_cards([line["id"]])
 
     # --- auto-capture ------------------------------------------------------------------
 

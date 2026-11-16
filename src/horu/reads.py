@@ -1,6 +1,6 @@
 """The reads waiting their turn: one is done at a time, and a read can take seconds.
 
-What the player asks for (the hotkey, a snip) and lines from a text hooker go first, in order.
+What the player asks for (the hotkey, a snip) goes first, in order.
 Automatic reads wait behind them, each with the picture taken when it was set off, so a line
 that has left the screen by its turn is still read. Two things keep them from piling up when
 reads are slower than the game sets them off:
@@ -31,7 +31,7 @@ class ReadQueue:
         self._changed = threading.Condition()
 
     def put(self, request: object) -> None:
-        """A read the player asked for, or a hooker's line: ahead of every automatic read."""
+        """A read the player asked for: ahead of every automatic read."""
         with self._changed:
             self._asked.append(request)
             self._changed.notify()

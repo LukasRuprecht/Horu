@@ -1,4 +1,4 @@
-"""Text sources turn a captured image (or a game hook) into Japanese text."""
+"""Text sources turn a captured image into Japanese text."""
 
 from __future__ import annotations
 

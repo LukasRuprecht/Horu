@@ -1,10 +1,14 @@
 # Horu
 
-Read Japanese games in Japanese. Press a hotkey while you play, and Horu reads the text on
-screen and shows it in a window beside the game: furigana over the kanji, and a click on any
-word for its reading, meaning and grammar. With an AI model it also translates each line and
-explains it when you're stuck. Save the words you want to keep and review them later, with
-the screenshot each one came from.
+A Japanese study buddy for video games. Press a hotkey while you play, and Horu reads the
+Japanese on screen and shows it in a side window, Language Reactor style: furigana over the
+kanji, words colour-coded by part of speech, and a click on any word for its dictionary form,
+grammar (conjugations like 〜たら or 〜てしまう), and meaning. Add an AI model (Google's Gemini
+has a free tier) and every line is translated and explained in context. Save the words you
+want to learn and review them in Horu, with the screenshot each came from, or send them to
+Anki.
+
+The goal is to cut lookup time so you can stay in the game.
 
 ![Horu beside a game: two lines of dialogue with furigana, and a word's dictionary popup](docs/images/horu-window.png)
 
@@ -87,14 +91,6 @@ up menus or signs, **Settings → Capture → Edit regions…** limits it to the
 
 The snip button lets you drag a box around any text on screen (a sign, a menu) to read just
 that, once, and translate all of it if you have AI set up.
-
-### Text hookers
-
-For games a text hooker such as [Textractor](https://github.com/Artikash/Textractor) can read
-(visual novels above all), Horu can take each line straight from the hooker instead of OCR,
-so nothing is misread. Set it up in **Settings → Text hooker**, through the clipboard or a
-WebSocket (`ws://127.0.0.1:6677` by default, for Textractor with the
-[textractor_websocket](https://github.com/kuroahna/textractor_websocket) extension).
 
 ### Studying in Horu
 

@@ -34,7 +34,7 @@ source checkout doesn't touch an installed Horu's data.
 | Path | What |
 |---|---|
 | `src/horu/app.py` | The window's backend: captures, the line history, AI requests |
-| `src/horu/text_sources/` | OCR (RapidOCR) and text hookers |
+| `src/horu/text_sources/` | OCR (RapidOCR) |
 | `src/horu/layout.py` | Grouping OCR lines into dialogue, speakers, and other text |
 | `src/horu/autocapture.py`, `reads.py` | Noticing new text, and the queue of reads |
 | `src/horu/nlp/`, `dictionary.py` | Words, conjugations, furigana, JMdict lookups |

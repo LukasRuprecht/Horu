@@ -12,7 +12,6 @@ The first public release, for Windows 10 and 11.
   are done one at a time; when the game is faster than Horu, older screens are skipped rather
   than shown ever later, and the hotkey always goes first.
 - Snip: read and translate one bit of the screen.
-- Text hookers (Textractor and others) by clipboard or WebSocket.
 - AI with your own key (Google Gemini has a free tier): translations, explanations,
   follow-up questions, checks of lines OCR was unsure of, and cards.
 - Study saved words in Horu (FSRS reviews) or send them to Anki through AnkiWeb (no Anki

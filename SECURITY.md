@@ -1,7 +1,7 @@
 # Security
 
-If you find a security problem in Horu (for example a way for text on screen, a hooked line,
-or an AI reply to run code or read files, or a leak of an API key), please report it privately
+If you find a security problem in Horu (for example a way for text on screen or an AI reply
+to run code or read files, or a leak of an API key), please report it privately
 rather than in a public issue: use **Report a vulnerability** under the repository's
 [Security tab](https://github.com/LukasRuprecht/Horu/security/advisories/new).
 
@@ -13,5 +13,3 @@ What Horu handles that is worth protecting:
 - **API keys** and the AnkiWeb sign-in key, stored in Windows Credential Manager.
 - **Screenshots of your game window**, kept in memory, and on disk only in saved words'
   pictures, debug bundles, and recordings you ask for.
-- **A local WebSocket connection** to a text hooker, if you turn one on (Horu connects out to
-  the address in settings; it doesn't listen for connections).

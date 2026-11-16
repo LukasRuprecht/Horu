@@ -47,9 +47,6 @@ DEFAULTS: dict = {
     "autoCapture": False,
     # The capture hotkey, e.g. "<ctrl>+<alt>+j"; "" uses config.toml's.
     "captureHotkey": "",
-    # Lines from a text hooker (Textractor, LunaHook...): "" off, "clipboard", or "websocket".
-    "hookSource": "",
-    "hookUrl": "ws://127.0.0.1:6677",
     # Look: colours ("horu", "indigo", "matcha") and light or dark ("system" follows Windows).
     "theme": "horu",
     "colorMode": "system",

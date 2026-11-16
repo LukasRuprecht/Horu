@@ -26,7 +26,6 @@ body:
         - Hotkey
         - Auto-capture
         - Snip
-        - Text hooker
         - Not about capturing
   - type: input
     id: version
