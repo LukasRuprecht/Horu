@@ -41,9 +41,6 @@ DEFAULTS: dict = {
     "aiBaseUrl": "",
     "translationModel": "",  # "" = same model as explanations
     "ankiDeck": "Horu",
-    # How Horu reaches Anki: "web" (AnkiWeb, no Anki app needed) or "connect" (Anki open on
-    # this PC, with the AnkiConnect add-on).
-    "ankiVia": "connect",
     # Run the flashcard agent on every new dialogue line, adding words not yet in the deck.
     "autoCards": False,
     # Read the game's dialogue box by itself whenever its text changes.

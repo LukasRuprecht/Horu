@@ -54,6 +54,8 @@ _SCREENSHOT_MAX_WIDTH = 900
 _FLUSH_SECONDS = 0.05
 # How often auto-capture looks at the dialogue box.
 _WATCH_SECONDS = 0.25
+# Seconds closing waits for a capture in hand to finish.
+_CLOSE_WAIT = 3.0
 # Share of the game picture other windows may cover before auto-capture pauses.
 _MOST_COVERED = 0.5
 # Hotkey captures whose game picture is kept, for drawing auto-read regions on.
@@ -259,7 +261,7 @@ class Api:
         self._app.translate_speaker(game, text)
 
     def anki_status(self) -> dict:
-        return {**self._app.anki.status(), "deck": self._app.prefs.values["ankiDeck"], "via": self._app.prefs.values["ankiVia"]}
+        return {**self._app.anki.status(), "deck": self._app.prefs.values["ankiDeck"]}
 
     def anki_sign_in(self, email: str, password: str) -> dict:
         """Sign in to AnkiWeb (and download the collection)."""
@@ -349,7 +351,6 @@ class App:
         self._captured_pictures: OrderedDict[int, tuple[bytes, tuple[int, int], str]] = OrderedDict()  # capture id -> (JPEG, picture size, game)
         self._kept_captures: OrderedDict[int, debug_bundle.Capture] = OrderedDict()  # capture id -> the capture, for debug bundles
         self._started: dict[int, float] = {}  # line id -> when its capture began, for timing logs
-        self._anki_connect = anki.AnkiClient()
         self.anki_web = anki_web.AnkiWebClient()
         self.words = wordbook.Wordbook()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
@@ -369,6 +370,10 @@ class App:
         self._dictionary: dictionary.Dictionary | None = None
         # None: the hotkey. What the player asks for goes ahead of automatic reads (see reads.py).
         self._requests = reads.ReadQueue(covers=autocapture.still_shows)
+        # Set once the window has closed: nothing more is read or sent to the page.
+        self._closing = False
+        self._idle = threading.Event()  # clear while the worker handles a request
+        self._idle.set()
         self._hook: hook.Listener | None = None
         self.hook_state = {"state": "off", "message": ""}
         self._ids = itertools.count(1)
@@ -406,10 +411,15 @@ class App:
         # daemon one so closing the window ends Horu (it waits for captures forever).
         start_worker = lambda: threading.Thread(target=self._worker, name="horu-worker", daemon=True).start()
         webview.start(start_worker, debug=self.debug)
+        self._closing = True
         if self._tray:
             self._tray.stop()
         if self._stop_hotkey:
             self._stop_hotkey()
+        if self._hook:
+            self._hook.stop()
+        # Let a capture in hand finish writing what it learnt (speaker names, text sizes).
+        self._idle.wait(_CLOSE_WAIT)
 
     def _start_tray(self) -> tray.Tray | None:
         """The tray icon; Horu works without one (a system with no tray, a failed start)."""
@@ -449,9 +459,9 @@ class App:
             self._requests.put(None)
 
     @property
-    def anki(self) -> anki.AnkiClient | anki_web.AnkiWebClient:
+    def anki(self) -> anki_web.AnkiWebClient:
         """Anki as the learner set it up: through AnkiWeb, or the Anki app on this PC."""
-        return self.anki_web if self.prefs.values["ankiVia"] == "web" else self._anki_connect
+        return self.anki_web
 
     def lookup(self, word: dict) -> dict:
         """Dictionary entries for a word, plus name readings for names (or when the dictionary
@@ -582,13 +592,12 @@ class App:
         summary = self.words.summary(self.prefs.values["newPerDay"])
         if self.prefs.values["studyWith"] == "anki":
             deck = self.prefs.values["ankiDeck"] or "Horu"
-            via = self.prefs.values["ankiVia"]
             try:
-                if via == "web" and not self.anki_web.signed_in:
+                if not self.anki_web.signed_in:
                     raise anki.AnkiError("Sign in to AnkiWeb in Settings → Study.")
-                summary["anki"] = {"connected": True, "deck": deck, "via": via, **self.anki.due_counts(deck)}
+                summary["anki"] = {"connected": True, "deck": deck, **self.anki.due_counts(deck)}
             except anki.AnkiError as e:
-                summary["anki"] = {"connected": False, "deck": deck, "via": via, "error": str(e)}
+                summary["anki"] = {"connected": False, "deck": deck, "error": str(e)}
         return summary
 
     def reread(self, line_id: int) -> dict:
@@ -1035,8 +1044,11 @@ class App:
         if not self._load():
             return
         threading.Thread(target=self._watch, name="horu-watch", daemon=True).start()
-        while True:
+        while not self._closing:
             request = self._requests.get()
+            if self._closing:
+                return
+            self._idle.clear()
             try:
                 if isinstance(request, HookedText):
                     self._show_hooked(request)
@@ -1045,6 +1057,8 @@ class App:
             except Exception as e:  # keep the app alive; show what went wrong
                 traceback.print_exc()
                 self._status("error", f"Capture failed: {e}")
+            finally:
+                self._idle.set()
 
     def _load(self) -> bool:
         shown = [None]
@@ -1084,7 +1098,7 @@ class App:
                 self._source = text_sources.create(self.cfg.ocr_engine)
             self.apply_ai()  # AI is optional: problems are reported in settings, not fatal
             self.apply_hook()
-            if self.prefs.values["ankiVia"] == "web" and self.anki_web.signed_in:
+            if self.anki_web.signed_in:
                 self.anki_web.sync_soon(delay=0)
         except Exception as e:
             traceback.print_exc()
@@ -1431,7 +1445,7 @@ class App:
         """Look at the game picture a few times a second; read it when new text has settled
         on it."""
         watcher, watching = None, None
-        while True:
+        while not self._closing:
             time.sleep(_WATCH_SECONDS)
             try:
                 frame = self._watch_frame()
@@ -1809,6 +1823,8 @@ class App:
         self._call("setStatus", {"state": state, "message": message})
 
     def _call(self, function: str, *args) -> None:
+        if self._closing:  # the window is gone
+            return
         payload = ", ".join(json.dumps(a, ensure_ascii=False) for a in args)
         self.window.evaluate_js(f"window.horu && horu.{function}({payload})")
 

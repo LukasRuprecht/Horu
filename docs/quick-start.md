@@ -16,13 +16,15 @@ From download to your first flashcard. Each step says what you'll see in Horu's 
 
 1. Start Horu. The first time, it downloads its dictionary (about 25 MB). The status line at
    the top of the window shows the progress, then **Ready**.
-2. A short welcome asks four things. **Skip** closes it; everything in it is also in Settings.
+2. A short welcome takes you through four steps. **Skip** closes it; everything in it is also
+   in Settings.
    - **How do you want to study the words you save?** Choose **In Horu** (nothing else to
-     set up) or **With Anki** (see [step 6](#6-make-anki-cards)).
+     set up) or **With Anki** (sign in to AnkiWeb right there; see
+     [step 6](#6-make-anki-cards)).
    - **What's your Japanese level?** Only AI explanations use this.
-   - **Add AI explanations?** Optional. **Continue** leaves it for later
-     (see [step 5](#5-add-ai-optional)).
-   - **Capture your game** shows the capture hotkey. Click **Start**.
+   - **Capture your game** shows the capture hotkey.
+   - **Add AI? (optional)** is last. Leave the provider on **Not now** and click **Finish** to
+     skip it, or set it up there (see [step 5](#5-add-ai-optional)) and click **Finish**.
 3. Put Horu's window beside your game: on a second monitor, or over the game with the pin
    button (**Keep window on top**) in the Read tab's toolbar.
 
@@ -67,6 +69,9 @@ AI adds translations and explanations. You need either an API key from a cloud p
 bills each request to your own account, or [Ollama](https://ollama.com/download) running a
 free model on your PC.
 
+The welcome's last step has the same fields as below, with **Check it works** in place of
+**Test**. Choosing Ollama or another server there takes you to Settings → AI to finish.
+
 1. Open settings (the sliders button, top right) → **AI**.
 2. Choose a **Provider**.
 3. For a cloud provider: paste your key under **API key** and click **Save**. **Get a key**
@@ -90,15 +95,13 @@ What is sent to the provider, and what it costs, is in the README under
 ## 6. Make Anki cards
 
 1. Open settings → **Study** and set **Study the words you save** to **With Anki**.
-2. Under **Anki**, choose how Horu reaches it:
-   - **AnkiWeb** (no Anki app needed): enter your AnkiWeb email and password and click
-     **Sign in**. **Create a free AnkiWeb account** opens the sign-up page.
-   - **Anki on this PC:** open Anki and install the AnkiConnect add-on (in Anki: Tools →
-     Add-ons → Get Add-ons, code `2055492159`). Then click **Check connection**.
+2. Under **Anki**, enter your AnkiWeb email and password and click **Sign in**. No Anki app
+   is needed. **Create a free AnkiWeb account** opens the sign-up page.
 3. **Deck for new cards** is the deck cards go into (`Horu` unless you change it).
 4. Click a word in the Read tab, then **Add to Anki**.
 
-The card shows the word on the front with the line it came from under it. The back adds the
+Review cards on AnkiWeb, in the AnkiDroid or AnkiMobile app, or in Anki on a computer once
+it syncs. The card shows the word on the front with the line it came from under it. The back adds the
 reading, meaning, grammar notes, the translation if there is one, and a screenshot of the
 line. A word already in the deck isn't added twice.
 

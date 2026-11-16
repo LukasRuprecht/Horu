@@ -138,8 +138,11 @@ def gui() -> None:
     starting is shown in a message box. If Horu is already running, its window comes to the
     front instead."""
     if not _first_instance():
-        _show_running_window()
-        return
+        if _show_running_window():
+            return
+        if not _first_instance():  # the earlier Horu ended: start in its place
+            _message_box("An earlier Horu is still closing. Try again in a moment.")
+            return
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     log = LOG_PATH
     try:
@@ -158,6 +161,13 @@ def gui() -> None:
         traceback.print_exc()
         _message_box(f"Horu stopped: {e}\n\nDetails are in {LOG_PATH.resolve()}")
         raise
+    # The window has closed and the work in hand is done (App.run waits for it). Python's own
+    # shutdown can take seconds more (the browser control's runtime, the OCR engine's
+    # threads), and a Horu started meanwhile would find this one still running: release the
+    # data folder, then end now.
+    _release_instance()
+    sys.stdout.flush()
+    os._exit(0)
 
 
 _instance_lock = None  # held while Horu runs
@@ -176,24 +186,29 @@ def _first_instance() -> bool:
     folder = hashlib.sha1(str(Path.cwd().resolve()).lower().encode()).hexdigest()[:16]
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     kernel32.CreateMutexW.restype = ctypes.c_void_p
-    _instance_lock = kernel32.CreateMutexW(None, False, f"Local\\Horu-{folder}")
+    lock = kernel32.CreateMutexW(None, False, f"Local\\Horu-{folder}")
     if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+        # Let go of it: holding it would keep it existing after the other Horu ends.
+        kernel32.CloseHandle(ctypes.c_void_p(lock))
         return False
+    _instance_lock = lock
     PID_PATH.parent.mkdir(parents=True, exist_ok=True)
     PID_PATH.write_text(str(os.getpid()))
     return True
 
 
-def _show_running_window() -> None:
-    """Bring the running Horu's window to the front, also when it's hidden in the tray. It may
-    still be starting: give its window a few seconds to appear."""
+def _show_running_window() -> bool:
+    """Bring the running Horu's window to the front, also when it's hidden in the tray, and
+    return True. It may still be starting: its window gets a few seconds to appear. It may
+    instead be closing (its window gone, the process not yet): then wait for it to end and
+    return False, so this one can start in its place."""
     import ctypes
     from ctypes import wintypes
 
     try:
         pid = int(PID_PATH.read_text())
     except (OSError, ValueError):
-        return
+        return False
     user32 = ctypes.windll.user32
     found = []
 
@@ -207,7 +222,9 @@ def _show_running_window() -> None:
             found.append(hwnd)
         return not found
 
-    for _ in range(20):
+    for _ in range(_WAIT_FOR_OTHER * 2):
+        if not _running(pid):
+            return False
         user32.EnumWindows(visit, 0)
         if found:
             hwnd = found[0]
@@ -215,8 +232,43 @@ def _show_running_window() -> None:
             if user32.IsIconic(hwnd):
                 user32.ShowWindow(hwnd, 9)  # SW_RESTORE
             user32.SetForegroundWindow(hwnd)
-            return
+            return True
         time.sleep(0.5)
+    return False  # still running after all that, with no window: the caller says so
+
+
+# Seconds a new start waits for an earlier Horu: for its window to appear, or for it to end.
+_WAIT_FOR_OTHER = 20
+
+
+def _running(pid: int) -> bool:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return False
+    code = wintypes.DWORD()
+    ok = kernel32.GetExitCodeProcess(handle, ctypes.byref(code))
+    kernel32.CloseHandle(handle)
+    return bool(ok) and code.value == 259  # STILL_ACTIVE
+
+
+def _release_instance() -> None:
+    """Let a new start claim the data folder: called once the window has closed, while this
+    process may still take a moment to end."""
+    global _instance_lock
+    if _instance_lock:
+        import ctypes
+
+        ctypes.windll.kernel32.CloseHandle(ctypes.c_void_p(_instance_lock))
+        _instance_lock = None
+    try:
+        if PID_PATH.read_text().strip() == str(os.getpid()):
+            PID_PATH.unlink()
+    except (OSError, ValueError):
+        pass
 
 
 def _message_box(text: str) -> None:

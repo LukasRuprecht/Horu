@@ -1534,19 +1534,13 @@ linesEl.addEventListener("scroll", () => {
 });
 window.addEventListener("resize", closePopover);
 
-// --- Anki setup: AnkiWeb (no Anki app needed) or Anki on this PC (AnkiConnect) ------------
+// --- Anki setup: cards go to AnkiWeb, no Anki app needed -------------------------------------
 // The same controls in the welcome screen and in Settings → Study.
 
 const ANKI_SETUP = `
-  <div class="via-choices" role="radiogroup" aria-label="How Horu reaches Anki">
-    <button type="button" class="via" data-via="web" role="radio">
-      <b>AnkiWeb</b><small>No Anki app needed. Review at ankiweb.net, on your phone, or in Anki on any computer.</small>
-    </button>
-    <button type="button" class="via" data-via="connect" role="radio">
-      <b>Anki on this PC</b><small>Needs Anki open, with the AnkiConnect add-on.</small>
-    </button>
-  </div>
   <div class="via-web">
+    <p class="check-hint flush">Cards go to your AnkiWeb account: review them at ankiweb.net, on your phone, or in
+      Anki on any computer once it syncs.</p>
     <div class="web-account" hidden>
       <span class="web-who"></span>
       <div class="test-row"><button type="button" class="web-sync">Sync now</button><button type="button" class="web-out">Sign out</button></div>
@@ -1559,47 +1553,22 @@ const ANKI_SETUP = `
     <p class="web-status test-result"></p>
     <p class="check-hint flush">Your password goes only to AnkiWeb; Horu keeps the sign-in key AnkiWeb returns in
       Windows Credential Manager. Cards sync as you add them.</p>
-  </div>
-  <div class="via-connect">
-    <div class="test-row"><button type="button" class="connect-check">Check connection</button></div>
-    <p class="connect-status test-result"></p>
-    <p class="check-hint flush">Install AnkiConnect in Anki: Tools → Add-ons → Get Add-ons, code 2055492159.</p>
   </div>`;
 
 function ankiSetup(root) {
   root.innerHTML = ANKI_SETUP;
   const find = (selector) => root.querySelector(selector);
   const show = (status) => {
-    const via = state.prefs.ankiVia || "connect";
-    for (const b of root.querySelectorAll(".via")) b.setAttribute("aria-checked", String(b.dataset.via === via));
-    find(".via-web").hidden = via !== "web";
-    find(".via-connect").hidden = via !== "connect";
     if (!status) return;
-    if (via === "web") {
-      const signedIn = Boolean(status.account);
-      find(".web-account").hidden = !signedIn;
-      find(".web-sign-in").hidden = signedIn;
-      find(".web-who").textContent = signedIn ? `Signed in as ${status.account}.` : "";
-      const result = find(".web-status");
-      result.className = `web-status test-result ${status.error && signedIn ? "error" : signedIn ? "ok" : ""}`;
-      result.textContent = signedIn ? (status.error || `Cards go to the "${status.deck}" deck on AnkiWeb.`) : "";
-    } else {
-      const result = find(".connect-status");
-      result.className = `connect-status test-result ${status.connected ? "ok" : "error"}`;
-      result.textContent = status.connected ? `Connected. Cards go to the "${status.deck}" deck (created if needed).` : status.error;
-    }
+    const signedIn = Boolean(status.account);
+    find(".web-account").hidden = !signedIn;
+    find(".web-sign-in").hidden = signedIn;
+    find(".web-who").textContent = signedIn ? `Signed in as ${status.account}.` : "";
+    const result = find(".web-status");
+    result.className = `web-status test-result ${status.error && signedIn ? "error" : signedIn ? "ok" : ""}`;
+    result.textContent = signedIn ? (status.error || `Cards go to the "${status.deck}" deck on AnkiWeb.`) : "";
   };
-  const refresh = async () => {
-    show(null);
-    if ((state.prefs.ankiVia || "connect") === "connect") find(".connect-status").textContent = "Checking...";
-    show(await api().anki_status());
-  };
-  for (const b of root.querySelectorAll(".via")) {
-    b.addEventListener("click", () => {
-      setPref("ankiVia", b.dataset.via);
-      refreshAnkiSetups();
-    });
-  }
+  const refresh = async () => show(await api().anki_status());
   find(".web-sign-in").addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = find(".web-email").value.trim();
@@ -1843,11 +1812,8 @@ function renderStudy(s) {
   const anki = s.anki;
   $("#anki-study").hidden = !anki;
   if (anki) {
-    const web = anki.via === "web";
-    $("#anki-due").textContent = anki.connected
-      ? `${anki.due} due, ${anki.new} new in ${anki.deck}`
-      : web ? anki.error : "Not connected. Open Anki to see your deck.";
-    $("#review-in-anki").textContent = web ? "Review on AnkiWeb" : "Review in Anki";
+    $("#anki-due").textContent = anki.connected ? `${anki.due} due, ${anki.new} new in ${anki.deck}` : anki.error;
+    $("#review-in-anki").textContent = "Review on AnkiWeb";
     $("#review-in-anki").disabled = !anki.connected;
   }
 
@@ -1996,7 +1962,7 @@ function renderWelcome() {
   $("#welcome-anki").hidden = welcome.study !== "anki";
   if (ankiWasHidden && welcome.study === "anki") $("#welcome-anki-setup").refresh();
   $("#welcome-back").hidden = welcome.step === 0;
-  $("#welcome-next").textContent = welcome.step === 3 ? "Start" : "Continue";
+  $("#welcome-next").textContent = welcome.step === 3 ? "Finish" : "Continue";
   $("#welcome-next").disabled = welcome.step === 0 && !welcome.study;
   if (welcome.step === 1) {
     const current = state.prefs.learnerLevel || LEVELS[1];
@@ -2010,9 +1976,7 @@ function renderWelcome() {
       return b;
     }));
   }
-  if (welcome.step === 2) {
-    $("#welcome-ai-status").textContent = state.ai.enabled ? `AI is on: ${state.ai.label}.` : "";
-  }
+  if (welcome.step === 3) renderWelcomeAI();
 }
 
 for (const choice of document.querySelectorAll(".choice[data-study]")) {
@@ -2030,22 +1994,108 @@ $("#welcome-deck").addEventListener("change", () => {
   refreshAnkiSetups();
 });
 
-// Choosing a provider needs its key and a model name: the AI settings have all of that.
-$("#welcome-ai-setup").addEventListener("click", () => {
-  closeWelcome();
-  showView("settings");
-  showPane("ai");
+// The last step: a provider, its key, and a model, set up right here. Ollama (models to
+// download) and other servers (an address to fill in) are finished in Settings → AI.
+const NEEDS_SETTINGS = new Set(["ollama", "custom"]);
+
+async function renderWelcomeAI() {
+  if (!aiSetup.settings) await loadAISettings();
+  const s = aiSetup.settings;
+  const select = $("#welcome-ai-provider");
+  if (!select.options.length) {
+    select.replaceChildren(...Object.entries(s.presets).map(([id, p]) => {
+      const option = el("option", null, id === "none" ? "Not now" : p.label);
+      option.value = id;
+      return option;
+    }));
+    select.value = state.ai.enabled ? s.provider || "none" : "none";
+    $("#welcome-ai-model").value = state.ai.enabled ? s.model : "";
+  }
+  const id = select.value;
+  const preset = s.presets[id] || {};
+  const on = id !== "none";
+  const needsKey = Boolean(preset.key_env);
+  $("#welcome-ai-key-row").hidden = !needsKey;
+  $("#welcome-key-link").hidden = !preset.key_url;
+  $("#welcome-key").placeholder = s.savedKeys.includes(id) ? "Key saved. Paste a new one to replace it" : "Paste your key";
+  $("#welcome-ai-model-row").hidden = !on || NEEDS_SETTINGS.has(id);
+  $("#welcome-ai-check-row").hidden = !on || NEEDS_SETTINGS.has(id);
+  $("#welcome-ai-note").textContent = NEEDS_SETTINGS.has(id)
+    ? `${preset.label}: Finish opens Settings → AI to ${id === "ollama" ? "download a model" : "fill in the server's address and model"}.`
+    : on ? "Requests are billed to your own account with the provider. You can change this any time in Settings → AI."
+      : "You can set up AI any time in Settings → AI.";
+}
+
+$("#welcome-ai-provider").addEventListener("change", () => {
+  const s = aiSetup.settings;
+  const id = $("#welcome-ai-provider").value;
+  $("#welcome-ai-model").value = (s.presets[id] || {}).model || (id === s.provider ? s.model : "");
+  $("#welcome-ai-status").textContent = "";
+  renderWelcomeAI();
 });
-$("#welcome-hotkey-change").addEventListener("click", () => {
-  closeWelcome();
-  showView("settings");
-  showPane("capture");
+
+// Saves what's filled in. With `check`, also sends a tiny request. True when AI works.
+async function applyWelcomeAI(check) {
+  const id = $("#welcome-ai-provider").value;
+  const status = $("#welcome-ai-status");
+  const key = $("#welcome-key").value.trim();
+  if (key) {
+    await api().save_api_key(id, key);
+    $("#welcome-key").value = "";
+  }
+  const changes = { aiProvider: id };
+  if (!NEEDS_SETTINGS.has(id)) changes.aiModel = $("#welcome-ai-model").value.trim();
+  const info = await api().set_ai(changes);
+  horu.setAI(info);
+  await loadAISettings();
+  renderWelcomeAI();
+  if (!info.enabled) {
+    status.className = "test-result error";
+    status.textContent = info.error || "That didn't work.";
+    return false;
+  }
+  if (!check) return true;
+  status.className = "test-result";
+  status.textContent = "Checking...";
+  const result = await api().test_ai();
+  status.className = `test-result ${result.ok ? "ok" : "error"}`;
+  status.textContent = result.ok ? `Working: ${info.label}.` : result.message;
+  return result.ok;
+}
+
+$("#welcome-ai-check").addEventListener("click", () => applyWelcomeAI(true));
+$("#welcome-key").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") applyWelcomeAI(true);
 });
+$("#welcome-key-link").addEventListener("click", () => {
+  const preset = aiSetup.settings.presets[$("#welcome-ai-provider").value];
+  if (preset && preset.key_url) openExternal(preset.key_url);
+});
+
+async function finishWelcome() {
+  const id = $("#welcome-ai-provider").value;
+  if (id === "none") {
+    closeWelcome();
+    showView("read");
+    return;
+  }
+  if (NEEDS_SETTINGS.has(id)) {
+    await applyWelcomeAI(false);
+    closeWelcome();
+    showView("settings");
+    showPane("ai");
+    return;
+  }
+  // A problem with the key or model is shown here, to fix (or Skip) before leaving.
+  if (await applyWelcomeAI(false)) {
+    closeWelcome();
+    showView("read");
+  }
+}
 $("#welcome-back").addEventListener("click", () => { welcome.step = Math.max(0, welcome.step - 1); renderWelcome(); });
 $("#welcome-next").addEventListener("click", () => {
   if (welcome.step === 3) {
-    closeWelcome();
-    showView("read");
+    finishWelcome();
     return;
   }
   welcome.step++;

@@ -104,7 +104,7 @@
           <b>Anki</b>
           <span id="anki-due"></span>
         </div>
-        <button id="review-in-anki" class="pill-btn" type="button">Review in Anki</button>
+        <button id="review-in-anki" class="pill-btn" type="button">Review on AnkiWeb</button>
       </div>
       <div id="study-games" class="games"></div>
     </div>
@@ -420,7 +420,7 @@
           <button class="choice" type="button" data-study="anki">
             <span class="choice-icon anki" aria-hidden="true">A</span>
             <b>With Anki</b>
-            <small>Words become cards in your Anki deck: through AnkiWeb (no Anki app needed), or Anki on this PC.</small>
+            <small>Words become cards in your Anki deck, through your AnkiWeb account (no Anki app needed).</small>
           </button>
         </div>
         <div id="welcome-anki" class="welcome-anki" hidden>
@@ -439,25 +439,40 @@
       </div>
 
       <div class="welcome-step" data-step="2" hidden>
-        <h2>Add AI explanations?</h2>
-        <p>Optional. Translations, grammar breakdowns and fixes for misread lines use an AI model: a
-          cloud provider with your own API key, or a free model running on this PC with Ollama.
-          Everything else works without it.</p>
-        <div class="welcome-hotkey">
-          <button id="welcome-ai-setup" class="pill-btn" type="button">Set up AI in Settings</button>
-          <span id="welcome-ai-status"></span>
-        </div>
-        <p class="check-hint flush">You can do this any time: Settings → AI. Cloud providers bill each request to your own account.</p>
-      </div>
-
-      <div class="welcome-step" data-step="3" hidden>
         <h2>Capture your game</h2>
         <p>Switch to your game and press the hotkey. The text on screen shows up in Read, and you can click any word.</p>
         <div class="welcome-hotkey">
           <kbd id="welcome-hotkey" class="hotkey-name big"></kbd>
-          <button id="welcome-hotkey-change" class="pill-btn" type="button">Change in Settings</button>
         </div>
-        <p class="check-hint flush">Or turn on auto-capture (the eye button in Read) to read new dialogue by itself.</p>
+        <p class="check-hint flush">Or turn on auto-capture (the eye button in Read) to read new dialogue by itself.
+          You can change the hotkey later in Settings → Capture.</p>
+      </div>
+
+      <div class="welcome-step" data-step="3" hidden>
+        <h2>Add AI? (optional)</h2>
+        <p>Translations, grammar breakdowns and fixes for misread lines use an AI model: a cloud provider with
+          your own API key, or a free model running on this PC with Ollama. Everything else works without it.</p>
+        <label class="field">
+          <span>Provider</span>
+          <select id="welcome-ai-provider"></select>
+        </label>
+        <div id="welcome-ai-key-row" class="field" hidden>
+          <span>API key</span>
+          <input id="welcome-key" type="password" placeholder="Paste your key" autocomplete="off" spellcheck="false">
+          <div class="field-hint">
+            <button id="welcome-key-link" class="link" type="button">Get a key</button>
+          </div>
+        </div>
+        <label id="welcome-ai-model-row" class="field" hidden>
+          <span>Model</span>
+          <input id="welcome-ai-model" type="text" list="ai-model-list" placeholder="Model name" spellcheck="false">
+        </label>
+        <div id="welcome-ai-check-row" class="test-row" hidden>
+          <button id="welcome-ai-check" type="button">Check it works</button>
+          <span id="welcome-ai-status" class="test-result"></span>
+        </div>
+        <p id="welcome-ai-note" class="check-hint flush">Cloud providers bill each request to your own account.
+          You can change this any time in Settings → AI.</p>
       </div>
 
       <footer class="welcome-actions">

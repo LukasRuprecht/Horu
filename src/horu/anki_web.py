@@ -3,8 +3,7 @@ syncs with AnkiWeb (through fastanki, https://github.com/AnswerDotAI/fastanki). 
 on ankiweb.net or in AnkiDroid/AnkiMobile; a desktop Anki on the same account gets the cards
 when it syncs.
 
-Same interface as anki.AnkiClient, so the rest of Horu doesn't care which one it uses. The
-learner signs in once: the AnkiWeb password is only sent to AnkiWeb, and only the sync key it
+The learner signs in once: the AnkiWeb password is only sent to AnkiWeb, and only the sync key it
 returns is kept (in the operating system's credential store, like API keys).
 
 Screenshots go inside the card, as a small JPEG in the field (Anki, AnkiWeb, and the phone
@@ -74,7 +73,7 @@ class AnkiWebClient:
     def sign_out(self) -> None:
         self._keys.delete()
 
-    # --- the AnkiClient interface ----------------------------------------------------
+    # --- what the rest of Horu uses ---------------------------------------------------
 
     def status(self) -> dict:
         if not self.signed_in:

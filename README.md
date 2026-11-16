@@ -88,7 +88,8 @@ New to Horu? The [quick start guide](docs/quick-start.md) walks through installi
 looking words up, adding AI, and making Anki cards, one step at a time.
 
 1. **Start Horu.** The first time, a short welcome asks how you want to study (in Horu or with
-   Anki) and your level, and points to where AI is set up if you want it. Put the window beside your game: on a second
+   Anki) and your level, shows the capture hotkey, and ends with setting up AI if you want it.
+   Put the window beside your game: on a second
    monitor, or pinned on top (the pin button).
 2. **Run your game in windowed or borderless windowed mode.** Exclusive fullscreen often
    can't be captured.
@@ -194,18 +195,13 @@ Your words stay on your PC, in `data/words.db`.
 ### Anki
 
 To study in Anki instead, choose **With Anki** in the welcome screen or in
-**Settings → Study**, then how Horu reaches Anki:
+**Settings → Study**, and sign in with your [AnkiWeb](https://ankiweb.net) account (free; no
+Anki app needed). Cards go into your collection and sync to AnkiWeb as you add them; review
+them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on any computer once it syncs. Your
+password goes only to AnkiWeb, and Horu keeps the sign-in key it returns in Windows Credential
+Manager. Horu keeps a copy of your collection (without its media) in `data/anki`. Screenshots
+are stored inside the card, so Horu never downloads your media.
 
-- **AnkiWeb** (no Anki app needed): sign in with your [AnkiWeb](https://ankiweb.net) account
-  (free). Cards go into your collection and sync to AnkiWeb as you add them; review them at
-  ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on any computer. Your password goes only to
-  AnkiWeb, and Horu keeps the sign-in key it returns in Windows Credential Manager. Horu keeps a
-  copy of your collection (without its media) in `data/anki`. Screenshots are stored inside the
-  card, so Horu never downloads your media.
-- **Anki on this PC**: with Anki open and the
-  [AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on installed.
-
-Either way:
 
 - **Add to Anki** in a word's popup adds a card (its ▾ saves the word in Horu instead): the
   word on the front with the line it came from under it; on the back its reading, meaning,
@@ -216,8 +212,8 @@ Either way:
   OpenAI, or an Ollama model such as qwen3).
 - Optionally (off by default), Horu adds cards automatically from every new dialogue line.
 
-- The Study tab shows how many cards are due in your deck, with a button to review them in
-  Anki (or on AnkiWeb). **Words** can add words you saved in Horu to Anki.
+- The Study tab shows how many cards are due in your deck, with a button to review them on
+  AnkiWeb. **Words** can add words you saved in Horu to Anki.
 
 The deck is set in **Settings → Study**.
 
@@ -245,7 +241,6 @@ The deck is set in **Settings → Study**.
 | Furigana, word popups, dictionary and grammar notes, JLPT levels | AI translations, explanations, checks of misread lines, AI-made cards: a cloud provider and your own key, or a local Ollama model |
 | Auto-capture, snips, text hookers | AnkiWeb, if you choose it for Anki |
 | Saving words and reviewing them in the Study tab | |
-| Anki through AnkiConnect (Anki on the same PC) | |
 
 ## Privacy
 

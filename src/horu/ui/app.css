@@ -1316,15 +1316,6 @@ body.no-furigana .settings-page .preview rt { display: revert; }
 .choice-icon.anki { background: var(--soft-bg); color: var(--soft-ink); font-family: var(--ui); }
 .choices.compact .choice { grid-template-columns: minmax(0, 1fr); padding: 10px 14px; }
 .anki-setup { margin-bottom: 8px; }
-.via-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 10px; }
-.via {
-  display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 12px;
-  border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--text); cursor: pointer;
-}
-.via:hover { border-color: var(--muted); }
-.via[aria-checked="true"] { border-color: var(--accent); background: var(--card-new); }
-.via b { font-size: 13px; }
-.via small { color: var(--muted); font-size: 12px; line-height: 1.4; }
 .web-who { font-size: 13px; }
 .anki-setup .link { background: none; border: none; color: var(--accent); padding: 0; cursor: pointer; font-size: 12px; }
 .welcome-anki { padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
