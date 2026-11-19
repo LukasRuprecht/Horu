@@ -20,6 +20,8 @@ import webbrowser
 from collections import OrderedDict, deque
 from pathlib import Path
 
+from PIL import Image
+
 from horu import ai_setup, anki, anki_web, autocapture, capture, config, correction, corrections, debug_bundle, dictionary, hotkey, layout, llm, prefs, reads, recorder, snip, speakers, text_sources, translations, tray, wordbook
 from horu.nlp import analyze
 from horu.text_sources import rapidocr_source
@@ -50,6 +52,10 @@ _UNCERTAIN = 0.9
 # Screenshots of recent lines, kept for flashcards.
 _SCREENSHOTS_KEPT = 300
 _SCREENSHOT_MAX_WIDTH = 900
+# The whole game scene of recent lines, for saved words and flashcards: as a JPEG, this wide
+# at most (the dialogue stays readable), for this many lines (lines read together share one).
+_SCENES_KEPT = 120
+_SCENE_MAX_WIDTH = 1280
 # Streamed AI text is pushed to the page at most this often.
 _FLUSH_SECONDS = 0.05
 # How often auto-capture looks at the dialogue box.
@@ -283,8 +289,9 @@ class Api:
         return {"words": self._app.words.words(query=query.strip(), game=game, status=status), "games": self._app.words.games()}
 
     def word_image(self, word_id: int) -> str | None:
-        png = self._app.words.image(word_id)
-        return png and "data:image/png;base64," + base64.b64encode(png).decode()
+        picture = self._app.words.image(word_id)
+        kind = "jpeg" if picture and picture[:2] == b"\xff\xd8" else "png"  # whole scenes are JPEGs; older words' crops PNGs
+        return picture and f"data:image/{kind};base64," + base64.b64encode(picture).decode()
 
     def remove_word(self, word_id: int) -> None:
         self._app.words.remove(word_id)
@@ -344,7 +351,8 @@ class App:
         self.words = wordbook.Wordbook()
         self._card_queue: queue.Queue[int] = queue.Queue()  # lines waiting for automatic cards
         self._card_worker: threading.Thread | None = None
-        self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG
+        self._screenshots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG around the line, for AI checks
+        self._scenes: OrderedDict[int, bytes] = OrderedDict()  # line id -> JPEG of the whole scene, for flashcards
         self._speaker_shots: dict[int, bytes] = {}  # line id -> PNG of a doubtful name tag, until checked
         self._guessed_shots: OrderedDict[int, bytes] = OrderedDict()  # line id -> PNG of a guessed name tag
         self.translations = translations.TranslationMemory()
@@ -518,7 +526,7 @@ class App:
         card = self._written_card(line_id, index, part)
         deck = self.prefs.values["ankiDeck"] or "Horu"
         try:
-            self.anki.add_card(deck, card, self._screenshots.get(line_id))
+            self.anki.add_card(deck, card, self.scene_for(line_id))
         except anki.AnkiError as e:
             return {"ok": False, "message": str(e)}
         return {"ok": True, "message": f"Added {card.dictionary_form} to {deck}."}
@@ -542,7 +550,7 @@ class App:
             speaker=line["speaker"]["text"] if line["speaker"] and part != "speaker" else "",
             translation=card.translation,
             game=line["game"],
-            screenshot_png=self._screenshots.get(line_id),
+            screenshot_png=self.scene_for(line_id),
         )
         if not new:
             return {"ok": True, "message": f"{card.dictionary_form} is already in your words.", "id": saved["id"]}
@@ -664,10 +672,27 @@ class App:
                 self._ready()
 
     def _keep_screenshot(self, line_id: int, image, box: tuple[int, int, int, int]) -> None:
-        """A crop around the line (with some surrounding scene) for its flashcards."""
+        """A crop around the line (with a little of the scene), for the AI to check the reading."""
         self._screenshots[line_id] = _png(image, box, margin=max(40, box[3] - box[1]))
         while len(self._screenshots) > _SCREENSHOTS_KEPT:
             self._screenshots.popitem(last=False)
+
+    def _keep_scene(self, line_ids: list[int], image, picture: autocapture.Pixels | None) -> None:
+        """The whole game scene the lines were read from (the game's picture, without an
+        emulator's bars), for their saved words and flashcards. Lines read together share it."""
+        if not line_ids:
+            return
+        scene = _jpeg(image.crop(picture) if picture else image, _SCENE_MAX_WIDTH)
+        for line_id in line_ids:
+            self._scenes[line_id] = scene
+            self._scenes.move_to_end(line_id)
+        while len(self._scenes) > _SCENES_KEPT:
+            self._scenes.popitem(last=False)
+
+    def scene_for(self, line_id: int) -> bytes | None:
+        """The picture a line's flashcard gets: its whole scene, or (for a line whose scene is no
+        longer kept) the crop around it."""
+        return self._scenes.get(line_id) or self._screenshots.get(line_id)
 
     def _words(self, text: str) -> list[dict]:
         """The words of a line, for the UI. With the dictionary loaded, words come out as it has
@@ -1222,6 +1247,7 @@ class App:
             return
         if picture is not None:
             self._keep_picture(capture_id, image, picture, game)
+        self._keep_scene([line["id"] for line in lines if not line["repeat"]], image, None if snipped else autocapture.scene_box(image))
         for line, block in zip(lines, blocks):
             self.lines[line["id"]] = line
             if not line["repeat"]:
@@ -1356,6 +1382,7 @@ class App:
         words = self.update_line(last_id, text)
         line.update(uncertain=new[0]["uncertain"], alternatives=new[0]["alternatives"], aiReading=None, suggestion=None)
         self._keep_screenshot(last_id, image, blocks[lines.index(new[0])].box)
+        self._keep_scene([last_id], image, autocapture.scene_box(image))
         self._last_auto[region] = (last_id, text)
         self._call("lineUpdated", {"id": last_id, "text": text, "words": words, "uncertain": line["uncertain"]})
         # The page translates the full line again; a line OCR was unsure of needs its own check.
@@ -1808,6 +1835,16 @@ def _pieces_of(text: str, shown: list[str]) -> bool:
             if _same_line(text, "".join(shown[start : start + count])):
                 return True
     return False
+
+
+def _jpeg(image, max_width: int) -> bytes:
+    """A JPEG of `image`, no wider than `max_width`."""
+    image = image.convert("RGB")
+    if image.width > max_width:
+        image = image.resize((max_width, round(image.height * max_width / image.width)), Image.LANCZOS)
+    buffer = io.BytesIO()
+    image.save(buffer, format="JPEG", quality=85)
+    return buffer.getvalue()
 
 
 def _png(image, box: tuple[int, int, int, int], margin: int) -> bytes:

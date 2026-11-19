@@ -33,7 +33,7 @@ KEYRING_SERVICE = "Horu"
 _KEY_NAME = "ankiweb-sync-key"
 _COUNTS_SYNC_SECONDS = 60
 # Screenshots in cards: this wide at most, as JPEG at this quality (about 40 KB each).
-_SHOT_WIDTH, _SHOT_QUALITY = 640, 75
+_SHOT_WIDTH, _SHOT_QUALITY = 960, 80  # the whole scene: wide enough to read its dialogue
 
 
 class AnkiWebClient:

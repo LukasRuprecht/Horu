@@ -134,7 +134,7 @@ def card_tools(
         card.meaning = args["meaning"].strip() or card.meaning
         card.notes = "; ".join(filter(None, [args["note"].strip(), card.notes]))
         try:
-            target.add_card(deck, card, app._screenshots.get(line_id))
+            target.add_card(deck, card, app.scene_for(line_id))
         except anki.AnkiError as e:
             return f"Not added: {e}"
         added.append(card.dictionary_form)

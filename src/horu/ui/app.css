@@ -912,7 +912,7 @@ body.no-furigana .text rt { display: none; }
 .review { display: flex; flex-direction: column; gap: 10px; }
 .review-top { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 13px; }
 .review-card { overflow: hidden; }
-.review-shot { display: block; width: 100%; max-height: 220px; object-fit: contain; background: #000; }
+.review-shot { display: block; width: 100%; max-height: 340px; object-fit: contain; background: #000; }
 .review-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; }
 .review-meta { margin: 0; color: var(--faint); font-size: 12px; }
 .review-sentence { margin: 0; font: calc(var(--text-size) * 0.9) / 1.7 var(--jp); text-align: center; }

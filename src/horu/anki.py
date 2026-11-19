@@ -3,7 +3,7 @@
 Horu adds notes of its own type, "Horu Sentence", which it creates on first use: the word on
 the front, with the
 line from the game it came from under it; reading, meaning, grammar notes, translation, and a
-screenshot of the line on the back.
+screenshot of the scene on the back.
 """
 
 from __future__ import annotations

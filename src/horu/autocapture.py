@@ -211,6 +211,20 @@ def picture_box(image: Image.Image) -> Pixels:
     return left, top, right, bottom
 
 
+def scene_box(image: Image.Image) -> Pixels:
+    """The game picture for showing the whole scene (a flashcard's picture): picture_box, but
+    the sides are cut only when they really are bars, nearly every pixel black. A dark scene
+    (a dungeon, a night street) has dim columns at its edges that picture_box takes for bars,
+    yet they hold detail."""
+    left, top, right, bottom = picture_box(image)
+    if left > 0 or right < image.width:
+        values = np.asarray(image.convert("L"))[top:bottom]
+        sides = np.concatenate([values[:, :left].ravel(), values[:, right:].ravel()])
+        if sides.size and (sides > _BLACK).mean() > 0.01:
+            left, right = 0, image.width
+    return left, top, right, bottom
+
+
 def _longest_run(flags: np.ndarray) -> tuple[int, int]:
     """(start, end) of the longest run of True values."""
     best, start = (0, 0), None

@@ -39,7 +39,7 @@ create table if not exists words (
     speaker text not null default '',
     translation text not null default '',
     game text not null default '',
-    image text,                          -- file in the images folder: the line's screenshot
+    image text,                          -- file in the images folder: the scene the word was saved from
     added real not null,
     card text not null,                  -- the FSRS card, as JSON
     due real not null,
@@ -97,9 +97,11 @@ class Wordbook:
             )
             word_id = cursor.lastrowid
             if screenshot_png:
+                # The whole scene comes as a JPEG; words saved before that have a PNG crop.
+                name = f"{word_id}.jpg" if screenshot_png[:2] == b"\xff\xd8" else f"{word_id}.png"
                 self.images.mkdir(parents=True, exist_ok=True)
-                (self.images / f"{word_id}.png").write_bytes(screenshot_png)
-                self.db.execute("update words set image = ? where id = ?", (f"{word_id}.png", word_id))
+                (self.images / name).write_bytes(screenshot_png)
+                self.db.execute("update words set image = ? where id = ?", (name, word_id))
             self.db.commit()
             return self.get(word_id, now), True
 
@@ -112,11 +114,14 @@ class Wordbook:
             self.db.execute("delete from words where id = ?", (word_id,))
             self.db.execute("delete from reviews where word_id = ?", (word_id,))
             self.db.commit()
-        (self.images / f"{word_id}.png").unlink(missing_ok=True)
+        for name in (f"{word_id}.jpg", f"{word_id}.png"):
+            (self.images / name).unlink(missing_ok=True)
 
     def image(self, word_id: int) -> bytes | None:
-        path = self.images / f"{word_id}.png"
-        return path.read_bytes() if path.exists() else None
+        for name in (f"{word_id}.jpg", f"{word_id}.png"):
+            if (self.images / name).exists():
+                return (self.images / name).read_bytes()
+        return None
 
     def words(self, *, query: str = "", game: str = "", status: str = "", now: float | None = None) -> list[dict]:
         """Saved words, newest first, filtered by text (Japanese or English), game and status

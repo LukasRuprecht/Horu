@@ -101,20 +101,20 @@ that, once, and translate all of it if you have AI set up.
 ### Studying in Horu
 
 **Save** in a word's popup keeps the word with its line, speaker, translation, game and a
-picture of the line. The **Words** tab lists everything saved. The **Study** tab reviews them:
-the line with the word and its screenshot, then the answer, and you rate how well you knew it
-(10 new words a day by default, in **Settings → Study**). With AI, **Cards** on a line picks the words worth
-learning at your level and saves them for you.
+screenshot of the whole scene. The **Words** tab lists everything saved. The **Study** tab
+reviews them: the line with the word and its screenshot, then the answer, and you rate how
+well you knew it (10 new words a day by default, in **Settings → Study**). With AI, **Cards**
+on a line picks the words worth learning at your level and saves them for you.
 
 ### Anki
 
 Choose **With Anki** in the welcome or in **Settings → Study**, and sign in with your
 [AnkiWeb](https://ankiweb.net) account (free; no Anki app needed). **Add to Anki** in a word's
 popup then adds a card: the word, with the line it came from under it; on the back its
-reading, meaning, grammar notes, translation and a screenshot. Cards sync as you add them, so
-you can review them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on a computer.
-With AI, **Cards** on a line picks the words worth learning at your level and adds them to
-your deck.
+reading, meaning, grammar notes, translation and a screenshot of the scene. Cards sync as you
+add them, so you can review them at ankiweb.net, in AnkiDroid or AnkiMobile, or in Anki on a
+computer. With AI, **Cards** on a line picks the words worth learning at your level and adds
+them to your deck.
 
 ### When Horu gets something wrong
 

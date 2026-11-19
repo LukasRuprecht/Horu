@@ -141,6 +141,7 @@ def fake_app(deck):
     }
     app = SimpleNamespace(lines={1: line}, anki=deck, _screenshots={1: b"png"},
                           prefs=SimpleNamespace(values={"ankiDeck": "Horu", "learnerLevel": "Beginner", "studyWith": "anki"}))
+    app.scene_for = lambda line_id: app._screenshots.get(line_id)  # the picture a card gets
     app.card_for = lambda line_id, index: anki.Card(
         sentence=line["text"], word=line["words"][index]["surface"], dictionary_form=line["words"][index]["dictionary_form"],
         reading=line["words"][index]["dictionary_reading"], meaning="from JMdict", notes="",

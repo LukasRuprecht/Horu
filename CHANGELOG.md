@@ -16,6 +16,6 @@ The first public release, for Windows 10 and 11.
   follow-up questions, checks of lines OCR was unsure of, and cards.
 - Study saved words in Horu (FSRS reviews) or send them to Anki through AnkiWeb (no Anki
   app needed).
-  Cards show the word, with the line it came from under it, and a screenshot on the back.
+  Cards show the word, with the line it came from under it, and a screenshot of the scene on the back.
 - Debug bundles for reporting a misread screen, and recordings for measuring auto-capture.
 - A Windows installer (per user, no administrator prompt).

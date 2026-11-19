@@ -87,7 +87,7 @@ level and its meanings. This works offline.
 
 <img src="images/qs-popup.png" width="420" alt="The popup for 駅: reading, JLPT level, meanings, and the Explain in context and Save buttons">
 
-- **Save** keeps the word, with its line and a picture of it. (With Anki the button says
+- **Save** keeps the word, with its line and a screenshot of the scene. (With Anki the button says
   **Add to Anki** and makes a card instead.)
 - **Explain in context** (AI) explains the word as it's used in this line.
 
