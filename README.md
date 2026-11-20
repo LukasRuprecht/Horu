@@ -32,7 +32,7 @@ The goal is to cut lookup time so you can stay in the game.
 
 ## Get started
 
-1. Download **Horu-Setup-0.1.0.exe** from the
+1. Download **Horu-Setup-0.1.1.exe** from the
    [latest release](https://github.com/LukasRuprecht/Horu/releases/latest) and run it.
    Windows may say **"Windows protected your PC"** because the installer isn't code-signed
    yet: click **More info**, then **Run anyway**.

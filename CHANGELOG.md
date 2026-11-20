@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Saved words and Anki cards now show the whole scene, not a crop around the line. The scene
+  is found by cutting black bars only, so dark scenes stay whole; pictures are saved as JPEG
+  to keep cards small.
+
 ## 0.1.0
 
 The first public release, for Windows 10 and 11.
